@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
-  Activity, ArrowDownRight, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
-  Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Clock3, Command,
+  Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
+  Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command,
   CreditCard, Database, FileText, FolderKanban, Gauge, GitBranch, LayoutDashboard,
-  ListTodo, LockKeyhole, Menu, MessageSquareText, Plus, Search, Settings2, ShieldCheck,
-  Sparkles, Target, Users, X, Zap,
+  ListTodo, LockKeyhole, Menu, Plus, Search, Settings2, ShieldCheck,
+  Sparkles, Users, X, Zap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -72,7 +72,7 @@ function StatusDot({ tone = "blue" }: { tone?: string }) {
   return <span className={`status-dot ${tone}`} />;
 }
 
-function SectionHeading({ eyebrow, title, right }: { eyebrow?: string; title: string; right?: React.ReactNode }) {
+function SectionHeading({ eyebrow, title, right }: { eyebrow?: string; title: string; right?: ReactNode }) {
   return <div className="section-heading"><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h2>{title}</h2></div>{right}</div>;
 }
 
