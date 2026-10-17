@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import GitHubProjectsPage from "./GitHubProjectsPage";
 import {
   Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command,
   CreditCard, Database, FileText, FolderKanban, Gauge, GitBranch, LayoutDashboard,
   ListTodo, LockKeyhole, Menu, Plus, Search, Settings2, ShieldCheck,
-  Sparkles, Users, X, Zap,
+  Sparkles, Users, X, Zap, Github, Sun, Moon,
   type LucideIcon,
 } from "lucide-react";
 
 type ModuleKey =
   | "Overview" | "Projects" | "Tasks" | "AI Workforce" | "Approvals"
   | "Customers & CRM" | "Finance" | "Products & Services" | "Infrastructure"
-  | "Security & Audit" | "Knowledge Base" | "Reports & Settings";
+  | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub";
 
 type NavItem = { label: ModuleKey; icon: LucideIcon; group: string; badge?: string };
 
@@ -28,6 +29,7 @@ const navItems: NavItem[] = [
   { label: "Security & Audit", icon: LockKeyhole, group: "SYSTEMS" },
   { label: "Knowledge Base", icon: FileText, group: "SYSTEMS" },
   { label: "Reports & Settings", icon: Settings2, group: "SYSTEMS" },
+  { label: "GitHub", icon: Github, group: "SYSTEMS" },
 ];
 
 const projects = [
@@ -62,6 +64,7 @@ const descriptions: Record<ModuleKey, string> = {
   "Security & Audit": "Review access, audit events, risks and incident readiness.",
   "Knowledge Base": "Keep company decisions, playbooks and technical notes searchable.",
   "Reports & Settings": "Configure your workspace, team, notifications and reporting.",
+  "GitHub": "Browse repositories, deployment links and live-site previews.",
 };
 
 function BrandMark() {
@@ -78,6 +81,13 @@ function SectionHeading({ eyebrow, title, right }: { eyebrow?: string; title: st
 
 export default function App() {
   const [active, setActive] = useState<ModuleKey>("Overview");
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    try {
+      const saved = window.localStorage.getItem("pruden-command-theme");
+      if (saved === "light" || saved === "dark") return saved;
+    } catch { /* Use system preference when storage is unavailable. */ }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [search, setSearch] = useState("");
@@ -102,6 +112,11 @@ export default function App() {
       // The dashboard remains usable if browser storage is unavailable.
     }
   }, [localTasks]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { window.localStorage.setItem("pruden-command-theme", theme); } catch { /* Theme still works for this session. */ }
+  }, [theme]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -187,6 +202,7 @@ export default function App() {
           </div>
           <div className="topbar-actions">
             <label className="global-search"><Search size={16} /><input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a module..." aria-label="Find a module" /><kbd>⌘ K</kbd></label>
+            <button className="icon-button theme-toggle" aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
             <button className={`icon-button notification-button ${showNotifications ? "selected" : ""}`} aria-label="Notifications" onClick={() => setShowNotifications(!showNotifications)}><Bell size={17} /><i /></button>
             <div className="top-avatar" title="Founder workspace">PJ</div>
           </div>
@@ -197,7 +213,7 @@ export default function App() {
         <div className="content-wrap">
           <div className="prototype-banner"><span><Activity size={14} /> PROTOTYPE</span><p>Preview interface · Demo records only · Authentication and integrations are not connected</p><button onClick={() => chooseModule("Infrastructure")}>View system status <ArrowRight size={13} /></button></div>
 
-          {active === "Overview" ? (
+          {active === "GitHub" ? <GitHubProjectsPage /> : active === "Overview" ? (
             <>
               <section className="welcome-row">
                 <div><p className="eyebrow"><span className="live-indicator" /> TECHNOLOGY OPERATIONS / 01</p><h1>Welcome back, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
