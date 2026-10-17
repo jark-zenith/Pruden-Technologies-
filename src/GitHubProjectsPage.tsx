@@ -9,15 +9,19 @@ export default function GitHubProjectsPage() {
   const [filter, setFilter] = useState<Filter>("All");
   const [previews, setPreviews] = useState(true);
 
-  const filtered = useMemo(() => githubProjects.filter((project) => {
-    const matchesQuery = project.name.toLowerCase().includes(query.toLowerCase());
-    const matchesFilter = filter === "All"
-      || (filter === "Live URL" && Boolean(project.deploymentUrl))
-      || (filter === "No live URL" && !project.deploymentUrl)
-      || (filter === "Public" && project.visibility === "public")
-      || (filter === "Private" && project.visibility === "private");
-    return matchesQuery && matchesFilter;
-  }), [query, filter]);
+  const filtered = useMemo(() => githubProjects
+    .filter((project) => {
+      const matchesQuery = project.name.toLowerCase().includes(query.toLowerCase());
+      const matchesFilter = filter === "All"
+        || (filter === "Live URL" && Boolean(project.deploymentUrl))
+        || (filter === "No live URL" && !project.deploymentUrl)
+        || (filter === "Public" && project.visibility === "public")
+        || (filter === "Private" && project.visibility === "private");
+      return matchesQuery && matchesFilter;
+    })
+    .sort((a, b) => Number(Boolean(b.deploymentUrl)) - Number(Boolean(a.deploymentUrl)) || a.name.localeCompare(b.name)),
+    [query, filter],
+  );
 
   const liveCount = githubProjects.filter((project) => project.deploymentUrl).length;
   const privateCount = githubProjects.filter((project) => project.visibility === "private").length;
@@ -27,7 +31,7 @@ export default function GitHubProjectsPage() {
       <div>
         <p className="eyebrow"><Github size={13} /> REPOSITORY DIRECTORY / CONNECTED ACCOUNT</p>
         <h1>GitHub projects</h1>
-        <p className="welcome-subtitle">Browse repositories from inside PRUDEN Command. Open a repository or visit its configured deployment without leaving the project directory first.</p>
+        <p className="welcome-subtitle">Deployed projects are listed first, followed by repositories without a configured deployment URL. Open a repository or visit its live site from here.</p>
       </div>
       <a className="primary-button github-account-link" href="https://github.com/jark-zenith" target="_blank" rel="noreferrer"><Github size={15} /> GitHub account <ExternalLink size={13} /></a>
     </div>
@@ -48,7 +52,7 @@ export default function GitHubProjectsPage() {
       <button className="secondary-button preview-toggle" onClick={() => setPreviews((value) => !value)}><Eye size={14} /> {previews ? "Hide previews" : "Show previews"}</button>
     </div>
 
-    <p className="github-results-line">Showing <strong>{filtered.length}</strong> of {githubProjects.length} repositories</p>
+    <p className="github-results-line">Showing <strong>{filtered.length}</strong> of {githubProjects.length} repositories <span className="sort-note">· Deployed projects first</span></p>
     <div className="github-project-grid">
       {filtered.map((project) => <article className="github-project-card" key={project.repoUrl}>
         <div className="github-project-preview">
