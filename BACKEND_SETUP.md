@@ -1,23 +1,19 @@
 # PRUDEN Command backend
 
-First backend slice: Supabase Auth + PostgreSQL with owner-scoped Row Level Security.
+## Master-secret access gate
+The Node/Express host serves the React app only after a successful master-secret unlock. Configure `COMMAND_ACCESS_SECRET` as a private Render environment variable with at least 24 characters. Never put the secret in GitHub, frontend variables, HTML, or chat. The server never sends it to the browser. Unlock issues an HttpOnly, Secure, SameSite=Strict cookie that expires after 8 hours. Failed attempts are rate-limited per IP in process memory. If the secret is missing or too short, the application fails closed.
 
-## Included
-- Projects, tasks, customers, decisions, risks, approvals and audit-event tables.
-- RLS enabled on every table; authenticated users can access only their own records.
-- Append-only audit event access from the browser (select/insert only).
-- Typed project/task data-access functions with input validation and audit writes.
-- No service-role key or AI-provider secret in the browser.
+A shared secret means everyone who knows it has the same access; it does not identify individual users or allow per-person revocation. Rotate the secret to revoke existing sessions. Store it in a password manager.
 
-## Setup
-1. Create/select a **dedicated PRUDEN Command Supabase project**. Do not use PichaHub. The existing generic Supabase project contains Deon.dev migrations, so the migration has intentionally not been applied there.
-2. Apply `supabase/migrations/20261017200000_pruden_command_core.sql` to the dedicated project's database.
-3. Copy `.env.example` to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from that project's API settings.
-4. Run `npm install`, `npm run typecheck`, and `npm run build`.
-5. Add sign-in/sign-out and session-aware loading/error states before connecting the UI screens to the service functions.
+## Database foundation
+The migration `supabase/migrations/20261017200000_pruden_command_core.sql` defines projects, tasks, customers, decisions, risks, approvals and audit events with Row Level Security. It is intentionally not applied to either existing Supabase project.
 
-## Security boundaries
-- This migration is for the dedicated PRUDEN project, not a shared database.
-- RLS is the authorization boundary; client filtering is not authorization.
-- Approval rows do not execute external actions.
-- AI calls, deployments, payments, messages and privileged actions must go through a server-side function with explicit human approval. Never expose service-role keys in frontend env vars.
+## Deployment
+- Build: `npm install && npm run build`
+- Start: `npm start`
+- Health endpoint: `/health`
+- Required environment variable: `COMMAND_ACCESS_SECRET` (24+ characters)
+- Configure a dedicated Supabase project separately before applying the migration. Never use a service-role key in browser code.
+
+## Email connectors
+Email integration is a later phase. Use provider-specific OAuth, least-privilege scopes, explicit mailbox selection, server-side token storage, and human approval before sending mail.
