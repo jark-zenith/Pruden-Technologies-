@@ -146,7 +146,7 @@ export default function App() {
       <aside className={`sidebar ${collapsed ? "collapsed" : ""} ${mobileNav ? "mobile-open" : ""}`}>
         <div className="brand-row">
           <BrandMark />
-          {!collapsed && <div className="brand-copy"><strong>PRUDEN<span>COMMAND</span></strong><small>TECHNOLOGY OPERATIONS</small></div>}
+          {!collapsed && <div className="brand-copy"><strong>PRUDEN<span>TECHNOLOGIES</span></strong><small>COMMAND CENTRE</small></div>}
           <button className="icon-button collapse-button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => setCollapsed(!collapsed)}><ChevronLeft size={16} /></button>
         </div>
         <button className="workspace-switch" onClick={() => chooseModule("Reports & Settings")} title="Open workspace settings">
@@ -200,7 +200,7 @@ export default function App() {
           {active === "Overview" ? (
             <>
               <section className="welcome-row">
-                <div><p className="eyebrow"><span className="live-indicator" /> COMMAND CENTRE / 01</p><h1>Good to see you, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
+                <div><p className="eyebrow"><span className="live-indicator" /> TECHNOLOGY OPERATIONS / 01</p><h1>Welcome back, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
                 <button className="primary-button" onClick={() => { setTaskCreated(false); setShowQuickAdd(true); }}><Plus size={16} /> Create task</button>
               </section>
 
@@ -226,6 +226,17 @@ export default function App() {
               <section className="bottom-grid">
                 <div className="panel approvals-panel"><SectionHeading eyebrow="CONTROL LAYER" title="Approval queue" right={<button className="text-button" onClick={() => chooseModule("Approvals")}>Review all <ArrowRight size={13} /></button>} /><div className="approval-list">{approvals.map((approval) => <div className="approval-row" key={approval.title}><span className="approval-symbol"><LockKeyhole size={15} /></span><div className="approval-copy"><strong>{approval.title}</strong><p>{approval.detail}</p></div><span className="approval-tag">{approval.risk}</span></div>)}</div><div className="approval-footer"><ShieldCheck size={14} /><span>Consequential actions stay human-approved.</span></div></div>
                 <div className="panel system-panel"><SectionHeading eyebrow="SYSTEM HEALTH" title="Connected services" right={<span className="neutral-tag">0 connected</span>} /><div className="service-list"><div className="service-row"><span className="service-icon"><GitBranch size={16} /></span><span><strong>GitHub</strong><small>Repository metadata</small></span><span className="service-state"><i /> Not connected</span></div><div className="service-row"><span className="service-icon"><Database size={16} /></span><span><strong>PostgreSQL</strong><small>Application database</small></span><span className="service-state"><i /> Not connected</span></div><div className="service-row"><span className="service-icon"><Bot size={16} /></span><span><strong>Agent gateway</strong><small>Provider-neutral API</small></span><span className="service-state"><i /> Not connected</span></div></div><button className="panel-bottom-link" onClick={() => chooseModule("Infrastructure")}>Integration settings <ArrowRight size={14} /></button></div>
+              </section>
+              <section className="service-catalog">
+                <div className="catalog-heading"><div><p className="eyebrow">CAPABILITIES</p><h2>Pruden Technologies services</h2><p>Our current service catalogue, with future capabilities clearly marked.</p></div><button className="text-button" onClick={() => chooseModule("Products & Services")}>Manage catalogue <ArrowRight size={13} /></button></div>
+                <div className="catalog-grid">
+                  <article className="catalog-card"><span>⌘</span><h3>Web & App Development</h3><p>Custom websites, web applications, dashboards and client portals.</p><small>CORE SERVICE</small></article>
+                  <article className="catalog-card"><span>▣</span><h3>Portfolio Development</h3><p>Professional portfolios that showcase skills, projects and brands.</p><small>CORE SERVICE</small></article>
+                  <article className="catalog-card"><span>✦</span><h3>AI Solutions & Automation</h3><p>Practical AI assistants, knowledge tools and workflow automation.</p><small>PROTOTYPE / BY SCOPE</small></article>
+                  <article className="catalog-card"><span>◈</span><h3>Creative Studio</h3><p>Photo and video editing, brand assets and content production.</p><small>CORE SERVICE</small></article>
+                  <article className="catalog-card"><span>✎</span><h3>Script & Content Writing</h3><p>Scripts and creative copy for videos, ads and digital content.</p><small>CORE SERVICE</small></article>
+                  <article className="catalog-card"><span>⌘</span><h3>Coding Education</h3><p>Practical coding guidance built around projects and learning goals.</p><small>CORE SERVICE</small></article>
+                </div>
               </section>
               <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone="amber" /> Demo mode — no live data</span></footer>
             </>
