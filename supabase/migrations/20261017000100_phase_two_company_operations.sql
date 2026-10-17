@@ -103,6 +103,19 @@ as $$
   );
 $$;
 
+create or replace function public.is_org_creator(target_org uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists (
+    select 1 from public.organizations o
+    where o.id = target_org and o.created_by = (select auth.uid())
+  );
+$;
+
 create or replace function public.has_org_role(target_org uuid, allowed_roles text[])
 returns boolean
 language sql
@@ -147,22 +160,20 @@ for select to authenticated using (
 drop policy if exists members_insert_owner_bootstrap_or_admin on public.organization_members;
 create policy members_insert_owner_bootstrap_or_admin on public.organization_members
 for insert to authenticated with check (
-  (user_id = (select auth.uid()) and role = 'founder' and exists (
-    select 1 from public.organizations o
-    where o.id = organization_id and o.created_by = (select auth.uid())
-  ))
-  or public.has_org_role(organization_id, array['founder','admin'])
+  (user_id = (select auth.uid()) and role = 'founder' and public.is_org_creator(organization_id))
+  or public.has_org_role(organization_id, array['founder'])
+  or (public.has_org_role(organization_id, array['admin']) and role in ('finance','manager','member','viewer'))
 );
 
 drop policy if exists members_update_admin on public.organization_members;
 create policy members_update_admin on public.organization_members
-for update to authenticated using (public.has_org_role(organization_id, array['founder','admin']))
-with check (public.has_org_role(organization_id, array['founder','admin']));
+for update to authenticated using (public.has_org_role(organization_id, array['founder']))
+with check (public.has_org_role(organization_id, array['founder']));
 
 drop policy if exists members_delete_admin on public.organization_members;
 create policy members_delete_admin on public.organization_members
 for delete to authenticated using (
-  public.has_org_role(organization_id, array['founder','admin']) and user_id <> (select auth.uid())
+  public.has_org_role(organization_id, array['founder']) and user_id <> (select auth.uid())
 );
 
 -- Customers and projects: members may read; operational roles may write.
