@@ -109,13 +109,12 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select exists (
     select 1 from public.organizations o
     where o.id = target_org and o.created_by = (select auth.uid())
   );
-$;
-
+$$;
 create or replace function public.has_org_role(target_org uuid, allowed_roles text[])
 returns boolean
 language sql
