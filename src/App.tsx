@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import GitHubProjectsPage from "./GitHubProjectsPage";
+import { githubProjects } from "./githubProjects";
 import {
   Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command,
@@ -77,6 +78,34 @@ function StatusDot({ tone = "blue" }: { tone?: string }) {
 
 function SectionHeading({ eyebrow, title, right }: { eyebrow?: string; title: string; right?: ReactNode }) {
   return <div className="section-heading"><div>{eyebrow && <p className="eyebrow">{eyebrow}</p>}<h2>{title}</h2></div>{right}</div>;
+}
+
+
+function LiveProjectShowcase() {
+  const liveProjects = useMemo(() => githubProjects.filter((project) => project.deploymentUrl && !project.archived), []);
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    if (liveProjects.length < 2) return;
+    const timer = window.setInterval(() => setIndex((current) => (current + 1) % liveProjects.length), 8000);
+    return () => window.clearInterval(timer);
+  }, [liveProjects.length]);
+  if (!liveProjects.length) return <section className="live-showcase empty-live-showcase"><div><p className="eyebrow">LIVE PROJECT SPOTLIGHT</p><h2>Projects will appear here</h2><p>Link deployed project URLs in the repository directory to enable the rotating showcase.</p></div></section>;
+  const project = liveProjects[index % liveProjects.length];
+  return <section className="live-showcase" aria-label="Rotating live project showcase">
+    <div className="live-showcase-copy">
+      <p className="eyebrow"><span className="live-indicator" /> LIVE PROJECT SPOTLIGHT</p>
+      <h2>{project.name}</h2>
+      <p>Explore one of the deployed PRUDEN projects. The featured live view changes automatically every few seconds.</p>
+      <div className="live-showcase-meta"><span className="showcase-live-dot" /> Deployment URL configured <span className="showcase-counter">{String(index + 1).padStart(2, "0")} / {String(liveProjects.length).padStart(2, "0")}</span></div>
+      <div className="live-showcase-actions"><a className="primary-button" href={project.deploymentUrl!} target="_blank" rel="noreferrer">Open live project <ArrowUpRight size={15} /></a><a className="secondary-button" href={project.repoUrl} target="_blank" rel="noreferrer"><Github size={14} /> Repository</a></div>
+      <div className="showcase-dots" role="group" aria-label="Choose featured project">{liveProjects.map((item, itemIndex) => <button key={item.repoUrl} className={itemIndex === index ? "active" : ""} aria-label={"Show " + item.name} onClick={() => setIndex(itemIndex)} />)}</div>
+    </div>
+    <div className="live-showcase-screen">
+      <div className="showcase-browser-bar"><span /><span /><span /><strong>{project.name}</strong><a href={project.deploymentUrl!} target="_blank" rel="noreferrer" aria-label={"Open " + project.name}><ArrowUpRight size={14} /></a></div>
+      <iframe key={project.repoUrl} src={project.deploymentUrl!} title={project.name + " live view"} loading="lazy" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerPolicy="no-referrer" />
+      <div className="showcase-screen-caption">Live-site preview · Some websites may block embedded viewing</div>
+    </div>
+  </section>;
 }
 
 export default function App() {
@@ -219,6 +248,8 @@ export default function App() {
                 <div><p className="eyebrow"><span className="live-indicator" /> TECHNOLOGY OPERATIONS / 01</p><h1>Welcome back, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
                 <button className="primary-button" onClick={() => { setTaskCreated(false); setShowQuickAdd(true); }}><Plus size={16} /> Create task</button>
               </section>
+
+              <LiveProjectShowcase />
 
               <section className="metric-grid" aria-label="Workspace overview metrics">
                 <article className="metric-card"><div className="metric-top"><span>Active projects</span><span className="metric-icon blue"><FolderKanban size={17} /></span></div><div className="metric-value">03 <small>demo</small></div><div className="metric-foot"><span className="metric-note"><Activity size={13} /> Sample workspace</span><span className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
