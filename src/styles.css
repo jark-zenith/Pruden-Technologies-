@@ -7,3 +7,61 @@
 @media(max-width:1200px){.content-wrap{padding:20px 22px}.topbar{padding:0 22px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.main-grid,.bottom-grid{grid-template-columns:minmax(0,1fr)}.project-progress{min-width:90px}.sidebar{width:230px}.main-area{margin-left:230px}.sidebar.collapsed~.main-area{margin-left:78px}}
 @media(max-width:760px){.sidebar{width:260px;transform:translateX(-105%);transition:transform .22s ease;box-shadow:15px 0 60px #0008}.sidebar.mobile-open{transform:translateX(0)}.sidebar.collapsed{width:260px}.sidebar.collapsed .brand-copy,.sidebar.collapsed .workspace-label,.sidebar.collapsed .workspace-switch>svg,.sidebar.collapsed .nav-item span,.sidebar.collapsed .nav-badge,.sidebar.collapsed .nav-group-label,.sidebar.collapsed .profile-info,.sidebar.collapsed .profile-row>svg,.sidebar.collapsed .system-status>span:not(.pulse){display:initial}.sidebar.collapsed .collapse-button{display:none}.sidebar.collapsed .brand-row{padding:0 17px}.sidebar.collapsed .workspace-switch{justify-content:flex-start;padding:10px;margin:16px 12px 14px}.sidebar.collapsed .nav-item{justify-content:flex-start;padding:0 11px}.sidebar.collapsed .nav-group{margin:8px 0 19px}.sidebar.collapsed .system-status{justify-content:flex-start}.sidebar.collapsed .profile-row{justify-content:flex-start}.main-area,.sidebar.collapsed~.main-area{margin-left:0}.mobile-scrim{display:block;position:fixed;inset:0;z-index:25;background:#02060db3;border:0}.topbar{height:61px;padding:0 15px}.mobile-menu{display:inline-flex}.topbar-left{gap:8px}.topbar-actions{gap:7px}.global-search{width:35px;justify-content:center;padding:0;border-color:transparent;background:transparent}.global-search input,.global-search kbd{display:none}.global-search:focus-within{position:absolute;left:55px;right:90px;width:auto;background:#0d1523;padding:0 10px;border-color:#30445f;z-index:3}.global-search:focus-within input{display:block}.breadcrumb{gap:6px;font-size:10px}.breadcrumb span{display:none}.content-wrap{padding:14px 14px 22px}.prototype-banner{align-items:flex-start;flex-wrap:wrap;gap:6px 9px;margin-bottom:24px;padding:9px}.prototype-banner p{flex-basis:calc(100% - 8px);order:3;line-height:1.5}.prototype-banner button{margin-left:auto;font-size:9px}.welcome-row,.module-title-row{align-items:flex-start;flex-direction:column;margin-bottom:19px}.welcome-row h1,.module-title-row h1{font-size:27px}.welcome-row .primary-button,.module-title-row .primary-button{align-self:flex-start}.metric-grid{gap:9px}.metric-card{padding:12px;min-height:119px}.metric-top{font-size:9px}.metric-icon{width:28px;height:28px}.metric-value{font-size:24px}.metric-note{font-size:8px}.mini-bars{display:none}.panel{padding:14px 13px 0}.section-heading h2{font-size:14px}.project-row{gap:9px}.project-symbol{width:32px;height:32px}.project-name-row{align-items:flex-start;flex-direction:column;gap:4px}.project-main p{font-size:8px}.project-progress{min-width:50px}.project-progress small{max-width:75px;font-size:7px}.approval-row{gap:8px}.approval-tag{display:none}.service-state{font-size:7px}.footer-note{font-size:7px;align-items:flex-start;line-height:1.7}.footer-note>span:last-child{white-space:nowrap}.notification-popover{right:10px;top:55px;width:min(315px,calc(100vw - 20px))}.module-status{gap:8px}.module-status .text-button{margin-left:0}.module-cards{grid-template-columns:minmax(0,1fr)}.module-panel{padding:14px 12px 6px}.module-record{gap:8px;flex-wrap:wrap}.module-record .record-main{flex-basis:calc(100% - 50px)}.module-record>.status-pill,.module-record>.approval-tag{margin-left:42px}.module-controls{align-items:stretch;flex-direction:column}.table-search{max-width:none}.segmented{align-self:flex-start}.task-record{flex-wrap:wrap;gap:8px}.task-record .record-main{flex-basis:calc(100% - 45px)}.task-state{margin-left:32px;text-align:left}.modal-backdrop{padding:12px}.quick-modal{padding:18px}.toast{left:12px;right:12px;bottom:12px;max-width:none}.profile-row{padding-top:12px}}
 @media(min-width:761px){.mobile-scrim{display:none!important}}
+
+
+/* Pruden Technologies HTML-dashboard adaptation: blue, silver and gold with a restrained red accent. */
+:root{color:#0b1f4d;background:#eaf0fb;--bg:#eaf0fb;--panel:#fff;--panel2:#f3f7ff;--line:#c7d4f2;--muted:#51618a;--text:#0b1f4d;--blue:#1646c8;--cyan:#167fa5;--silver:#aab4c8;--amber:#c9a227;--violet:#6651b8}
+body,.app-shell{background:var(--bg);color:var(--text)}
+.app-shell{background:linear-gradient(90deg,#d62839 0 8px,transparent 8px),radial-gradient(ellipse at 80% -15%,rgba(201,162,39,.13),transparent 44%),var(--bg)}
+.sidebar{background:linear-gradient(180deg,#0b2a8a,#06174f);border-right:4px solid #d62839;box-shadow:4px 0 18px rgba(201,162,39,.18)}
+.brand-row,.workspace-switch,.profile-row{border-color:#ffffff2c}
+.brand-mark{background:linear-gradient(145deg,#1646c8,#0b2a8a);border-color:#c9a227;box-shadow:0 0 18px #c9a22735}
+.brand-mark span{color:#fff}.brand-copy strong{color:#fff}.brand-copy strong span{color:#f0c53d}.brand-copy small,.workspace-label span,.nav-group-label,.profile-info span,.system-status{color:#cfd8f3}
+.workspace-switch,.nav-item,.profile-row{color:#e7edff}
+.nav-item:hover,.nav-item.active{background:#ffffff20;border-color:#c9a227;color:#fff}
+.nav-item.active{box-shadow:0 0 14px #f0c53d25}
+.nav-badge{background:#d62839;color:#fff}
+.main-area{color:var(--text)}
+.topbar{background:#eaf0fbdd;border-color:#c7d4f2}
+.breadcrumb,.breadcrumb strong{color:#0b1f4d}.breadcrumb span{color:#51618a}
+.global-search,.icon-button,.task-input,.table-search,.segmented{background:#fff;border-color:#c7d4f2;color:#0b1f4d}
+.global-search input,.table-search input,.task-input{color:#0b1f4d}
+.global-search input::placeholder,.task-input::placeholder{color:#7382a5}
+.top-avatar,.profile-avatar,.workspace-avatar{background:linear-gradient(135deg,#c9a227,#aab4c8);color:#0b1f4d}
+.prototype-banner{background:#fff;border-color:#c7d4f2;color:#51618a}
+.prototype-banner>span{color:#1646c8;background:#edf3ff;border-color:#c7d4f2}
+.prototype-banner p,.welcome-subtitle,.metric-top,.metric-note,.project-main p,.project-progress small,.priority-copy small,.approval-copy p,.service-row small,.footer-note,.module-status,.module-placeholder>p:not(.eyebrow),.checklist-row p{color:#51618a}
+.welcome-row h1,.module-title-row h1{color:#0b1f4d}
+.welcome-row h1 em{color:#1646c8}
+.metric-card,.panel,.quick-modal{background:#fff;border-color:#c7d4f2;box-shadow:0 8px 24px #12346b0b}
+.metric-card{border-top:3px solid #d62839}
+.metric-value,.section-heading h2,.project-name-row strong,.record-main strong,.approval-copy strong,.service-row strong,.priority-copy strong,.module-placeholder h2,.checklist-row strong{color:#0b1f4d}
+.metric-icon.blue{background:#e8efff;color:#1646c8}.metric-icon.cyan{background:#e1f6fa;color:#167fa5}.metric-icon.amber{background:#fff5d9;color:#9b7410}.metric-icon.violet{background:#eee9ff;color:#6651b8}
+.metric-value small,.eyebrow{color:#51618a}
+.project-row,.priority-row,.approval-row,.service-row,.module-record,.task-record,.checklist-row,.approval-footer,.panel-bottom-link{border-color:#e0e7f6}
+.project-symbol.blue{background:#e8efff;color:#1646c8}.project-symbol.cyan{background:#e1f6fa;color:#167fa5}.project-symbol.violet{background:#eee9ff;color:#6651b8}
+.progress-track{background:#e3eaf8}.progress-track span{background:#1646c8}
+.status-pill,.task-state,.placeholder-status{color:#51618a}
+.priority-index.high{background:#fdebed;color:#b91f31}.priority-index.medium{background:#fff5d9;color:#8b6a10}
+.approval-symbol{background:#fff5d9;color:#9b7410}
+.service-icon{background:#f3f7ff;border-color:#d8e2f7;color:#1646c8}
+.count-badge,.neutral-tag,.status-chip{background:#f3f7ff;border-color:#c7d4f2;color:#51618a}
+.module-status{background:#fff;border-color:#c7d4f2}
+.info-callout{background:#fff8e7;border-color:#e7d39a;color:#735719}.info-callout p{color:#756642}
+.segmented{background:#f3f7ff}.segmented button{color:#51618a}.segmented button.selected{background:#1646c8;color:#fff}
+.task-check{border-color:#c7d4f2;color:#51618a}
+.priority-tag.high{background:#fdebed;color:#b91f31}.priority-tag.medium{background:#fff5d9;color:#8b6a10}
+.quick-modal{background:linear-gradient(145deg,#fff,#f3f7ff)}.modal-description{color:#51618a}.field-label{color:#0b1f4d}
+.notification-popover{background:#fff;border-color:#c7d4f2;box-shadow:0 20px 70px #0b1f4d20}.popover-head,.notice-item{border-color:#e0e7f6}.popover-head strong,.notice-item strong{color:#0b1f4d}.notice-item p,.notice-item small{color:#51618a}.notice-icon{background:#edf3ff;color:#1646c8}
+.primary-button{background:linear-gradient(180deg,#1646c8,#0b2a8a);border-color:#1646c8;box-shadow:0 6px 18px #1646c822}.secondary-button{background:#f3f7ff;border-color:#c7d4f2;color:#0b1f4d;box-shadow:none}
+.text-button,.panel-bottom-link,.metric-link{color:#1646c8}
+.footer-note{color:#51618a}
+.service-catalog{margin-top:20px;padding:19px;background:#fff;border:1px solid #c7d4f2;border-radius:11px;box-shadow:0 8px 24px #12346b0b}
+.catalog-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px}
+.catalog-heading .eyebrow{margin:0 0 5px;font-size:8px}.catalog-heading h2{margin:0;color:#0b1f4d;font-size:16px}.catalog-heading p:not(.eyebrow){font-size:10px;color:#51618a;margin:6px 0 0}
+.catalog-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.catalog-card{border:1px solid #d8e2f7;border-radius:9px;padding:14px;background:#f8faff;min-width:0;transition:transform .15s,box-shadow .15s}
+.catalog-card:hover{transform:translateY(-2px);box-shadow:0 8px 18px #1646c81a;border-color:#c9a227}
+.catalog-card>span{display:grid;place-items:center;width:31px;height:31px;border-radius:8px;background:#e8efff;color:#1646c8;font-weight:800;font-size:17px}
+.catalog-card h3{font-size:11px;color:#1646c8;margin:10px 0 6px}.catalog-card p{font-size:10px;line-height:1.6;color:#51618a;margin:0 0 11px}.catalog-card small{font:8px 'DM Mono',monospace;letter-spacing:.3px;color:#9b7410}
+@media(max-width:760px){.catalog-grid{grid-template-columns:1fr}.catalog-heading{align-items:flex-start;flex-direction:column}.app-shell{background:linear-gradient(90deg,#d62839 0 5px,transparent 5px),var(--bg)}}
