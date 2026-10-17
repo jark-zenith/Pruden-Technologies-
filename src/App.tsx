@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command,
@@ -81,11 +81,44 @@ export default function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileNav, setMobileNav] = useState(false);
   const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskCreated, setTaskCreated] = useState(false);
-  const [localTasks, setLocalTasks] = useState(tasks);
+  const [localTasks, setLocalTasks] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem("pruden-command-demo-tasks");
+      return saved ? (JSON.parse(saved) as typeof tasks) : tasks;
+    } catch {
+      return tasks;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("pruden-command-demo-tasks", JSON.stringify(localTasks));
+    } catch {
+      // The dashboard remains usable if browser storage is unavailable.
+    }
+  }, [localTasks]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      if (event.key === "Escape") {
+        setSearch("");
+        setShowNotifications(false);
+        setShowQuickAdd(false);
+        setMobileNav(false);
+      }
+    };
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
   const filteredNav = useMemo(
     () => navItems.filter((item) => item.label.toLowerCase().includes(search.toLowerCase())),
@@ -153,7 +186,7 @@ export default function App() {
             <div className="breadcrumb"><span>PRUDEN</span><ChevronRight size={13} /><strong>{active}</strong></div>
           </div>
           <div className="topbar-actions">
-            <label className="global-search"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a module..." aria-label="Find a module" /><kbd>⌘ K</kbd></label>
+            <label className="global-search"><Search size={16} /><input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a module..." aria-label="Find a module" /><kbd>⌘ K</kbd></label>
             <button className={`icon-button notification-button ${showNotifications ? "selected" : ""}`} aria-label="Notifications" onClick={() => setShowNotifications(!showNotifications)}><Bell size={17} /><i /></button>
             <div className="top-avatar" title="Founder workspace">PJ</div>
           </div>
@@ -202,7 +235,7 @@ export default function App() {
         </div>
       </main>
 
-      {showQuickAdd && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowQuickAdd(false); }}><section className="quick-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-head"><div><p className="eyebrow">WORKSPACE / TASKS</p><h2 id="task-modal-title">Create a task draft</h2></div><button className="icon-button" aria-label="Close dialog" onClick={() => setShowQuickAdd(false)}><X size={17} /></button></div><p className="modal-description">This creates a local prototype record only. It will not be saved to a server until authentication and the API are implemented.</p><label className="field-label" htmlFor="task-title">Task title</label><input id="task-title" className="task-input" autoFocus value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") createDraftTask(); }} placeholder="e.g. Define team permission matrix" /><div className="modal-foot"><button className="secondary-button" onClick={() => setShowQuickAdd(false)}>Cancel</button><button className="primary-button" onClick={createDraftTask} disabled={!taskTitle.trim()}><Plus size={15} /> Add draft</button></div></section></div>}
+      {showQuickAdd && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowQuickAdd(false); }}><section className="quick-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-head"><div><p className="eyebrow">WORKSPACE / TASKS</p><h2 id="task-modal-title">Create a task draft</h2></div><button className="icon-button" aria-label="Close dialog" onClick={() => setShowQuickAdd(false)}><X size={17} /></button></div><p className="modal-description">Drafts are saved in this browser only. They are not synced to a server or shared with other devices.</p><label className="field-label" htmlFor="task-title">Task title</label><input id="task-title" className="task-input" autoFocus value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") createDraftTask(); }} placeholder="e.g. Define team permission matrix" /><div className="modal-foot"><button className="secondary-button" onClick={() => setShowQuickAdd(false)}>Cancel</button><button className="primary-button" onClick={createDraftTask} disabled={!taskTitle.trim()}><Plus size={15} /> Add draft</button></div></section></div>}
       {taskCreated && <div className="toast"><Check size={16} /><span>Draft added locally. It has not been saved to a server.</span><button aria-label="Dismiss notification" onClick={() => setTaskCreated(false)}><X size={14} /></button></div>}
     </div>
   );
