@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import GitHubProjectsPage from "./GitHubProjectsPage";
+import type { User } from "@supabase/supabase-js";
+import { listProjects, createProject, listTasks, createTask, updateTaskStatus, listApprovals } from "./lib/operations";
 import { githubProjects } from "./githubProjects";
 import {
   Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
@@ -33,24 +35,9 @@ const navItems: NavItem[] = [
   { label: "GitHub", icon: Github, group: "SYSTEMS" },
 ];
 
-const projects = [
-  { name: "PRUDEN Command", tag: "INTERNAL PLATFORM", progress: 28, status: "In progress", tone: "blue", owner: "Product & Engineering", due: "Foundation phase" },
-  { name: "PichaHub", tag: "CREATOR PLATFORM", progress: 64, status: "Active", tone: "cyan", owner: "Product team", due: "Verify current release" },
-  { name: "Deon", tag: "PROMPT MARKETPLACE", progress: 42, status: "Needs review", tone: "violet", owner: "Product team", due: "Payments & assets review" },
-];
-
-const tasks = [
-  { title: "Define organization roles and permissions", project: "PRUDEN Command", priority: "High", owner: "Founder", state: "Planned" },
-  { title: "Map the existing repository and deployment", project: "PRUDEN Command", priority: "High", owner: "Engineering", state: "In progress" },
-  { title: "Design approval and audit event model", project: "PRUDEN Command", priority: "Medium", owner: "Engineering", state: "Planned" },
-  { title: "Verify PichaHub release status", project: "PichaHub", priority: "High", owner: "Product", state: "Needs evidence" },
-];
-
-const approvals = [
-  { title: "Agent access policy", detail: "Define permitted reads and proposed writes", risk: "Security", status: "Awaiting decision" },
-  { title: "Production release gate", detail: "Require test evidence and human sign-off", risk: "Release", status: "Draft" },
-  { title: "Team role matrix", detail: "Set least-privilege access by role", risk: "Access", status: "Awaiting decision" },
-];
+type ProjectView = { id: string; name: string; tag: string; progress: number; status: string; tone: string; owner: string; due: string };
+type TaskView = { id: string; title: string; project: string; priority: string; owner: string; state: string };
+type ApprovalView = { id: string; title: string; detail: string; risk: string; status: string };
 
 const descriptions: Record<ModuleKey, string> = {
   "Overview": "Your operating picture, priorities and decisions in one place.",
@@ -108,7 +95,7 @@ function LiveProjectShowcase() {
   </section>;
 }
 
-export default function App() {
+export default function App({ user, onSignOut }: { user: User; onSignOut: () => void }) {
   const [active, setActive] = useState<ModuleKey>("Overview");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
@@ -125,22 +112,42 @@ export default function App() {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskCreated, setTaskCreated] = useState(false);
-  const [localTasks, setLocalTasks] = useState(() => {
-    try {
-      const saved = window.localStorage.getItem("pruden-command-demo-tasks");
-      return saved ? (JSON.parse(saved) as typeof tasks) : tasks;
-    } catch {
-      return tasks;
-    }
-  });
+  const [projects, setProjects] = useState<ProjectView[]>([]);
+  const [localTasks, setLocalTasks] = useState<TaskView[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalView[]>([]);
+  const [backendLoading, setBackendLoading] = useState(true);
+  const [backendError, setBackendError] = useState("");
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem("pruden-command-demo-tasks", JSON.stringify(localTasks));
-    } catch {
-      // The dashboard remains usable if browser storage is unavailable.
-    }
-  }, [localTasks]);
+    let alive = true;
+    setBackendLoading(true);
+    Promise.all([listProjects(user), listTasks(user), listApprovals(user)])
+      .then(([projectRows, taskRows, approvalRows]) => {
+        if (!alive) return;
+        const projectViews: ProjectView[] = projectRows.map((p) => ({
+          id: p.id, name: p.name, tag: "WORKSPACE PROJECT",
+          progress: p.status === "completed" || p.status === "archived" ? 100 : p.status === "active" ? 60 : p.status === "blocked" ? 25 : 0,
+          status: p.status.replace("_", " "), tone: p.status === "blocked" ? "amber" : p.status === "completed" ? "cyan" : p.status === "active" ? "blue" : "violet",
+          owner: "Founder workspace", due: p.due_date || "No due date",
+        }));
+        const projectNames = new Map(projectRows.map((p) => [p.id, p.name]));
+        setProjects(projectViews);
+        setLocalTasks(taskRows.map((t) => ({
+          id: t.id, title: t.title, project: t.project_id ? (projectNames.get(t.project_id) || "Project") : "PRUDEN Command",
+          priority: t.priority.charAt(0).toUpperCase() + t.priority.slice(1),
+          owner: t.assigned_to || "Unassigned",
+          state: t.status === "completed" ? "Completed" : t.status === "in_progress" ? "In progress" : t.status === "blocked" ? "Blocked" : t.status === "cancelled" ? "Cancelled" : "Planned",
+        })));
+        setApprovals(approvalRows.map((a) => ({
+          id: a.id, title: a.summary, detail: a.action_type.replace(/[._-]/g, " "), risk: a.risk_level,
+          status: a.status === "pending" ? "Awaiting decision" : a.status.charAt(0).toUpperCase() + a.status.slice(1),
+        })));
+        setBackendError("");
+      })
+      .catch((err) => { if (alive) setBackendError(err instanceof Error ? err.message : "Unable to load Supabase records."); })
+      .finally(() => { if (alive) setBackendLoading(false); });
+    return () => { alive = false; };
+  }, [user]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -175,13 +182,35 @@ export default function App() {
     setSearch("");
   };
 
-  const createDraftTask = () => {
+  const toggleTaskCompletion = async (task: TaskView) => {
+    const nextState = task.state === "Completed" ? "planned" : "completed";
+    try {
+      await updateTaskStatus(user, task.id, nextState);
+      setLocalTasks((current) => current.map((item) => item.id === task.id ? { ...item, state: nextState === "completed" ? "Completed" : "Planned" } : item));
+      setBackendError("");
+    } catch (err) {
+      setBackendError(err instanceof Error ? err.message : "Task status could not be updated.");
+    }
+  };
+
+  const createDraftTask = async () => {
     const title = taskTitle.trim();
     if (!title) return;
-    setLocalTasks((current) => [{ title, project: "PRUDEN Command", priority: "Medium", owner: "Unassigned", state: "Draft — local only" }, ...current]);
-    setTaskTitle("");
-    setTaskCreated(true);
-    setShowQuickAdd(false);
+    setBackendError("");
+    try {
+      if (active === "Projects") {
+        const created = await createProject(user, { name: title, description: "", status: "planned", priority: "medium", due_date: null });
+        setProjects((current) => [{ id: created.id, name: created.name, tag: "WORKSPACE PROJECT", progress: 0, status: created.status, tone: "violet", owner: "Founder workspace", due: created.due_date || "No due date" }, ...current]);
+      } else {
+        const created = await createTask(user, { title, description: "", project_id: null, status: "planned", priority: "medium", assigned_to: "Founder", due_date: null });
+        setLocalTasks((current) => [{ id: created.id, title: created.title, project: "PRUDEN Command", priority: "Medium", owner: created.assigned_to || "Founder", state: "Planned" }, ...current]);
+      }
+      setTaskTitle("");
+      setTaskCreated(true);
+      setShowQuickAdd(false);
+    } catch (err) {
+      setBackendError(err instanceof Error ? err.message : "The record could not be saved.");
+    }
   };
 
   return (
@@ -214,7 +243,7 @@ export default function App() {
           {filteredNav.length === 0 && !collapsed && <p className="empty-nav">No matching modules</p>}
         </div>
         <div className="sidebar-bottom">
-          <div className="system-status"><span className="pulse" />{!collapsed && <><span>Prototype mode</span><span className="status-caption">No live services</span></>}</div>
+          <div className="system-status"><span className="pulse" />{!collapsed && <><span>{backendLoading ? "Connecting…" : backendError ? "Connection issue" : "Supabase connected"}</span><span className="status-caption">{backendError ? "Check backend status" : "Authenticated workspace"}</span></>}</div>
           <button className="profile-row" onClick={() => chooseModule("Reports & Settings")}>
             <div className="profile-avatar">PJ</div>
             {!collapsed && <div className="profile-info"><strong>Founder workspace</strong><span>Role setup pending</span></div>}
@@ -233,14 +262,14 @@ export default function App() {
             <label className="global-search"><Search size={16} /><input ref={searchInputRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find a module..." aria-label="Find a module" /><kbd>⌘ K</kbd></label>
             <button className="icon-button theme-toggle" aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}>{theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}</button>
             <button className={`icon-button notification-button ${showNotifications ? "selected" : ""}`} aria-label="Notifications" onClick={() => setShowNotifications(!showNotifications)}><Bell size={17} /><i /></button>
-            <div className="top-avatar" title="Founder workspace">PJ</div>
+            <button className="top-avatar" title="Sign out" aria-label="Sign out" onClick={onSignOut}>PJ</button>
           </div>
         </header>
 
         {showNotifications && <div className="notification-popover"><div className="popover-head"><strong>Notifications</strong><button className="text-button" onClick={() => setShowNotifications(false)}>Close</button></div><div className="notice-item"><span className="notice-icon"><ShieldCheck size={16} /></span><div><strong>Security setup pending</strong><p>Configure team roles before connecting real data.</p><small>Setup reminder · Prototype</small></div></div><div className="notice-item"><span className="notice-icon"><GitBranch size={16} /></span><div><strong>Agent gateway not connected</strong><p>No provider actions are available in this prototype.</p><small>System status</small></div></div></div>}
 
         <div className="content-wrap">
-          <div className="prototype-banner"><span><Activity size={14} /> PROTOTYPE</span><p>Preview interface · Demo records only · Authentication and integrations are not connected</p><button onClick={() => chooseModule("Infrastructure")}>View system status <ArrowRight size={13} /></button></div>
+          <div className="prototype-banner"><span><Activity size={14} /> {backendLoading ? "CONNECTING" : backendError ? "BACKEND ISSUE" : "LIVE DATA"}</span><p>{backendError || (backendLoading ? "Loading your workspace from Supabase…" : "Authenticated workspace · Records protected by Supabase Row Level Security")}</p><button onClick={() => chooseModule("Infrastructure")}>View system status <ArrowRight size={13} /></button></div>
 
           {active === "GitHub" ? <GitHubProjectsPage /> : active === "Overview" ? (
             <>
@@ -252,9 +281,9 @@ export default function App() {
               <LiveProjectShowcase />
 
               <section className="metric-grid" aria-label="Workspace overview metrics">
-                <article className="metric-card"><div className="metric-top"><span>Active projects</span><span className="metric-icon blue"><FolderKanban size={17} /></span></div><div className="metric-value">03 <small>demo</small></div><div className="metric-foot"><span className="metric-note"><Activity size={13} /> Sample workspace</span><span className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
-                <article className="metric-card"><div className="metric-top"><span>Open tasks</span><span className="metric-icon cyan"><ListTodo size={17} /></span></div><div className="metric-value">{String(localTasks.length).padStart(2, "0")} <small>demo</small></div><div className="metric-foot"><span className="metric-note">Not connected to a database</span><span className="mini-bars cyan-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
-                <article className="metric-card"><div className="metric-top"><span>Pending approvals</span><span className="metric-icon amber"><ShieldCheck size={17} /></span></div><div className="metric-value">03 <small>sample</small></div><div className="metric-foot"><span className="metric-note">Human review required</span><span className="mini-bars amber-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
+                <article className="metric-card"><div className="metric-top"><span>Active projects</span><span className="metric-icon blue"><FolderKanban size={17} /></span></div><div className="metric-value">{String(projects.filter((p) => p.status === "active").length).padStart(2, "0")} <small>live</small></div><div className="metric-foot"><span className="metric-note"><Activity size={13} /> Supabase records</span><span className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
+                <article className="metric-card"><div className="metric-top"><span>Open tasks</span><span className="metric-icon cyan"><ListTodo size={17} /></span></div><div className="metric-value">{String(localTasks.filter((t) => !["Completed", "Cancelled"].includes(t.state)).length).padStart(2, "0")} <small>live</small></div><div className="metric-foot"><span className="metric-note">Persisted task records</span><span className="mini-bars cyan-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
+                <article className="metric-card"><div className="metric-top"><span>Pending approvals</span><span className="metric-icon amber"><ShieldCheck size={17} /></span></div><div className="metric-value">{String(approvals.filter((a) => a.status === "Awaiting decision").length).padStart(2, "0")} <small>live</small></div><div className="metric-foot"><span className="metric-note">Human review required</span><span className="mini-bars amber-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
                 <article className="metric-card"><div className="metric-top"><span>Agent gateway</span><span className="metric-icon violet"><Bot size={17} /></span></div><div className="metric-value gateway-value"><span className="offline-ring" /> Offline</div><div className="metric-foot"><span className="metric-note">No provider connected</span><span className="metric-link" onClick={() => chooseModule("AI Workforce")}>Configure <ArrowUpRight size={13} /></span></div></article>
               </section>
 
@@ -272,7 +301,7 @@ export default function App() {
 
               <section className="bottom-grid">
                 <div className="panel approvals-panel"><SectionHeading eyebrow="CONTROL LAYER" title="Approval queue" right={<button className="text-button" onClick={() => chooseModule("Approvals")}>Review all <ArrowRight size={13} /></button>} /><div className="approval-list">{approvals.map((approval) => <div className="approval-row" key={approval.title}><span className="approval-symbol"><LockKeyhole size={15} /></span><div className="approval-copy"><strong>{approval.title}</strong><p>{approval.detail}</p></div><span className="approval-tag">{approval.risk}</span></div>)}</div><div className="approval-footer"><ShieldCheck size={14} /><span>Consequential actions stay human-approved.</span></div></div>
-                <div className="panel system-panel"><SectionHeading eyebrow="SYSTEM HEALTH" title="Connected services" right={<span className="neutral-tag">0 connected</span>} /><div className="service-list"><div className="service-row"><span className="service-icon"><GitBranch size={16} /></span><span><strong>GitHub</strong><small>Repository metadata</small></span><span className="service-state"><i /> Not connected</span></div><div className="service-row"><span className="service-icon"><Database size={16} /></span><span><strong>PostgreSQL</strong><small>Application database</small></span><span className="service-state"><i /> Not connected</span></div><div className="service-row"><span className="service-icon"><Bot size={16} /></span><span><strong>Agent gateway</strong><small>Provider-neutral API</small></span><span className="service-state"><i /> Not connected</span></div></div><button className="panel-bottom-link" onClick={() => chooseModule("Infrastructure")}>Integration settings <ArrowRight size={14} /></button></div>
+                <div className="panel system-panel"><SectionHeading eyebrow="SYSTEM HEALTH" title="Connected services" right={<span className="neutral-tag">{backendError ? "Connection issue" : backendLoading ? "Connecting…" : "1 connected"}</span>} /><div className="service-list"><div className="service-row"><span className="service-icon"><GitBranch size={16} /></span><span><strong>GitHub</strong><small>Repository metadata</small></span><span className="service-state"><i /> Repository view</span></div><div className="service-row"><span className="service-icon"><Database size={16} /></span><span><strong>Supabase</strong><small>Auth + PostgreSQL</small></span><span className="service-state"><i /> {backendError ? "Needs attention" : backendLoading ? "Connecting" : "Connected"}</span></div><div className="service-row"><span className="service-icon"><Bot size={16} /></span><span><strong>Agent gateway</strong><small>Provider-neutral API</small></span><span className="service-state"><i /> Not connected</span></div></div><button className="panel-bottom-link" onClick={() => chooseModule("Infrastructure")}>Integration settings <ArrowRight size={14} /></button></div>
               </section>
               <section className="service-catalog">
                 <div className="catalog-heading"><div><p className="eyebrow">CAPABILITIES</p><h2>Pruden Technologies services</h2><p>Our current service catalogue, with future capabilities clearly marked.</p></div><button className="text-button" onClick={() => chooseModule("Products & Services")}>Manage catalogue <ArrowRight size={13} /></button></div>
@@ -285,21 +314,21 @@ export default function App() {
                   <article className="catalog-card"><span>⌘</span><h3>Coding Education</h3><p>Practical coding guidance built around projects and learning goals.</p><small>CORE SERVICE</small></article>
                 </div>
               </section>
-              <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone="amber" /> Demo mode — no live data</span></footer>
+              <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone={backendError ? "amber" : "cyan"} /> {backendError ? "Backend needs attention" : "Authenticated live workspace"}</span></footer>
             </>
           ) : (
-            <ModulePage active={active} onCreateTask={() => setShowQuickAdd(true)} localTasks={localTasks} />
+            <ModulePage active={active} onCreateTask={() => { setTaskCreated(false); setShowQuickAdd(true); }} localTasks={localTasks} projects={projects} approvals={approvals} onToggleTask={toggleTaskCompletion} />
           )}
         </div>
       </main>
 
-      {showQuickAdd && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowQuickAdd(false); }}><section className="quick-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-head"><div><p className="eyebrow">WORKSPACE / TASKS</p><h2 id="task-modal-title">Create a task draft</h2></div><button className="icon-button" aria-label="Close dialog" onClick={() => setShowQuickAdd(false)}><X size={17} /></button></div><p className="modal-description">Drafts are saved in this browser only. They are not synced to a server or shared with other devices.</p><label className="field-label" htmlFor="task-title">Task title</label><input id="task-title" className="task-input" autoFocus value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") createDraftTask(); }} placeholder="e.g. Define team permission matrix" /><div className="modal-foot"><button className="secondary-button" onClick={() => setShowQuickAdd(false)}>Cancel</button><button className="primary-button" onClick={createDraftTask} disabled={!taskTitle.trim()}><Plus size={15} /> Add draft</button></div></section></div>}
-      {taskCreated && <div className="toast"><Check size={16} /><span>Draft added locally. It has not been saved to a server.</span><button aria-label="Dismiss notification" onClick={() => setTaskCreated(false)}><X size={14} /></button></div>}
+      {showQuickAdd && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowQuickAdd(false); }}><section className="quick-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title"><div className="modal-head"><div><p className="eyebrow">WORKSPACE / TASKS</p><h2 id="task-modal-title">{active === "Projects" ? "Create a project" : "Create a task"}</h2></div><button className="icon-button" aria-label="Close dialog" onClick={() => setShowQuickAdd(false)}><X size={17} /></button></div><p className="modal-description">This record will be saved to your authenticated Supabase workspace.</p><label className="field-label" htmlFor="task-title">Task title</label><input id="task-title" className="task-input" autoFocus value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") createDraftTask(); }} placeholder="e.g. Define team permission matrix" /><div className="modal-foot"><button className="secondary-button" onClick={() => setShowQuickAdd(false)}>Cancel</button><button className="primary-button" onClick={createDraftTask} disabled={!taskTitle.trim()}><Plus size={15} /> Save to workspace</button></div></section></div>}
+      {taskCreated && <div className="toast"><Check size={16} /><span>Record saved to your Supabase workspace.</span><button aria-label="Dismiss notification" onClick={() => setTaskCreated(false)}><X size={14} /></button></div>}
     </div>
   );
 }
 
-function ModulePage({ active, onCreateTask, localTasks }: { active: ModuleKey; onCreateTask: () => void; localTasks: typeof tasks }) {
+function ModulePage({ active, onCreateTask, localTasks, projects, approvals, onToggleTask }: { active: ModuleKey; onCreateTask: () => void; localTasks: TaskView[]; projects: ProjectView[]; approvals: ApprovalView[]; onToggleTask: (task: TaskView) => void }) {
   const item = navItems.find((nav) => nav.label === active);
   const Icon = item?.icon ?? Gauge;
   const [tab, setTab] = useState("All");
@@ -307,13 +336,13 @@ function ModulePage({ active, onCreateTask, localTasks }: { active: ModuleKey; o
   const [showInfo, setShowInfo] = useState(false);
 
   return <section className="module-page">
-    <div className="module-title-row"><div><p className="eyebrow">COMMAND MODULE / {String(navItems.findIndex((nav) => nav.label === active) + 1).padStart(2, "0")}</p><h1>{active}</h1><p className="welcome-subtitle">{descriptions[active]}</p></div><button className="primary-button" onClick={onCreateTask}><Plus size={16} /> {active === "Tasks" ? "Create task" : "New draft"}</button></div>
-    <div className="module-status"><span className="status-chip"><span className="offline-ring small" /> Prototype module</span><span>Live backend unavailable</span><button className="text-button" onClick={() => setShowInfo(!showInfo)}><CircleHelp size={14} /> What does this mean?</button></div>
-    {showInfo && <div className="info-callout"><strong>This screen is an interface scaffold.</strong><p>Records and actions are not yet connected to an authenticated backend. Do not enter real customer, financial, or sensitive data. The next implementation phase adds identity, permissions, persistence and audit events.</p></div>}
-    {active === "Projects" ? <div className="panel module-panel"><SectionHeading eyebrow="PORTFOLIO" title="Project register" right={<span className="neutral-tag">Sample records</span>} />{projects.map((project) => <div className="module-record" key={project.name}><span className={`project-symbol ${project.tone}`}><FolderKanban size={17} /></span><div className="record-main"><strong>{project.name}</strong><p>{project.tag} · {project.owner}</p><div className="progress-track"><span className={project.tone} style={{ width: `${project.progress}%` }} /></div></div><span className="status-pill"><StatusDot tone={project.tone} />{project.status}</span></div>)}</div>
-    : active === "Tasks" ? <div className="panel module-panel"><SectionHeading eyebrow="DELIVERY" title="Task register" right={<span className="neutral-tag">{localTasks.length} local records</span>} /><div className="module-controls"><label className="table-search"><Search size={15} /><input value={localSearch} onChange={(event) => setLocalSearch(event.target.value)} placeholder="Filter tasks..." /></label><div className="segmented">{["All", "Planned", "In progress"].map((name) => <button className={tab === name ? "selected" : ""} key={name} onClick={() => setTab(name)}>{name}</button>)}</div></div>{localTasks.filter((task) => (tab === "All" || task.state === tab) && task.title.toLowerCase().includes(localSearch.toLowerCase())).map((task) => <div className="task-record" key={task.title}><span className="task-check"><Check size={13} /></span><div className="record-main"><strong>{task.title}</strong><p>{task.project} · {task.owner}</p></div><span className={`priority-tag ${task.priority.toLowerCase()}`}>{task.priority}</span><span className="task-state">{task.state}</span></div>)}</div>
-    : active === "Approvals" ? <div className="panel module-panel"><SectionHeading eyebrow="HUMAN CONTROL" title="Approval register" right={<span className="neutral-tag">No actions executable</span>} />{approvals.map((approval) => <div className="module-record" key={approval.title}><span className="approval-symbol"><ShieldCheck size={16} /></span><div className="record-main"><strong>{approval.title}</strong><p>{approval.detail}</p></div><span className="approval-tag">{approval.risk}</span><span className="status-pill">{approval.status}</span></div>)}<div className="approval-footer"><LockKeyhole size={14} /> Approvals are records of intent until a secure executor is implemented.</div></div>
+    <div className="module-title-row"><div><p className="eyebrow">COMMAND MODULE / {String(navItems.findIndex((nav) => nav.label === active) + 1).padStart(2, "0")}</p><h1>{active}</h1><p className="welcome-subtitle">{descriptions[active]}</p></div><button className="primary-button" onClick={onCreateTask}><Plus size={16} /> {active === "Projects" ? "New project" : active === "Tasks" ? "Create task" : "New record"}</button></div>
+    <div className="module-status"><span className="status-chip"><span className="offline-ring small" /> Authenticated module</span><span>Supabase data</span><button className="text-button" onClick={() => setShowInfo(!showInfo)}><CircleHelp size={14} /> What does this mean?</button></div>
+    {showInfo && <div className="info-callout"><strong>Authenticated workspace.</strong><p>Records are loaded from Supabase and protected by Row Level Security. Only the currently signed-in account can access its own records.</p></div>}
+    {active === "Projects" ? <div className="panel module-panel"><SectionHeading eyebrow="PORTFOLIO" title="Project register" right={<span className="neutral-tag">Supabase records</span>} />{projects.map((project) => <div className="module-record" key={project.name}><span className={`project-symbol ${project.tone}`}><FolderKanban size={17} /></span><div className="record-main"><strong>{project.name}</strong><p>{project.tag} · {project.owner}</p><div className="progress-track"><span className={project.tone} style={{ width: `${project.progress}%` }} /></div></div><span className="status-pill"><StatusDot tone={project.tone} />{project.status}</span></div>)}</div>
+    : active === "Tasks" ? <div className="panel module-panel"><SectionHeading eyebrow="DELIVERY" title="Task register" right={<span className="neutral-tag">{localTasks.length} saved records</span>} /><div className="module-controls"><label className="table-search"><Search size={15} /><input value={localSearch} onChange={(event) => setLocalSearch(event.target.value)} placeholder="Filter tasks..." /></label><div className="segmented">{["All", "Planned", "In progress"].map((name) => <button className={tab === name ? "selected" : ""} key={name} onClick={() => setTab(name)}>{name}</button>)}</div></div>{localTasks.filter((task) => (tab === "All" || task.state === tab) && task.title.toLowerCase().includes(localSearch.toLowerCase())).map((task) => <div className="task-record" key={task.title}><span className="task-check"><Check size={13} /></span><div className="record-main"><strong>{task.title}</strong><p>{task.project} · {task.owner}</p></div><span className={`priority-tag ${task.priority.toLowerCase()}`}>{task.priority}</span><span className="task-state">{task.state}</span><button className="text-button" onClick={() => onToggleTask(task)}>{task.state === "Completed" ? "Reopen" : "Complete"}</button></div>)}</div>
+    : active === "Approvals" ? <div className="panel module-panel"><SectionHeading eyebrow="HUMAN CONTROL" title="Approval register" right={<span className="neutral-tag">Human approval required</span>} />{approvals.map((approval) => <div className="module-record" key={approval.title}><span className="approval-symbol"><ShieldCheck size={16} /></span><div className="record-main"><strong>{approval.title}</strong><p>{approval.detail}</p></div><span className="approval-tag">{approval.risk}</span><span className="status-pill">{approval.status}</span></div>)}<div className="approval-footer"><LockKeyhole size={14} /> Approvals are records of intent until a secure executor is implemented.</div></div>
     : <div className="module-cards"><article className="panel module-placeholder"><span className="large-module-icon"><Icon size={23} /></span><p className="eyebrow">MODULE FOUNDATION</p><h2>{active}</h2><p>{descriptions[active]}</p><div className="placeholder-status"><StatusDot tone="amber" /> Awaiting backend implementation</div></article><article className="panel module-checklist"><SectionHeading eyebrow="IMPLEMENTATION CHECKLIST" title="What comes next" /><div className="checklist-row"><span>01</span><div><strong>Define data and access rules</strong><p>Specify record ownership, visibility and permitted actions.</p></div></div><div className="checklist-row"><span>02</span><div><strong>Implement server API</strong><p>Validate inputs and enforce role permissions on every request.</p></div></div><div className="checklist-row"><span>03</span><div><strong>Connect and verify</strong><p>Test failure cases before displaying a connected status.</p></div></div></article></div>}
-    <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone="amber" /> Prototype only</span></footer>
+    <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone="cyan" /> Supabase workspace</span></footer>
   </section>;
 }
