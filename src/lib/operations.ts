@@ -11,5 +11,15 @@ export async function createProject(user: User,input:Pick<Project,"name"|"descri
 export async function listTasks(user: User) { const {data,error}=await requireSupabase().from("pruden_tasks").select("*").eq("owner_id",ownerId(user)).order("created_at",{ascending:false}); if(error) throw error; return (data??[]) as Task[]; }
 export async function createTask(user: User,input:Pick<Task,"title"|"description"|"project_id"|"status"|"priority"|"assigned_to"|"due_date">) { const title=input.title.trim(); if(!title||title.length>200) throw new Error("Task title must be 1–200 characters."); const {data,error}=await requireSupabase().from("pruden_tasks").insert({...input,title,owner_id:ownerId(user)}).select("*").single(); if(error) throw error; await writeAudit(user,"task.created","task",data.id); return data as Task; }
 export async function updateTaskStatus(user: User,id:string,status:TaskStatus) { const {data,error}=await requireSupabase().from("pruden_tasks").update({status}).eq("id",id).eq("owner_id",ownerId(user)).select("*").single(); if(error) throw error; await writeAudit(user,"task.status_changed","task",id,{status}); return data as Task; }
+export async function deleteProject(user: User,id:string) {
+ const {error}=await requireSupabase().from("pruden_projects").delete().eq("id",id).eq("owner_id",ownerId(user));
+ if(error) throw error;
+ await writeAudit(user,"project.deleted","project",id);
+}
+export async function deleteTask(user: User,id:string) {
+ const {error}=await requireSupabase().from("pruden_tasks").delete().eq("id",id).eq("owner_id",ownerId(user));
+ if(error) throw error;
+ await writeAudit(user,"task.deleted","task",id);
+}
 export async function listApprovals(user: User) { const {data,error}=await requireSupabase().from("pruden_approvals").select("*").eq("owner_id",ownerId(user)).order("created_at",{ascending:false}); if(error) throw error; return data??[]; }
 async function writeAudit(user:User,action:string,entityType:string,entityId:string,details:Record<string,unknown>={}) { const {error}=await requireSupabase().from("pruden_audit_events").insert({owner_id:ownerId(user),actor_id:user.id,action,entity_type:entityType,entity_id:entityId,details}); if(error) throw error; }
