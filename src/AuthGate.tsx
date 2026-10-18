@@ -16,6 +16,7 @@ export default function AuthGate() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const allowSignup = import.meta.env.VITE_ALLOW_SIGNUP === "true";
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function AuthGate() {
         const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (authError) throw authError;
       } else {
+        if (!allowSignup) throw new Error("Self-service account creation is disabled on this deployment.");
         const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password });
         if (authError) throw authError;
         if (!data.session) setMessage("Account created. Check your email for the confirmation link, then return here to sign in.");
@@ -65,7 +67,8 @@ export default function AuthGate() {
       {message && <p role="status" style={{ color: "#8de2bd", fontSize: 13 }}>{message}</p>}
       <button style={{ ...button, opacity: busy ? .7 : 1 }} disabled={busy}>{busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : "Create account"}</button>
     </form>
-    <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); setMessage(""); }} style={{ ...button, marginTop: 10, background: "transparent", border: "1px solid #344761", color: "#c4d5eb" }}>{mode === "signin" ? "New here? Create an account" : "Already registered? Sign in"}</button>
+    {allowSignup && <button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); setMessage(""); }} style={{ ...button, marginTop: 10, background: "transparent", border: "1px solid #344761", color: "#c4d5eb" }}>{mode === "signin" ? "New here? Create an account" : "Already registered? Sign in"}</button>}
+    {!allowSignup && <p style={{ color: "#7488a3", fontSize: 12 }}>Account creation is restricted. Use the private command deployment or ask the workspace administrator.</p>}
     <div style={{ borderTop: "1px solid #26364c", paddingTop: 16, marginTop: 24, color: "#7488a3", fontSize: 11, letterSpacing: ".08em" }}>BUILD. LEARN. INVENT. EVOLVE.</div>
   </section></main>;
 }
