@@ -48,9 +48,10 @@ export default function AuthGate() {
     } finally { setBusy(false); }
   }
 
+  const client = supabase;
   if (checking) return <main style={shell}><section style={card}><strong>PRUDEN COMMAND</strong><p style={{ color: "#a8b8cd" }}>Restoring your secure session…</p></section></main>;
-  if (!isSupabaseConfigured || !supabase) return <main style={shell}><section style={card}><div style={{ color: "#83c9ff", fontSize: 11, letterSpacing: ".2em", fontWeight: 800 }}>PRUDEN TECHNOLOGIES / COMMAND</div><h1>Backend configuration required</h1><p style={{ color: "#a8b8cd", lineHeight: 1.6 }}>The application is waiting for its Supabase URL and publishable key to be configured in the deployment environment. No private service key belongs in the browser.</p></section></main>;
-  if (session?.user) return <App user={session.user} onSignOut={() => { void supabase.auth.signOut(); }} />;
+  if (!isSupabaseConfigured || !client) return <main style={shell}><section style={card}><div style={{ color: "#83c9ff", fontSize: 11, letterSpacing: ".2em", fontWeight: 800 }}>PRUDEN TECHNOLOGIES / COMMAND</div><h1>Backend configuration required</h1><p style={{ color: "#a8b8cd", lineHeight: 1.6 }}>The application is waiting for its Supabase URL and publishable key to be configured in the deployment environment. No private service key belongs in the browser.</p></section></main>;
+  if (session?.user) return <App user={session.user} onSignOut={() => { void client.auth.signOut(); }} />;
 
   return <main style={shell}><section style={card}>
     <div style={{ width: 50, height: 50, display: "grid", placeItems: "center", borderRadius: 15, background: "linear-gradient(145deg,#5cbcff,#3165db)", fontWeight: 900, fontSize: 21 }}>P</div>
