@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import GitHubProjectsPage from "./GitHubProjectsPage";
 import type { User } from "@supabase/supabase-js";
-import { listProjects, createProject, listTasks, createTask, listApprovals } from "./lib/operations";
+import { listProjects, createProject, listTasks, createTask, updateTaskStatus, listApprovals } from "./lib/operations";
 import { githubProjects } from "./githubProjects";
 import {
   Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
@@ -182,6 +182,17 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
     setSearch("");
   };
 
+  const toggleTaskCompletion = async (task: TaskView) => {
+    const nextState = task.state === "Completed" ? "planned" : "completed";
+    try {
+      await updateTaskStatus(user, task.id, nextState);
+      setLocalTasks((current) => current.map((item) => item.id === task.id ? { ...item, state: nextState === "completed" ? "Completed" : "Planned" } : item));
+      setBackendError("");
+    } catch (err) {
+      setBackendError(err instanceof Error ? err.message : "Task status could not be updated.");
+    }
+  };
+
   const createDraftTask = async () => {
     const title = taskTitle.trim();
     if (!title) return;
@@ -306,7 +317,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
               <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone={backendError ? "amber" : "cyan"} /> {backendError ? "Backend needs attention" : "Authenticated live workspace"}</span></footer>
             </>
           ) : (
-            <ModulePage active={active} onCreateTask={() => { setTaskCreated(false); setShowQuickAdd(true); }} localTasks={localTasks} projects={projects} approvals={approvals} />
+            <ModulePage active={active} onCreateTask={() => { setTaskCreated(false); setShowQuickAdd(true); }} localTasks={localTasks} projects={projects} approvals={approvals} onToggleTask={toggleTaskCompletion} />
           )}
         </div>
       </main>
@@ -317,7 +328,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
   );
 }
 
-function ModulePage({ active, onCreateTask, localTasks, projects, approvals }: { active: ModuleKey; onCreateTask: () => void; localTasks: TaskView[]; projects: ProjectView[]; approvals: ApprovalView[] }) {
+function ModulePage({ active, onCreateTask, localTasks, projects, approvals, onToggleTask }: { active: ModuleKey; onCreateTask: () => void; localTasks: TaskView[]; projects: ProjectView[]; approvals: ApprovalView[]; onToggleTask: (task: TaskView) => void }) {
   const item = navItems.find((nav) => nav.label === active);
   const Icon = item?.icon ?? Gauge;
   const [tab, setTab] = useState("All");
@@ -329,7 +340,7 @@ function ModulePage({ active, onCreateTask, localTasks, projects, approvals }: {
     <div className="module-status"><span className="status-chip"><span className="offline-ring small" /> Authenticated module</span><span>Supabase data</span><button className="text-button" onClick={() => setShowInfo(!showInfo)}><CircleHelp size={14} /> What does this mean?</button></div>
     {showInfo && <div className="info-callout"><strong>Authenticated workspace.</strong><p>Records are loaded from Supabase and protected by Row Level Security. Only the currently signed-in account can access its own records.</p></div>}
     {active === "Projects" ? <div className="panel module-panel"><SectionHeading eyebrow="PORTFOLIO" title="Project register" right={<span className="neutral-tag">Supabase records</span>} />{projects.map((project) => <div className="module-record" key={project.name}><span className={`project-symbol ${project.tone}`}><FolderKanban size={17} /></span><div className="record-main"><strong>{project.name}</strong><p>{project.tag} · {project.owner}</p><div className="progress-track"><span className={project.tone} style={{ width: `${project.progress}%` }} /></div></div><span className="status-pill"><StatusDot tone={project.tone} />{project.status}</span></div>)}</div>
-    : active === "Tasks" ? <div className="panel module-panel"><SectionHeading eyebrow="DELIVERY" title="Task register" right={<span className="neutral-tag">{localTasks.length} saved records</span>} /><div className="module-controls"><label className="table-search"><Search size={15} /><input value={localSearch} onChange={(event) => setLocalSearch(event.target.value)} placeholder="Filter tasks..." /></label><div className="segmented">{["All", "Planned", "In progress"].map((name) => <button className={tab === name ? "selected" : ""} key={name} onClick={() => setTab(name)}>{name}</button>)}</div></div>{localTasks.filter((task) => (tab === "All" || task.state === tab) && task.title.toLowerCase().includes(localSearch.toLowerCase())).map((task) => <div className="task-record" key={task.title}><span className="task-check"><Check size={13} /></span><div className="record-main"><strong>{task.title}</strong><p>{task.project} · {task.owner}</p></div><span className={`priority-tag ${task.priority.toLowerCase()}`}>{task.priority}</span><span className="task-state">{task.state}</span></div>)}</div>
+    : active === "Tasks" ? <div className="panel module-panel"><SectionHeading eyebrow="DELIVERY" title="Task register" right={<span className="neutral-tag">{localTasks.length} saved records</span>} /><div className="module-controls"><label className="table-search"><Search size={15} /><input value={localSearch} onChange={(event) => setLocalSearch(event.target.value)} placeholder="Filter tasks..." /></label><div className="segmented">{["All", "Planned", "In progress"].map((name) => <button className={tab === name ? "selected" : ""} key={name} onClick={() => setTab(name)}>{name}</button>)}</div></div>{localTasks.filter((task) => (tab === "All" || task.state === tab) && task.title.toLowerCase().includes(localSearch.toLowerCase())).map((task) => <div className="task-record" key={task.title}><span className="task-check"><Check size={13} /></span><div className="record-main"><strong>{task.title}</strong><p>{task.project} · {task.owner}</p></div><span className={`priority-tag ${task.priority.toLowerCase()}`}>{task.priority}</span><span className="task-state">{task.state}</span><button className="text-button" onClick={() => onToggleTask(task)}>{task.state === "Completed" ? "Reopen" : "Complete"}</button></div>)}</div>
     : active === "Approvals" ? <div className="panel module-panel"><SectionHeading eyebrow="HUMAN CONTROL" title="Approval register" right={<span className="neutral-tag">Human approval required</span>} />{approvals.map((approval) => <div className="module-record" key={approval.title}><span className="approval-symbol"><ShieldCheck size={16} /></span><div className="record-main"><strong>{approval.title}</strong><p>{approval.detail}</p></div><span className="approval-tag">{approval.risk}</span><span className="status-pill">{approval.status}</span></div>)}<div className="approval-footer"><LockKeyhole size={14} /> Approvals are records of intent until a secure executor is implemented.</div></div>
     : <div className="module-cards"><article className="panel module-placeholder"><span className="large-module-icon"><Icon size={23} /></span><p className="eyebrow">MODULE FOUNDATION</p><h2>{active}</h2><p>{descriptions[active]}</p><div className="placeholder-status"><StatusDot tone="amber" /> Awaiting backend implementation</div></article><article className="panel module-checklist"><SectionHeading eyebrow="IMPLEMENTATION CHECKLIST" title="What comes next" /><div className="checklist-row"><span>01</span><div><strong>Define data and access rules</strong><p>Specify record ownership, visibility and permitted actions.</p></div></div><div className="checklist-row"><span>02</span><div><strong>Implement server API</strong><p>Validate inputs and enforce role permissions on every request.</p></div></div><div className="checklist-row"><span>03</span><div><strong>Connect and verify</strong><p>Test failure cases before displaying a connected status.</p></div></div></article></div>}
     <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone="cyan" /> Supabase workspace</span></footer>
