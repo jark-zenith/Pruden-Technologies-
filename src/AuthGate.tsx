@@ -6,7 +6,15 @@ import { isSupabaseConfigured, supabase } from "./lib/supabase";
 const shell: React.CSSProperties = { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "radial-gradient(ellipse at 50% 0%, #17375b 0%, #080d17 58%)", color: "#edf4ff", fontFamily: "Inter, system-ui, sans-serif" };
 const card: React.CSSProperties = { width: "min(100%, 440px)", border: "1px solid #2c405b", borderRadius: 24, padding: 32, background: "#0d1625f2", boxShadow: "0 24px 90px #0008" };
 const field: React.CSSProperties = { width: "100%", boxSizing: "border-box", padding: "13px 14px", marginTop: 7, borderRadius: 11, border: "1px solid #344761", background: "#08111f", color: "#fff", fontSize: 15 };
-const ALLOWED_EMAILS = new Set([\n  "jarkpruden@gmail.com",\n  "jarksulein@gmail.com",\n  "ivyassistantai@gmail.com",\n  "developerjarkai@gmail.com",\n  "chartgptai@gmail.com",\n]);\n\nconst button: React.CSSProperties = { width: "100%", marginTop: 18, padding: 14, border: 0, borderRadius: 11, background: "#419bff", color: "#06101f", fontWeight: 800, cursor: "pointer", fontSize: 14 };
+const ALLOWED_EMAILS = new Set([
+  "jarkpruden@gmail.com",
+  "jarksulein@gmail.com",
+  "ivyassistantai@gmail.com",
+  "developerjarkai@gmail.com",
+  "chatgpt6ai@gmail.com",
+]);
+
+const button: React.CSSProperties = { width: "100%", marginTop: 18, padding: 14, border: 0, borderRadius: 11, background: "#419bff", color: "#06101f", fontWeight: 800, cursor: "pointer", fontSize: 14 };
 
 export default function AuthGate() {
   const [session, setSession] = useState<Session | null>(null);
@@ -21,13 +29,31 @@ export default function AuthGate() {
 
   useEffect(() => {
     if (!supabase) { setChecking(false); return; }
-    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+    let active = true;
+    supabase.auth.getSession().then(async ({ data, error: sessionError }) => {
       if (sessionError) setError(sessionError.message);
-      setSession(data.session);
-      setChecking(false);
+      const current = data.session;
+      if (current?.user.email && !ALLOWED_EMAILS.has(current.user.email.toLowerCase())) {
+        await supabase.auth.signOut();
+        if (active) {
+          setSession(null);
+          setError("This email is not authorized to access PRUDEN COMMAND.");
+        }
+      } else if (active) {
+        setSession(current);
+      }
+      if (active) setChecking(false);
     });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
-    return () => listener.subscription.unsubscribe();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (nextSession?.user.email && !ALLOWED_EMAILS.has(nextSession.user.email.toLowerCase())) {
+        setSession(null);
+        setError("This email is not authorized to access PRUDEN COMMAND.");
+        void supabase.auth.signOut();
+      } else {
+        setSession(nextSession);
+      }
+    });
+    return () => { active = false; listener.subscription.unsubscribe(); };
   }, []);
 
   async function submit(event: FormEvent) {
@@ -35,6 +61,10 @@ export default function AuthGate() {
     if (!supabase) return;
     setBusy(true); setError(""); setMessage("");
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!ALLOWED_EMAILS.has(normalizedEmail)) {
+        throw new Error("Access denied. Use one of the five approved management-system email addresses.");
+      }
       if (mode === "signin") {
         const { error: authError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (authError) throw authError;
