@@ -15,6 +15,17 @@ export type GitHubProject = {
 // not a real-time uptime check. Refresh this data when adding repositories or deployments.
 export const githubProjects: GitHubProject[] = [
   {
+    "name": "Arc Africa",
+    "repoUrl": "https://github.com/jark-zenith/Arc-Africa-",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": "https://arc-africa-recruitment.onrender.com",
+    "deploymentName": "arc-africa-recruitment",
+    "deploymentType": "static_site",
+    "deploymentBranch": "main"
+  },
+  {
     "name": "jark-ai-tech-labs",
     "repoUrl": "https://github.com/jark-zenith/jark-ai-tech-labs",
     "visibility": "private",
