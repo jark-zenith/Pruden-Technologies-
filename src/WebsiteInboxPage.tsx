@@ -81,7 +81,33 @@ export default function WebsiteInboxPage({ user }: { user: User }) {
   const unread = records.filter(item => !item.is_read).length;
   const date = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 
-  return <div className="website-inbox-page">
+  return <div className="website-inbox-page"><style>{`
+.website-inbox-page .inbox-layout{display:grid;grid-template-columns:minmax(280px,.85fr) minmax(320px,1.15fr);gap:16px;margin-top:16px;align-items:start}
+.website-inbox-page .inbox-list,.website-inbox-page .inbox-detail{min-width:0;overflow:hidden}
+.website-inbox-page .inbox-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border,#273448)}
+.website-inbox-page select,.website-inbox-page textarea{font:inherit;color:inherit;background:var(--surface,#101827);border:1px solid var(--border,#273448);border-radius:8px;padding:8px;max-width:100%}
+.website-inbox-page .inbox-record{width:100%;display:flex;gap:10px;text-align:left;padding:14px 12px;border:0;border-bottom:1px solid var(--border,#273448);background:transparent;color:inherit;cursor:pointer}
+.website-inbox-page .inbox-record:hover,.website-inbox-page .inbox-record.selected{background:rgba(65,125,255,.1)}
+.website-inbox-page .inbox-unread-dot{width:8px;height:8px;flex:none;border-radius:50%;background:#60a5fa;margin-top:5px}
+.website-inbox-page .inbox-unread-dot.read{background:transparent;border:1px solid #64748b}
+.website-inbox-page .inbox-record-main{display:grid;gap:5px;min-width:0;width:100%}
+.website-inbox-page .inbox-record-title{font-weight:700;overflow-wrap:anywhere}
+.website-inbox-page .inbox-record-meta,.website-inbox-page .inbox-record-date{font-size:12px;color:var(--muted,#94a3b8)}
+.website-inbox-page .inbox-record-preview{font-size:13px;color:var(--muted,#94a3b8);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.website-inbox-page .inbox-detail{padding:18px}
+.website-inbox-page .inbox-detail-head{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border,#273448);padding-bottom:14px}
+.website-inbox-page .inbox-detail-head h3{margin:6px 0;overflow-wrap:anywhere}
+.website-inbox-page .inbox-contact{display:grid;gap:5px;margin:16px 0;font-size:13px}
+.website-inbox-page .inbox-contact a{color:var(--accent,#80aaff);overflow-wrap:anywhere}
+.website-inbox-page .inbox-message{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
+.website-inbox-page .inbox-fields{font-size:13px;margin:16px 0}
+.website-inbox-page .inbox-fields div{padding:7px 0;border-bottom:1px solid var(--border,#273448);overflow-wrap:anywhere}
+.website-inbox-page .inbox-field{display:grid;gap:7px;font-size:13px;margin:14px 0}
+.website-inbox-page .inbox-field textarea{resize:vertical;width:100%}
+.website-inbox-page .inbox-empty{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--muted,#94a3b8);text-align:center}
+.website-inbox-page .inbox-disclaimer{font-size:12px;color:var(--muted,#94a3b8);margin-top:14px}
+@media(max-width:900px){.website-inbox-page .inbox-layout{grid-template-columns:1fr}.website-inbox-page .inbox-list{max-height:500px;overflow:auto}}
+`}</style>
     <div className="section-heading"><div><p className="eyebrow">CENTRAL COMMUNICATIONS</p><h2>Website Inbox</h2><p className="welcome-subtitle">Applications, contact requests and feedback from connected PRUDEN websites.</p></div><button className="secondary-button" onClick={() => void load()} disabled={loading}><RefreshCw size={15} /> Refresh</button></div>
     <div className="metric-grid">
       <article className="metric-card"><div className="metric-top"><span>Total submissions</span><Inbox size={17}/></div><div className="metric-value">{records.length}</div><div className="metric-foot">Saved in Supabase</div></article>
