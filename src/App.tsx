@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import GitHubProjectsPage from "./GitHubProjectsPage";
+import WebsiteInboxPage from "./WebsiteInboxPage";
 import type { User } from "@supabase/supabase-js";
 import { listProjects, createProject, listTasks, createTask, updateTaskStatus, listApprovals } from "./lib/operations";
 import { githubProjects } from "./githubProjects";
 import {
-  Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness,
+  Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness, Mail,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command,
   CreditCard, Database, FileText, FolderKanban, Gauge, GitBranch, LayoutDashboard,
   ListTodo, LockKeyhole, Menu, Plus, Search, Settings2, ShieldCheck,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 
 type ModuleKey =
-  | "Overview" | "Projects" | "Tasks" | "AI Workforce" | "Approvals"
+  | "Overview" | "Projects" | "Tasks" | "Website Inbox" | "AI Workforce" | "Approvals"
   | "Customers & CRM" | "Finance" | "Products & Services" | "Infrastructure"
   | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub";
 
@@ -23,6 +24,7 @@ const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, group: "WORKSPACE" },
   { label: "Projects", icon: FolderKanban, group: "WORKSPACE" },
   { label: "Tasks", icon: ListTodo, group: "WORKSPACE" },
+  { label: "Website Inbox", icon: Mail, group: "WORKSPACE", badge: "NEW" },
   { label: "AI Workforce", icon: Bot, group: "INTELLIGENCE" },
   { label: "Approvals", icon: ShieldCheck, group: "INTELLIGENCE" },
   { label: "Customers & CRM", icon: Users, group: "BUSINESS" },
@@ -43,6 +45,7 @@ const descriptions: Record<ModuleKey, string> = {
   "Overview": "Your operating picture, priorities and decisions in one place.",
   "Projects": "Track outcomes, owners, milestones, budgets and delivery health.",
   "Tasks": "Turn priorities into owned work with acceptance criteria and evidence.",
+  "Website Inbox": "Review applications, contact requests and feedback from your live websites.",
   "AI Workforce": "Register agents, scope their capabilities and review their runs.",
   "Approvals": "Review consequential actions before anything is executed.",
   "Customers & CRM": "Manage leads, customer relationships and delivery hand-offs.",
@@ -271,7 +274,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
         <div className="content-wrap">
           <div className="prototype-banner"><span><Activity size={14} /> {backendLoading ? "CONNECTING" : backendError ? "BACKEND ISSUE" : "LIVE DATA"}</span><p>{backendError || (backendLoading ? "Loading your workspace from Supabase…" : "Authenticated workspace · Records protected by Supabase Row Level Security")}</p><button onClick={() => chooseModule("Infrastructure")}>View system status <ArrowRight size={13} /></button></div>
 
-          {active === "GitHub" ? <GitHubProjectsPage /> : active === "Overview" ? (
+          {active === "GitHub" ? <GitHubProjectsPage /> : active === "Website Inbox" ? <WebsiteInboxPage user={user} /> : active === "Overview" ? (
             <>
               <section className="welcome-row">
                 <div><p className="eyebrow"><span className="live-indicator" /> TECHNOLOGY OPERATIONS / 01</p><h1>Welcome back, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
