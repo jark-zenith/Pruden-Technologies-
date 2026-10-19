@@ -6,7 +6,7 @@ import { isSupabaseConfigured, supabase } from "./lib/supabase";
 const shell: React.CSSProperties = { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "radial-gradient(ellipse at 50% 0%, #17375b 0%, #080d17 58%)", color: "#edf4ff", fontFamily: "Inter, system-ui, sans-serif" };
 const card: React.CSSProperties = { width: "min(100%, 440px)", border: "1px solid #2c405b", borderRadius: 24, padding: 32, background: "#0d1625f2", boxShadow: "0 24px 90px #0008" };
 const field: React.CSSProperties = { width: "100%", boxSizing: "border-box", padding: "13px 14px", marginTop: 7, borderRadius: 11, border: "1px solid #344761", background: "#08111f", color: "#fff", fontSize: 15 };
-const button: React.CSSProperties = { width: "100%", marginTop: 18, padding: 14, border: 0, borderRadius: 11, background: "#419bff", color: "#06101f", fontWeight: 800, cursor: "pointer", fontSize: 14 };
+const ALLOWED_EMAILS = new Set([\n  "jarkpruden@gmail.com",\n  "jarksulein@gmail.com",\n  "ivyassistantai@gmail.com",\n  "developerjarkai@gmail.com",\n  "chartgptai@gmail.com",\n]);\n\nconst button: React.CSSProperties = { width: "100%", marginTop: 18, padding: 14, border: 0, borderRadius: 11, background: "#419bff", color: "#06101f", fontWeight: 800, cursor: "pointer", fontSize: 14 };
 
 export default function AuthGate() {
   const [session, setSession] = useState<Session | null>(null);
@@ -36,11 +36,11 @@ export default function AuthGate() {
     setBusy(true); setError(""); setMessage("");
     try {
       if (mode === "signin") {
-        const { error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error: authError } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
         if (authError) throw authError;
       } else {
         if (!allowSignup) throw new Error("Self-service account creation is disabled on this deployment.");
-        const { data, error: authError } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { data, error: authError } = await supabase.auth.signUp({ email: normalizedEmail, password });
         if (authError) throw authError;
         if (!data.session) setMessage("Account created. Check your email for the confirmation link, then return here to sign in.");
         else setMessage("Account created successfully.");
@@ -59,7 +59,7 @@ export default function AuthGate() {
     <div style={{ width: 50, height: 50, display: "grid", placeItems: "center", borderRadius: 15, background: "linear-gradient(145deg,#5cbcff,#3165db)", fontWeight: 900, fontSize: 21 }}>P</div>
     <p style={{ color: "#83c9ff", fontSize: 11, letterSpacing: ".2em", fontWeight: 800, marginTop: 22 }}>PRUDEN TECHNOLOGIES / COMMAND</p>
     <h1 style={{ margin: "0 0 8px", fontSize: 29, letterSpacing: "-.04em" }}>{mode === "signin" ? "Welcome back." : "Create your workspace access."}</h1>
-    <p style={{ color: "#a8b8cd", lineHeight: 1.6, fontSize: 14 }}>Sign in to access company operations. Your records are isolated by database security policies.</p>
+    <p style={{ color: "#a8b8cd", lineHeight: 1.6, fontSize: 14 }}>Only five pre-approved company email addresses can access operations. Use your individual account password.</p>
     <form onSubmit={submit}>
       <label style={{ display: "block", marginTop: 20, fontSize: 12, fontWeight: 700 }}>Email address<input style={field} type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></label>
       <label style={{ display: "block", marginTop: 16, fontSize: 12, fontWeight: 700 }}>Password<input style={field} type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} minLength={8} required value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 8 characters" /></label>
