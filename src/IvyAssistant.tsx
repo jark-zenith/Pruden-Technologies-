@@ -3,7 +3,7 @@ import { Activity, Camera, CameraOff, ChevronDown, Mic, MicOff, Send, Settings2,
 
 type IvyMessage = { role: "user" | "assistant"; content: string; imageDataUrl?: string };
 type IvyAction = { type: "navigate_module" | "open_external_url"; value: string };
-type IvyPreferences = { voiceOutput: boolean; continuousListening: boolean; cameraEnabled: boolean };
+type IvyPreferences = { voiceOutput: boolean; continuousListening: boolean; cameraEnabled: boolean; autoStartVoice: boolean };
 type SpeechRecognitionAlternativeLike = { transcript: string };
 type SpeechRecognitionResultLike = { isFinal: boolean; 0: SpeechRecognitionAlternativeLike };
 type SpeechRecognitionEventLike = { resultIndex: number; results: ArrayLike<SpeechRecognitionResultLike> };
@@ -13,7 +13,7 @@ type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLi
 const modules = ["Overview", "Projects", "Tasks", "Website Inbox", "AI Workforce", "Approvals", "Customers & CRM", "Finance", "Products & Services", "Infrastructure", "Security & Audit", "Knowledge Base", "Reports & Settings", "GitHub"];
 const PREF_KEY = "pruden-ivy-preferences-v1";
 const HISTORY_KEY = "pruden-ivy-history-v1";
-const defaultPreferences: IvyPreferences = { voiceOutput: true, continuousListening: true, cameraEnabled: false };
+const defaultPreferences: IvyPreferences = { voiceOutput: true, continuousListening: true, cameraEnabled: false, autoStartVoice: false };
 const INTRO_KEY = "pruden-ivy-intro-spoken-v1";
 const IVY_INTRO = "Hello, I'm Ivy — your PRUDEN Assistant. I was created by Pruden Jackson Gideon, also known as Jark Pruden, as part of the PRUDEN technology ecosystem. PRUDEN builds and explores AI, software, automation, digital systems, creative technology, education, and research. Built from Kenya, designed for the world. I'm here to help you understand your projects, organize operations, and move the next meaningful task forward. I'll be clear about what is live, what is planned, and what I cannot verify.";
 
@@ -38,7 +38,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   onNavigate: (module: string) => void;
   workspace: { projects: Array<{ name: string; status: string }>; tasks: Array<{ title: string; state: string; priority: string }>; approvals: Array<{ title: string; status: string }>; repositories: Array<{ name: string; repoUrl: string; visibility: string; archived: boolean; deploymentUrl: string | null; deploymentServices: Array<{ name: string; url: string; type: string; suspended: string }> }>; backendStatus: string };
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [messages, setMessages] = useState<IvyMessage[]>(readHistory);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,6 +55,12 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const restartRecognitionRef = useRef(false);
+  const waitingForReplyRef = useRef(false);
+  const recognitionStarterRef = useRef<(() => void) | null>(null);
+  const autoStartAttemptedRef = useRef(false);
+  const sendMessageRef = useRef<(textOverride?: string) => Promise<void>>(async () => {});
+  const preferencesRef = useRef(preferences);
+  preferencesRef.current = preferences;
 
   useEffect(() => { try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-30).map(({ role, content }) => ({ role, content })))); } catch { /* Session history is best-effort; never block the assistant. */ } endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { localStorage.setItem(PREF_KEY, JSON.stringify(preferences)); }, [preferences]);
@@ -72,6 +78,15 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   useEffect(() => {
     if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current;
   }, [cameraOpen]);
+  useEffect(() => {
+    if (!preferences.autoStartVoice || autoStartAttemptedRef.current) return;
+    setOpen(true);
+    const timer = window.setTimeout(() => {
+      autoStartAttemptedRef.current = true;
+      startVoice(false);
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function speak(text: string, onDone?: () => void) {
     if (!preferences.voiceOutput || !("speechSynthesis" in window)) { onDone?.(); return; }
@@ -90,6 +105,8 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
 
   function stopVoice() {
     restartRecognitionRef.current = false;
+    waitingForReplyRef.current = false;
+    recognitionStarterRef.current = null;
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setVoiceActive(false);
@@ -98,7 +115,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
     setSpeaking(false);
   }
 
-  function startVoice() {
+  function startVoice(saveHandsFree = true) {
     const speechWindow = window as SpeechWindow;
     const Constructor = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!Constructor) {
@@ -109,11 +126,13 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
     setOpen(true);
     setVoiceActive(true);
     restartRecognitionRef.current = true;
+    waitingForReplyRef.current = false;
+    if (saveHandsFree) setPreferences((current) => ({ ...current, autoStartVoice: true }));
     const startRecognition = () => {
       if (!restartRecognitionRef.current) return;
       const recognition = new Constructor();
       recognition.lang = navigator.language || "en-US";
-      recognition.continuous = preferences.continuousListening;
+      recognition.continuous = preferencesRef.current.continuousListening;
       recognition.interimResults = false;
       recognition.onresult = (event) => {
         const finalText: string[] = [];
@@ -121,16 +140,29 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
           if (event.results[index].isFinal) finalText.push(event.results[index][0].transcript);
         }
         const transcript = finalText.join(" ").trim();
-        if (transcript) void sendMessage(transcript);
+        if (transcript) {
+          waitingForReplyRef.current = true;
+          recognition.stop();
+          void sendMessageRef.current(transcript);
+        }
       };
       recognition.onerror = () => { restartRecognitionRef.current = false; setListening(false); setVoiceActive(false); };
       recognition.onend = () => {
         if (recognitionRef.current === recognition) recognitionRef.current = null;
-        if (restartRecognitionRef.current) window.setTimeout(startRecognition, 250);
+        if (restartRecognitionRef.current && !waitingForReplyRef.current) window.setTimeout(startRecognition, 250);
         else setListening(false);
       };
       recognitionRef.current = recognition;
-      try { recognition.start(); setListening(true); } catch { setListening(false); }
+      recognitionStarterRef.current = startRecognition;
+      try {
+        recognition.start();
+        setListening(true);
+      } catch {
+        restartRecognitionRef.current = false;
+        setVoiceActive(false);
+        setListening(false);
+        setError("Your browser blocked automatic microphone startup. Click Enable hands-free and allow microphone access to continue.");
+      }
     };
     let introductionHandled = false;
     const beginListening = () => {
@@ -231,7 +263,15 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
         if (action.type === "navigate_module" && modules.includes(action.value)) onNavigate(action.value);
         if (action.type === "open_external_url" && /^https:\/\//i.test(action.value)) window.open(action.value, "_blank", "noopener,noreferrer");
       }
-      if (preferences.voiceOutput && voiceActive) speak(reply);
+      if (preferences.voiceOutput && voiceActive) {
+        speak(reply, () => {
+          waitingForReplyRef.current = false;
+          if (restartRecognitionRef.current) recognitionStarterRef.current?.();
+        });
+      } else if (voiceActive) {
+        waitingForReplyRef.current = false;
+        if (restartRecognitionRef.current) recognitionStarterRef.current?.();
+      }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Ivy could not connect.";
       setError(message);
@@ -241,13 +281,15 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
     }
   }
 
+  sendMessageRef.current = sendMessage;
+
   return <>
     <button className={`ivy-orb ${open ? "is-open" : ""} ${listening ? "is-listening" : ""} ${speaking ? "is-speaking" : ""}`} onClick={() => { if (open) { stopVoice(); disableCamera(); } setOpen((value) => !value); }} aria-label={open ? "Close Ivy assistant" : "Open Ivy assistant"} title="Ivy · PRUDEN AI">
       <span className="ivy-orb-halo" /><span className="ivy-orb-core"><Sparkles size={23} /></span><span className="ivy-orb-status" />
     </button>
     {open && <section className="ivy-panel" role="dialog" aria-label="Ivy AI assistant">
       <header className="ivy-header"><div className="ivy-avatar"><Sparkles size={19} /></div><div className="ivy-heading"><strong>Ivy</strong><span><i className={providerReady ? "ivy-status-ready" : ""} /> {providerReady === null ? "Checking Claude…" : providerReady ? "Claude key configured" : "API key needed"} · PRUDEN AI</span></div><button className="ivy-icon-button" title="Stop voice" onClick={stopVoice}><MicOff size={15} /></button><button className="ivy-icon-button" title="Minimize Ivy" onClick={() => { stopVoice(); disableCamera(); setOpen(false); }}><ChevronDown size={17} /></button><button className="ivy-icon-button" title="Close Ivy" onClick={() => { stopVoice(); disableCamera(); setOpen(false); }}><X size={16} /></button></header>
-      <div className="ivy-session-bar"><span className={listening ? "active" : ""}><Activity size={13} /> {listening ? "Listening in active session" : voiceActive ? "Voice session active" : "Voice session inactive"}</span><button onClick={voiceActive ? stopVoice : startVoice}>{voiceActive ? <><MicOff size={13} /> Stop session</> : <><Mic size={13} /> Activate voice</>}</button></div>
+      <div className="ivy-session-bar"><span className={listening ? "active" : ""}><Activity size={13} /> {listening ? "Hands-free listening active" : voiceActive ? "Voice session active" : preferences.autoStartVoice ? "Hands-free mode enabled" : "Enable hands-free mode"}</span><button onClick={voiceActive ? stopVoice : () => startVoice(true)}>{voiceActive ? <><MicOff size={13} /> Stop session</> : <><Mic size={13} /> Enable hands-free</>}</button></div>
       <div className="ivy-context"><span>WORKSPACE</span><strong>{activeModule}</strong><span className="ivy-context-dot" /> <span>{workspace.repositories.length} repositories · {workspace.tasks.length} tasks</span></div>
       <div className="ivy-messages">
         {messages.length === 0 && <div className="ivy-welcome"><div className="ivy-welcome-mark"><Sparkles size={25} /></div><p className="eyebrow">YOUR OPERATIONS COMPANION</p><h3>Hi, I'm Ivy.</h3><p>I'm Ivy, your PRUDEN Assistant, created by Pruden Jackson Gideon (Jark Pruden). PRUDEN's ecosystem spans AI, software, automation, digital systems, creative technology, education, and research. Built from Kenya, designed for the world. Ask about projects, tasks, approvals, or the next priority; I'll distinguish verified records from plans and unconnected systems.</p><div className="ivy-suggestions">{["Summarize my current workspace", "What should I focus on next?", "Open Infrastructure"].map((suggestion) => <button key={suggestion} onClick={() => void sendMessage(suggestion)}>{suggestion}</button>)}</div></div>}
@@ -258,7 +300,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
       {cameraOpen && <div className="ivy-camera"><video ref={videoRef} autoPlay playsInline muted /><div><button onClick={captureImage}><Camera size={14} /> Capture for Ivy</button><button onClick={disableCamera}><CameraOff size={14} /> Stop camera</button></div>{snapshot && <p>Snapshot ready — it will be sent only with your next message.</p>}</div>}
       {error && <div className="ivy-error" role="alert">{error}</div>}
       <form className="ivy-composer" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><button type="button" className="ivy-icon-button" title={cameraOpen ? "Camera active" : "Enable camera"} onClick={() => cameraOpen ? disableCamera() : void enableCamera()}>{cameraOpen ? <CameraOff size={17} /> : <Camera size={17} />}</button><input value={input} onChange={(event) => setInput(event.target.value)} placeholder={voiceActive && listening ? "I'm listening… or type here" : "Ask Ivy anything…"} aria-label="Message Ivy" /><button type="submit" className="ivy-send" disabled={busy || (!input.trim() && !snapshot)} aria-label="Send message"><Send size={16} /></button></form>
-      <footer className="ivy-footer"><span>{voiceActive ? "Microphone active · click stop to end" : "Quiet until activated"}</span><button onClick={() => onNavigate("Reports & Settings")}><Settings2 size={13} /> Manage Ivy</button><button onClick={() => { stopVoice(); disableCamera(); setMessages([]); sessionStorage.removeItem(HISTORY_KEY); }} title="Clear this session">Clear</button></footer>
+      <footer className="ivy-footer"><span>{voiceActive ? "Microphone active · click stop to end" : preferences.autoStartVoice ? "Hands-free enabled · waiting for browser permission" : "Hands-free off until you enable it"}</span><button onClick={() => onNavigate("Reports & Settings")}><Settings2 size={13} /> Manage Ivy</button><button onClick={() => { stopVoice(); disableCamera(); setMessages([]); sessionStorage.removeItem(HISTORY_KEY); }} title="Clear this session">Clear</button></footer>
       <div className="ivy-privacy"><ShieldCheck size={12} /> Camera frames are sent to Claude only when you capture and send them. No automatic camera streaming.</div>
     </section>}
   </>;
@@ -277,12 +319,13 @@ export function IvySettingsPanel() {
   return <div className="ivy-settings">
     <div className="ivy-settings-hero"><div className="ivy-avatar large"><Sparkles size={25} /></div><div><p className="eyebrow">PERSONAL AI / OPERATIONS</p><h2>Ivy settings</h2><p>Manage Ivy's voice, privacy controls and connection status.</p></div><span className={provider === "ready" ? "ivy-provider-badge ready" : "ivy-provider-badge"}>{provider === "checking" ? "CHECKING" : provider === "ready" ? "CLAUDE KEY SET" : "API KEY NOT SET"}</span></div>
     <div className="ivy-settings-grid">
-      <section className="panel ivy-setting-card"><h3>Voice & interaction</h3><p>Local browser speech where supported. Ivy never starts listening when the dashboard opens.</p>
+      <section className="panel ivy-setting-card"><h3>Voice & interaction</h3><p>Browser speech recognition where supported. Enable hands-free mode once; Ivy will try to resume when you return to the dashboard. Browser permissions and autoplay rules still apply.</p>
         <label className="ivy-setting-row"><span><strong>Spoken responses</strong><small>Read Ivy's replies aloud during an active voice session.</small></span><input type="checkbox" checked={preferences.voiceOutput} onChange={() => toggle("voiceOutput")} /></label>
-        <label className="ivy-setting-row"><span><strong>Continuous listening preference</strong><small>Keep the microphone active only after you explicitly activate a voice session.</small></span><input type="checkbox" checked={preferences.continuousListening} onChange={() => toggle("continuousListening")} /></label>
+        <label className="ivy-setting-row"><span><strong>Continuous listening</strong><small>Keep listening during this active dashboard session, pausing while Ivy speaks.</small></span><input type="checkbox" checked={preferences.continuousListening} onChange={() => toggle("continuousListening")} /></label>
+        <label className="ivy-setting-row"><span><strong>Hands-free on arrival</strong><small>After you explicitly enable microphone access, Ivy will try to start when you return to this site. Your browser may still require another gesture.</small></span><input type="checkbox" checked={preferences.autoStartVoice} onChange={() => toggle("autoStartVoice")} /></label>
       </section>
       <section className="panel ivy-setting-card"><h3>Privacy & capabilities</h3><p>Permission is requested by the browser when you activate a capability. You can revoke it at any time.</p>
-        <div className="ivy-setting-row"><span><strong>Microphone</strong><small>Started and stopped from the assistant panel. Browser support varies.</small></span><span className="ivy-capability-tag">ON DEMAND</span></div>
+        <div className="ivy-setting-row"><span><strong>Microphone</strong><small>Requires browser permission. Hands-free startup is attempted only after you opt in.</small></span><span className="ivy-capability-tag">ON DEMAND</span></div>
         <div className="ivy-setting-row"><span><strong>Camera</strong><small>Preview and capture are manual. A frame is shared with Claude only when you send it.</small></span><span className="ivy-capability-tag">ON DEMAND</span></div>
         <div className="ivy-setting-row"><span><strong>Workspace navigation</strong><small>Ivy can switch to supported management modules and open HTTPS links you request.</small></span><span className="ivy-capability-tag">FOUNDATION</span></div>
       </section>
