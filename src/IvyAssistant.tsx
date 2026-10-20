@@ -80,9 +80,11 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   }, [cameraOpen]);
   useEffect(() => {
     if (!preferences.autoStartVoice || autoStartAttemptedRef.current) return;
-    autoStartAttemptedRef.current = true;
     setOpen(true);
-    const timer = window.setTimeout(() => startVoice(false), 700);
+    const timer = window.setTimeout(() => {
+      autoStartAttemptedRef.current = true;
+      startVoice(false);
+    }, 700);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -152,7 +154,15 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
       };
       recognitionRef.current = recognition;
       recognitionStarterRef.current = startRecognition;
-      try { recognition.start(); setListening(true); } catch { setListening(false); }
+      try {
+        recognition.start();
+        setListening(true);
+      } catch {
+        restartRecognitionRef.current = false;
+        setVoiceActive(false);
+        setListening(false);
+        setError("Your browser blocked automatic microphone startup. Click Enable hands-free and allow microphone access to continue.");
+      }
     };
     let introductionHandled = false;
     const beginListening = () => {
