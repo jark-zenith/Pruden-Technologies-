@@ -1,3 +1,12 @@
+export type DeploymentService = {
+  name: string;
+  url: string;
+  type: string;
+  branch: string | null;
+  serviceId: string | null;
+  suspended: string;
+};
+
 export type GitHubProject = {
   name: string;
   repoUrl: string;
@@ -8,6 +17,7 @@ export type GitHubProject = {
   deploymentName: string | null;
   deploymentType: string | null;
   deploymentBranch: string | null;
+  deploymentServices?: DeploymentService[];
 };
 
 // Snapshot of repositories visible to the connected GitHub account at implementation time.
@@ -595,6 +605,17 @@ export const githubProjects: GitHubProject[] = [
     "deploymentUrl": "https://pichahub-web.onrender.com",
     "deploymentName": "pichahub-web",
     "deploymentType": "web_service",
+    "deploymentBranch": "main"
+  },
+  {
+    "name": "MovieMax",
+    "repoUrl": "https://github.com/jark-zenith/MovieMax",
+    "visibility": "private",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": "https://moviemax-h1sf.onrender.com",
+    "deploymentName": "moviemax",
+    "deploymentType": "static_site",
     "deploymentBranch": "main"
   },
   {

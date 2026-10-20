@@ -163,3 +163,22 @@ html[data-theme="dark"] .task-check{border-color:var(--line);color:var(--muted)}
 .sort-note{color:var(--mute);font-size:.8rem}
 @media(max-width:900px){.live-showcase{grid-template-columns:1fr}.live-showcase-screen{min-height:250px}.live-showcase-screen iframe{height:240px}}
 @media(max-width:560px){.live-showcase{padding:16px;gap:18px}.live-showcase-meta{width:100%}.showcase-counter{margin-left:0}.live-showcase-actions a{font-size:.8rem}.live-showcase-screen iframe{height:210px}}
+
+
+/* Project Operations Center detail views */
+.project-operations-detail .github-project-detail-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}
+.project-detail-tabs{margin:18px 0;align-items:center}
+.github-project-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.github-project-detail-panel{min-width:0;padding:18px;border:1px solid var(--line);border-radius:11px;background:var(--panel);color:var(--text);margin-bottom:14px}
+.github-project-detail-panel h2{font-size:15px;margin:0 0 13px;letter-spacing:-.2px}
+.github-project-detail-panel p,.github-project-detail-panel li{font-size:12px;line-height:1.65;color:var(--muted)}
+.github-project-detail-panel ul{padding-left:18px;margin:8px 0}
+.github-project-detail-panel dl{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;margin:0;font-size:12px}
+.github-project-detail-panel dt{color:var(--muted)}
+.github-project-detail-panel dd{margin:0;overflow-wrap:anywhere}
+.github-project-detail-panel a,.github-summary-card a{color:var(--blue);overflow-wrap:anywhere}
+.github-project-actions button{display:inline-flex;align-items:center;gap:6px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--blue);font-size:9px;cursor:pointer}
+.github-project-actions button:hover{border-color:var(--amber);background:var(--panel2)}
+.project-operations-detail .github-project-grid{margin-bottom:16px}
+@media(max-width:900px){.project-operations-detail .github-project-detail-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.github-project-detail-grid{grid-template-columns:1fr}.project-operations-detail .github-project-detail-summary{grid-template-columns:1fr}.github-project-detail-panel dl{grid-template-columns:1fr;gap:4px}.github-project-detail-panel dd{margin-bottom:8px}}
