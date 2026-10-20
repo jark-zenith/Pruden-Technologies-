@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Activity, Camera, CameraOff, ChevronDown, ExternalLink, Mic, MicOff, Send, Settings2, ShieldCheck, Sparkles, Volume2, VolumeX, X } from "lucide-react";
+import { Activity, Camera, CameraOff, ChevronDown, Mic, MicOff, Send, Settings2, ShieldCheck, Sparkles, X } from "lucide-react";
 
 type IvyMessage = { role: "user" | "assistant"; content: string; imageDataUrl?: string };
 type IvyAction = { type: "navigate_module" | "open_external_url"; value: string };
