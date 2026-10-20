@@ -7,7 +7,9 @@ type Filter = "All" | "Live URL" | "No live URL" | "Public" | "Private";
 export default function GitHubProjectsPage() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("All");
-  const [previews, setPreviews] = useState(true);\n  const [selectedProject, setSelectedProject] = useState<GitHubProject | null>(null);\n  const [detailTab, setDetailTab] = useState<"Overview" | "Analytics" | "Users" | "Activity" | "Infrastructure" | "Deployments" | "Settings">("Overview");
+  const [previews, setPreviews] = useState(true);
+  const [selectedProject, setSelectedProject] = useState<GitHubProject | null>(null);
+  const [detailTab, setDetailTab] = useState<"Overview" | "Analytics" | "Users" | "Activity" | "Infrastructure" | "Deployments" | "Settings">("Overview");
 
   const filtered = useMemo(() => githubProjects
     .filter((project) => {
@@ -69,7 +71,8 @@ export default function GitHubProjectsPage() {
       <footer className="footer-note"><span>PRUDEN COMMAND · PROJECT OPERATIONS</span><span>Data sources clearly marked; no placeholder metrics presented as real.</span></footer>
     </section>;
   }
-\n  return <section className="module-page github-directory">
+
+  return <section className="module-page github-directory">
     <div className="module-title-row">
       <div>
         <p className="eyebrow"><Github size={13} /> REPOSITORY DIRECTORY / CONNECTED ACCOUNT</p>
@@ -109,7 +112,8 @@ export default function GitHubProjectsPage() {
           <p className="github-project-meta">{project.archived ? <><Archive size={12} /> Archived repository</> : <>Branch: <code>{project.defaultBranch}</code></>}</p>
           {project.deploymentName && <p className="github-service-name">Render service: {project.deploymentName}</p>}
           <div className="github-project-actions">
-            <a href={project.repoUrl} target="_blank" rel="noreferrer"><Github size={14} /> Repository <ExternalLink size={12} /></a>\n            <button type="button" onClick={() => { setSelectedProject(project); setDetailTab("Overview"); }}><Eye size={14} /> Project details <ArrowRightPlaceholder /></button>
+            <a href={project.repoUrl} target="_blank" rel="noreferrer"><Github size={14} /> Repository <ExternalLink size={12} /></a>
+            <button type="button" onClick={() => { setSelectedProject(project); setDetailTab("Overview"); }}><Eye size={14} /> Project details <ArrowRightPlaceholder /></button>
             {project.deploymentUrl && <a href={project.deploymentUrl} target="_blank" rel="noreferrer"><Globe size={14} /> Open live site <ExternalLink size={12} /></a>}
           </div>
           {project.deploymentUrl && <p className="github-preview-note">URL is configured in Render. This label does not guarantee current uptime; some sites block embedded previews.</p>}
