@@ -113,7 +113,7 @@ export default function GitHubProjectsPage() {
           {project.deploymentName && <p className="github-service-name">Render service: {project.deploymentName}</p>}
           <div className="github-project-actions">
             <a href={project.repoUrl} target="_blank" rel="noreferrer"><Github size={14} /> Repository <ExternalLink size={12} /></a>
-            <button type="button" onClick={() => { setSelectedProject(project); setDetailTab("Overview"); }}><Eye size={14} /> Project details <ArrowRightPlaceholder /></button>
+            <button type="button" onClick={() => { setSelectedProject(project); setDetailTab("Overview"); }}><Eye size={14} /> Project details <ArrowRight size={12} /></button>
             {project.deploymentUrl && <a href={project.deploymentUrl} target="_blank" rel="noreferrer"><Globe size={14} /> Open live site <ExternalLink size={12} /></a>}
           </div>
           {project.deploymentUrl && <p className="github-preview-note">URL is configured in Render. This label does not guarantee current uptime; some sites block embedded previews.</p>}
