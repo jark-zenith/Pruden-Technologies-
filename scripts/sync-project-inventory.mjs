@@ -56,10 +56,10 @@ const projects = githubRepos
     const repoUrl = repo.html_url;
     const services = normalized.filter((service) => {
       try {
-        return new URL(service.repoUrl).pathname.replace(/\\.git$/, "").toLowerCase() ===
+        return new URL(service.repoUrl).pathname.replace(/\.git$/, "").toLowerCase() ===
           new URL(repoUrl).pathname.toLowerCase();
       } catch {
-        return service.repoUrl.replace(/\\.git$/, "").toLowerCase() === repo.clone_url.replace(/\\.git$/, "").toLowerCase();
+        return service.repoUrl.replace(/\.git$/, "").toLowerCase() === repo.clone_url.replace(/\.git$/, "").toLowerCase();
       }
     }).filter((service) => service.url).sort((a, b) => {
       const priority = (item) => item.type === "static_site" ? 0 : item.type === "web_service" ? 1 : 2;
