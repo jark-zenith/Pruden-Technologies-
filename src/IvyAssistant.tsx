@@ -111,7 +111,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
       if (!restartRecognitionRef.current) return;
       const recognition = new Constructor();
       recognition.lang = navigator.language || "en-US";
-      recognition.continuous = true;
+      recognition.continuous = preferences.continuousListening;
       recognition.interimResults = false;
       recognition.onresult = (event) => {
         const finalText: string[] = [];
