@@ -1,0 +1,262 @@
+import { useEffect, useRef, useState } from "react";
+import { Activity, Camera, CameraOff, ChevronDown, ExternalLink, Mic, MicOff, Send, Settings2, ShieldCheck, Sparkles, Volume2, VolumeX, X } from "lucide-react";
+
+type IvyMessage = { role: "user" | "assistant"; content: string; imageDataUrl?: string };
+type IvyAction = { type: "navigate_module" | "open_external_url"; value: string };
+type IvyPreferences = { voiceOutput: boolean; continuousListening: boolean; cameraEnabled: boolean };
+type SpeechRecognitionAlternativeLike = { transcript: string };
+type SpeechRecognitionResultLike = { isFinal: boolean; 0: SpeechRecognitionAlternativeLike };
+type SpeechRecognitionEventLike = { resultIndex: number; results: ArrayLike<SpeechRecognitionResultLike> };
+type SpeechRecognitionLike = { lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: SpeechRecognitionEventLike) => void) | null; onerror: (() => void) | null; onend: (() => void) | null; start: () => void; stop: () => void };
+type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike };
+
+const modules = ["Overview", "Projects", "Tasks", "Website Inbox", "AI Workforce", "Approvals", "Customers & CRM", "Finance", "Products & Services", "Infrastructure", "Security & Audit", "Knowledge Base", "Reports & Settings", "GitHub"];
+const PREF_KEY = "pruden-ivy-preferences-v1";
+const HISTORY_KEY = "pruden-ivy-history-v1";
+const defaultPreferences: IvyPreferences = { voiceOutput: true, continuousListening: true, cameraEnabled: false };
+
+function readPreferences(): IvyPreferences {
+  try { return { ...defaultPreferences, ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") }; }
+  catch { return defaultPreferences; }
+}
+function readHistory(): IvyMessage[] {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(HISTORY_KEY) || "[]");
+    return Array.isArray(value) ? value.slice(-30) : [];
+  } catch { return []; }
+}
+function dataUrlParts(dataUrl: string) {
+  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  if (!match) throw new Error("Unsupported image format.");
+  return { mediaType: match[1], data: match[2] };
+}
+
+export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
+  activeModule: string;
+  onNavigate: (module: string) => void;
+  workspace: { projects: Array<{ name: string; status: string }>; tasks: Array<{ title: string; state: string; priority: string }>; approvals: Array<{ title: string; status: string }>; backendStatus: string };
+}) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<IvyMessage[]>(readHistory);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [voiceActive, setVoiceActive] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [snapshot, setSnapshot] = useState<string | null>(null);
+  const [preferences, setPreferences] = useState<IvyPreferences>(readPreferences);
+  const [providerReady, setProviderReady] = useState<boolean | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const restartRecognitionRef = useRef(false);
+
+  useEffect(() => { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-30))); endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { localStorage.setItem(PREF_KEY, JSON.stringify(preferences)); }, [preferences]);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/ivy/status").then((response) => response.json()).then((data) => { if (alive) setProviderReady(Boolean(data.configured)); }).catch(() => { if (alive) setProviderReady(false); });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => () => {
+    restartRecognitionRef.current = false;
+    recognitionRef.current?.stop();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    window.speechSynthesis?.cancel();
+  }, []);
+  useEffect(() => {
+    if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current;
+  }, [cameraOpen]);
+
+  function speak(text: string) {
+    if (!preferences.voiceOutput || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.02;
+    utterance.pitch = 1.08;
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    const voices = window.speechSynthesis.getVoices();
+    const female = voices.find((voice) => /female|samantha|zira|victoria|karen|google uk english female/i.test(voice.name));
+    if (female) utterance.voice = female;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function stopVoice() {
+    restartRecognitionRef.current = false;
+    recognitionRef.current?.stop();
+    recognitionRef.current = null;
+    setVoiceActive(false);
+    setListening(false);
+    window.speechSynthesis?.cancel();
+    setSpeaking(false);
+  }
+
+  function startVoice() {
+    const speechWindow = window as SpeechWindow;
+    const Constructor = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+    if (!Constructor) {
+      setError("Continuous speech recognition is not supported by this browser. You can still type, or try a compatible browser.");
+      return;
+    }
+    setError("");
+    setOpen(true);
+    setVoiceActive(true);
+    restartRecognitionRef.current = true;
+    const startRecognition = () => {
+      if (!restartRecognitionRef.current) return;
+      const recognition = new Constructor();
+      recognition.lang = navigator.language || "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        const finalText: string[] = [];
+        for (let index = event.resultIndex; index < event.results.length; index += 1) {
+          if (event.results[index].isFinal) finalText.push(event.results[index][0].transcript);
+        }
+        const transcript = finalText.join(" ").trim();
+        if (transcript) void sendMessage(transcript);
+      };
+      recognition.onerror = () => setListening(false);
+      recognition.onend = () => {
+        if (recognitionRef.current === recognition) recognitionRef.current = null;
+        if (restartRecognitionRef.current) window.setTimeout(startRecognition, 250);
+        else setListening(false);
+      };
+      recognitionRef.current = recognition;
+      try { recognition.start(); setListening(true); } catch { setListening(false); }
+    };
+    startRecognition();
+  }
+
+  async function enableCamera() {
+    setError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Camera access is not available in this browser or page context.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = stream;
+      setCameraOpen(true);
+      setPreferences((current) => ({ ...current, cameraEnabled: true }));
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch {
+      setError("Camera access was denied or unavailable. Allow camera access in your browser settings, then try again.");
+    }
+  }
+  function disableCamera() {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setCameraOpen(false);
+    setPreferences((current) => ({ ...current, cameraEnabled: false }));
+  }
+  function captureImage() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) { setError("Wait for the camera preview to become ready."); return; }
+    const canvas = document.createElement("canvas");
+    const scale = Math.min(1, 1280 / video.videoWidth);
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const context = canvas.getContext("2d");
+    if (!context) { setError("Could not capture a camera frame."); return; }
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    setSnapshot(canvas.toDataURL("image/jpeg", 0.78));
+    setError("");
+  }
+
+  async function sendMessage(textOverride?: string) {
+    const text = (textOverride ?? input).trim();
+    if ((!text && !snapshot) || busy) return;
+    const image = snapshot;
+    const userMessage: IvyMessage = { role: "user", content: text || "Please inspect this image.", ...(image ? { imageDataUrl: image } : {}) };
+    const next = [...messages, userMessage];
+    setMessages(next);
+    setInput("");
+    setSnapshot(null);
+    setBusy(true);
+    setError("");
+    try {
+      const payloadMessages = next.slice(-16).map((message) => {
+        if (!message.imageDataUrl) return { role: message.role, content: message.content };
+        const parts = dataUrlParts(message.imageDataUrl);
+        return { role: message.role, content: [{ type: "text", text: message.content }, { type: "image", source: { type: "base64", media_type: parts.mediaType, data: parts.data } }] };
+      });
+      const response = await fetch("/api/ivy/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: payloadMessages, context: { activeModule, workspace } }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Ivy could not respond.");
+      const reply = String(result.reply || "I couldn't produce a response this time.");
+      setMessages((current) => [...current, { role: "assistant", content: reply }]);
+      for (const action of (result.actions || []) as IvyAction[]) {
+        if (action.type === "navigate_module" && modules.includes(action.value)) onNavigate(action.value);
+        if (action.type === "open_external_url" && /^https:\/\//i.test(action.value)) window.open(action.value, "_blank", "noopener,noreferrer");
+      }
+      if (preferences.voiceOutput && voiceActive) speak(reply);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Ivy could not connect.";
+      setError(message);
+      setMessages((current) => [...current, { role: "assistant", content: "I couldn't complete that request. " + message }]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <>
+    <button className={`ivy-orb ${open ? "is-open" : ""} ${listening ? "is-listening" : ""} ${speaking ? "is-speaking" : ""}`} onClick={() => setOpen((value) => !value)} aria-label={open ? "Close Ivy assistant" : "Open Ivy assistant"} title="Ivy · PRUDEN AI">
+      <span className="ivy-orb-halo" /><span className="ivy-orb-core"><Sparkles size={23} /></span><span className="ivy-orb-status" />
+    </button>
+    {open && <section className="ivy-panel" role="dialog" aria-label="Ivy AI assistant">
+      <header className="ivy-header"><div className="ivy-avatar"><Sparkles size={19} /></div><div className="ivy-heading"><strong>Ivy</strong><span><i className={providerReady ? "ivy-status-ready" : ""} /> {providerReady === null ? "Checking Claude…" : providerReady ? "Claude connected" : "API key needed"} · PRUDEN AI</span></div><button className="ivy-icon-button" title="Stop voice" onClick={stopVoice}><MicOff size={15} /></button><button className="ivy-icon-button" title="Minimize Ivy" onClick={() => setOpen(false)}><ChevronDown size={17} /></button><button className="ivy-icon-button" title="Close Ivy" onClick={() => { stopVoice(); setOpen(false); }}><X size={16} /></button></header>
+      <div className="ivy-session-bar"><span className={listening ? "active" : ""}><Activity size={13} /> {listening ? "Listening in active session" : voiceActive ? "Voice session active" : "Voice session inactive"}</span><button onClick={voiceActive ? stopVoice : startVoice}>{voiceActive ? <><MicOff size={13} /> Stop session</> : <><Mic size={13} /> Activate voice</>}</button></div>
+      <div className="ivy-context"><span>WORKSPACE</span><strong>{activeModule}</strong><span className="ivy-context-dot" /> <span>{workspace.projects.length} projects · {workspace.tasks.length} tasks</span></div>
+      <div className="ivy-messages">
+        {messages.length === 0 && <div className="ivy-welcome"><div className="ivy-welcome-mark"><Sparkles size={25} /></div><p className="eyebrow">YOUR OPERATIONS COMPANION</p><h3>Hi, I'm Ivy.</h3><p>I'm here when you need me. Ask about your projects, tasks, approvals, or what to work on next. I'll distinguish available records from systems that aren't connected yet.</p><div className="ivy-suggestions">{["Summarize my current workspace", "What should I focus on next?", "Open Infrastructure"].map((suggestion) => <button key={suggestion} onClick={() => void sendMessage(suggestion)}>{suggestion}</button>)}</div></div>}
+        {messages.map((message, index) => <article className={`ivy-message ${message.role}`} key={index}><span>{message.role === "assistant" ? "IVY" : "YOU"}</span><p>{message.content}</p>{message.imageDataUrl && <img src={message.imageDataUrl} alt="Camera snapshot attached to your message" />}</article>)}
+        {busy && <div className="ivy-thinking"><i /><i /><i /> Ivy is thinking…</div>}
+        <div ref={endRef} />
+      </div>
+      {cameraOpen && <div className="ivy-camera"><video ref={videoRef} autoPlay playsInline muted /><div><button onClick={captureImage}><Camera size={14} /> Capture for Ivy</button><button onClick={disableCamera}><CameraOff size={14} /> Stop camera</button></div>{snapshot && <p>Snapshot ready — it will be sent only with your next message.</p>}</div>}
+      {error && <div className="ivy-error" role="alert">{error}</div>}
+      <form className="ivy-composer" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><button type="button" className="ivy-icon-button" title={cameraOpen ? "Camera active" : "Enable camera"} onClick={() => cameraOpen ? disableCamera() : void enableCamera()}>{cameraOpen ? <CameraOff size={17} /> : <Camera size={17} />}</button><input value={input} onChange={(event) => setInput(event.target.value)} placeholder={voiceActive && listening ? "I'm listening… or type here" : "Ask Ivy anything…"} aria-label="Message Ivy" /><button type="submit" className="ivy-send" disabled={busy || (!input.trim() && !snapshot)} aria-label="Send message"><Send size={16} /></button></form>
+      <footer className="ivy-footer"><span>{voiceActive ? "Microphone active · click stop to end" : "Quiet until activated"}</span><button onClick={() => onNavigate("Reports & Settings")}><Settings2 size={13} /> Manage Ivy</button><button onClick={() => { stopVoice(); disableCamera(); setMessages([]); sessionStorage.removeItem(HISTORY_KEY); }} title="Clear this session">Clear</button></footer>
+      <div className="ivy-privacy"><ShieldCheck size={12} /> Camera frames are sent to Claude only when you capture and send them. No automatic camera streaming.</div>
+    </section>}
+  </>;
+}
+
+export function IvySettingsPanel() {
+  const [preferences, setPreferences] = useState<IvyPreferences>(readPreferences);
+  const [provider, setProvider] = useState<"checking" | "ready" | "missing">("checking");
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/ivy/status").then((response) => response.json()).then((data) => { if (alive) setProvider(data.configured ? "ready" : "missing"); }).catch(() => { if (alive) setProvider("missing"); });
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => { localStorage.setItem(PREF_KEY, JSON.stringify(preferences)); }, [preferences]);
+  const toggle = (key: keyof IvyPreferences) => setPreferences((current) => ({ ...current, [key]: !current[key] }));
+  return <div className="ivy-settings">
+    <div className="ivy-settings-hero"><div className="ivy-avatar large"><Sparkles size={25} /></div><div><p className="eyebrow">PERSONAL AI / OPERATIONS</p><h2>Ivy settings</h2><p>Manage Ivy's voice, privacy controls and connection status.</p></div><span className={provider === "ready" ? "ivy-provider-badge ready" : "ivy-provider-badge"}>{provider === "checking" ? "CHECKING" : provider === "ready" ? "CLAUDE READY" : "API KEY NOT SET"}</span></div>
+    <div className="ivy-settings-grid">
+      <section className="panel ivy-setting-card"><h3>Voice & interaction</h3><p>Local browser speech where supported. Ivy never starts listening when the dashboard opens.</p>
+        <label className="ivy-setting-row"><span><strong>Spoken responses</strong><small>Read Ivy's replies aloud during an active voice session.</small></span><input type="checkbox" checked={preferences.voiceOutput} onChange={() => toggle("voiceOutput")} /></label>
+        <label className="ivy-setting-row"><span><strong>Continuous listening preference</strong><small>Keep the microphone active only after you explicitly activate a voice session.</small></span><input type="checkbox" checked={preferences.continuousListening} onChange={() => toggle("continuousListening")} /></label>
+      </section>
+      <section className="panel ivy-setting-card"><h3>Privacy & capabilities</h3><p>Permission is requested by the browser when you activate a capability. You can revoke it at any time.</p>
+        <div className="ivy-setting-row"><span><strong>Microphone</strong><small>Started and stopped from the assistant panel. Browser support varies.</small></span><span className="ivy-capability-tag">ON DEMAND</span></div>
+        <div className="ivy-setting-row"><span><strong>Camera</strong><small>Preview and capture are manual. A frame is shared with Claude only when you send it.</small></span><span className="ivy-capability-tag">ON DEMAND</span></div>
+        <div className="ivy-setting-row"><span><strong>Workspace navigation</strong><small>Ivy can switch to supported management modules and open HTTPS links you request.</small></span><span className="ivy-capability-tag">FOUNDATION</span></div>
+      </section>
+      <section className="panel ivy-setting-card"><h3>Claude connection</h3><p>The Anthropic key stays on the private server and is never stored in this browser.</p><div className="ivy-connection-row"><span>Provider status</span><strong>{provider === "checking" ? "Checking…" : provider === "ready" ? "Configured" : "Waiting for ANTHROPIC_API_KEY"}</strong></div><div className="ivy-connection-row"><span>Voice provider</span><strong>Browser speech APIs</strong></div><div className="ivy-connection-row"><span>Persistent memory</span><strong>Not connected yet</strong></div><div className="ivy-connection-row"><span>External integrations</span><strong>Read-only foundation only</strong></div></section>
+      <section className="panel ivy-setting-card"><h3>Safety boundaries</h3><p>Current foundation supports conversation, workspace summaries, module navigation, HTTPS link opening and manual image inspection. It does not yet run arbitrary commands, edit repositories, deploy services, or change production data.</p><div className="ivy-safety-note"><ShieldCheck size={16} /> Consequential actions will require explicit authorization and an audit trail.</div></section>
+    </div>
+  </div>;
+}
