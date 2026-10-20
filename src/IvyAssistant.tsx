@@ -54,7 +54,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   const streamRef = useRef<MediaStream | null>(null);
   const restartRecognitionRef = useRef(false);
 
-  useEffect(() => { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-30))); endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { try { sessionStorage.setItem(HISTORY_KEY, JSON.stringify(messages.slice(-30).map(({ role, content }) => ({ role, content })))); } catch { /* Session history is best-effort; never block the assistant. */ } endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => { localStorage.setItem(PREF_KEY, JSON.stringify(preferences)); }, [preferences]);
   useEffect(() => {
     let alive = true;
@@ -121,7 +121,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
         const transcript = finalText.join(" ").trim();
         if (transcript) void sendMessage(transcript);
       };
-      recognition.onerror = () => setListening(false);
+      recognition.onerror = () => { restartRecognitionRef.current = false; setListening(false); setVoiceActive(false); };
       recognition.onend = () => {
         if (recognitionRef.current === recognition) recognitionRef.current = null;
         if (restartRecognitionRef.current) window.setTimeout(startRecognition, 250);
@@ -211,11 +211,11 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   }
 
   return <>
-    <button className={`ivy-orb ${open ? "is-open" : ""} ${listening ? "is-listening" : ""} ${speaking ? "is-speaking" : ""}`} onClick={() => setOpen((value) => !value)} aria-label={open ? "Close Ivy assistant" : "Open Ivy assistant"} title="Ivy · PRUDEN AI">
+    <button className={`ivy-orb ${open ? "is-open" : ""} ${listening ? "is-listening" : ""} ${speaking ? "is-speaking" : ""}`} onClick={() => { if (open) { stopVoice(); disableCamera(); } setOpen((value) => !value); }} aria-label={open ? "Close Ivy assistant" : "Open Ivy assistant"} title="Ivy · PRUDEN AI">
       <span className="ivy-orb-halo" /><span className="ivy-orb-core"><Sparkles size={23} /></span><span className="ivy-orb-status" />
     </button>
     {open && <section className="ivy-panel" role="dialog" aria-label="Ivy AI assistant">
-      <header className="ivy-header"><div className="ivy-avatar"><Sparkles size={19} /></div><div className="ivy-heading"><strong>Ivy</strong><span><i className={providerReady ? "ivy-status-ready" : ""} /> {providerReady === null ? "Checking Claude…" : providerReady ? "Claude connected" : "API key needed"} · PRUDEN AI</span></div><button className="ivy-icon-button" title="Stop voice" onClick={stopVoice}><MicOff size={15} /></button><button className="ivy-icon-button" title="Minimize Ivy" onClick={() => setOpen(false)}><ChevronDown size={17} /></button><button className="ivy-icon-button" title="Close Ivy" onClick={() => { stopVoice(); setOpen(false); }}><X size={16} /></button></header>
+      <header className="ivy-header"><div className="ivy-avatar"><Sparkles size={19} /></div><div className="ivy-heading"><strong>Ivy</strong><span><i className={providerReady ? "ivy-status-ready" : ""} /> {providerReady === null ? "Checking Claude…" : providerReady ? "Claude connected" : "API key needed"} · PRUDEN AI</span></div><button className="ivy-icon-button" title="Stop voice" onClick={stopVoice}><MicOff size={15} /></button><button className="ivy-icon-button" title="Minimize Ivy" onClick={() => { stopVoice(); disableCamera(); setOpen(false); }}><ChevronDown size={17} /></button><button className="ivy-icon-button" title="Close Ivy" onClick={() => { stopVoice(); disableCamera(); setOpen(false); }}><X size={16} /></button></header>
       <div className="ivy-session-bar"><span className={listening ? "active" : ""}><Activity size={13} /> {listening ? "Listening in active session" : voiceActive ? "Voice session active" : "Voice session inactive"}</span><button onClick={voiceActive ? stopVoice : startVoice}>{voiceActive ? <><MicOff size={13} /> Stop session</> : <><Mic size={13} /> Activate voice</>}</button></div>
       <div className="ivy-context"><span>WORKSPACE</span><strong>{activeModule}</strong><span className="ivy-context-dot" /> <span>{workspace.projects.length} projects · {workspace.tasks.length} tasks</span></div>
       <div className="ivy-messages">
