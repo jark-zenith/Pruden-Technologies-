@@ -1,4 +1,4 @@
-export type GitHubProject = {
+export type DeploymentService = {\n  name: string;\n  url: string;\n  type: string;\n  branch: string | null;\n  serviceId: string | null;\n  suspended: string;\n};\n\nexport type GitHubProject = {
   name: string;
   repoUrl: string;
   visibility: string;
