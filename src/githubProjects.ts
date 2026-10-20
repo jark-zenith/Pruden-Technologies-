@@ -598,6 +598,17 @@ export const githubProjects: GitHubProject[] = [
     "deploymentBranch": "main"
   },
   {
+    "name": "MovieMax",
+    "repoUrl": "https://github.com/jark-zenith/MovieMax",
+    "visibility": "private",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": "https://moviemax-h1sf.onrender.com",
+    "deploymentName": "moviemax",
+    "deploymentType": "static_site",
+    "deploymentBranch": "main"
+  },
+  {
     "name": "Pruden-Technologies-",
     "repoUrl": "https://github.com/jark-zenith/Pruden-Technologies-",
     "visibility": "public",
