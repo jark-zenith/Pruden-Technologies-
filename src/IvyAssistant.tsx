@@ -14,6 +14,8 @@ const modules = ["Overview", "Projects", "Tasks", "Website Inbox", "AI Workforce
 const PREF_KEY = "pruden-ivy-preferences-v1";
 const HISTORY_KEY = "pruden-ivy-history-v1";
 const defaultPreferences: IvyPreferences = { voiceOutput: true, continuousListening: true, cameraEnabled: false };
+const INTRO_KEY = "pruden-ivy-intro-spoken-v1";
+const IVY_INTRO = "Hello, I'm Ivy — your PRUDEN Assistant. I was created by Pruden Jackson Gideon, also known as Jark Pruden, as part of the PRUDEN technology ecosystem. PRUDEN builds and explores AI, software, automation, digital systems, creative technology, education, and research. Built from Kenya, designed for the world. I'm here to help you understand your projects, organize operations, and move the next meaningful task forward. I'll be clear about what is live, what is planned, and what I cannot verify.";
 
 function readPreferences(): IvyPreferences {
   try { return { ...defaultPreferences, ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") }; }
@@ -71,15 +73,15 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
     if (cameraOpen && videoRef.current && streamRef.current) videoRef.current.srcObject = streamRef.current;
   }, [cameraOpen]);
 
-  function speak(text: string) {
-    if (!preferences.voiceOutput || !("speechSynthesis" in window)) return;
+  function speak(text: string, onDone?: () => void) {
+    if (!preferences.voiceOutput || !("speechSynthesis" in window)) { onDone?.(); return; }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.02;
     utterance.pitch = 1.08;
     utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    utterance.onend = () => { setSpeaking(false); onDone?.(); };
+    utterance.onerror = () => { setSpeaking(false); onDone?.(); };
     const voices = window.speechSynthesis.getVoices();
     const female = voices.find((voice) => /female|samantha|zira|victoria|karen|google uk english female/i.test(voice.name));
     if (female) utterance.voice = female;
@@ -130,7 +132,20 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
       recognitionRef.current = recognition;
       try { recognition.start(); setListening(true); } catch { setListening(false); }
     };
-    startRecognition();
+    let introductionHandled = false;
+    const beginListening = () => {
+      if (introductionHandled || !restartRecognitionRef.current) return;
+      introductionHandled = true;
+      startRecognition();
+    };
+    let introAlreadySpoken = false;
+    try { introAlreadySpoken = sessionStorage.getItem(INTRO_KEY) === "1"; } catch { /* session storage may be unavailable */ }
+    if (!introAlreadySpoken && preferences.voiceOutput && "speechSynthesis" in window) {
+      try { sessionStorage.setItem(INTRO_KEY, "1"); } catch { /* introduction remains best-effort */ }
+      speak(IVY_INTRO, beginListening);
+    } else {
+      beginListening();
+    }
   }
 
   async function enableCamera() {
@@ -235,7 +250,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
       <div className="ivy-session-bar"><span className={listening ? "active" : ""}><Activity size={13} /> {listening ? "Listening in active session" : voiceActive ? "Voice session active" : "Voice session inactive"}</span><button onClick={voiceActive ? stopVoice : startVoice}>{voiceActive ? <><MicOff size={13} /> Stop session</> : <><Mic size={13} /> Activate voice</>}</button></div>
       <div className="ivy-context"><span>WORKSPACE</span><strong>{activeModule}</strong><span className="ivy-context-dot" /> <span>{workspace.repositories.length} repositories · {workspace.tasks.length} tasks</span></div>
       <div className="ivy-messages">
-        {messages.length === 0 && <div className="ivy-welcome"><div className="ivy-welcome-mark"><Sparkles size={25} /></div><p className="eyebrow">YOUR OPERATIONS COMPANION</p><h3>Hi, I'm Ivy.</h3><p>I'm here when you need me. Ask about your projects, tasks, approvals, or what to work on next. I'll distinguish available records from systems that aren't connected yet.</p><div className="ivy-suggestions">{["Summarize my current workspace", "What should I focus on next?", "Open Infrastructure"].map((suggestion) => <button key={suggestion} onClick={() => void sendMessage(suggestion)}>{suggestion}</button>)}</div></div>}
+        {messages.length === 0 && <div className="ivy-welcome"><div className="ivy-welcome-mark"><Sparkles size={25} /></div><p className="eyebrow">YOUR OPERATIONS COMPANION</p><h3>Hi, I'm Ivy.</h3><p>I'm Ivy, your PRUDEN Assistant, created by Pruden Jackson Gideon (Jark Pruden). PRUDEN's ecosystem spans AI, software, automation, digital systems, creative technology, education, and research. Built from Kenya, designed for the world. Ask about projects, tasks, approvals, or the next priority; I'll distinguish verified records from plans and unconnected systems.</p><div className="ivy-suggestions">{["Summarize my current workspace", "What should I focus on next?", "Open Infrastructure"].map((suggestion) => <button key={suggestion} onClick={() => void sendMessage(suggestion)}>{suggestion}</button>)}</div></div>}
         {messages.map((message, index) => <article className={`ivy-message ${message.role}`} key={index}><span>{message.role === "assistant" ? "IVY" : "YOU"}</span><p>{message.content}</p>{message.imageDataUrl && <img src={message.imageDataUrl} alt="Camera snapshot attached to your message" />}</article>)}
         {busy && <div className="ivy-thinking"><i /><i /><i /> Ivy is thinking…</div>}
         <div ref={endRef} />
