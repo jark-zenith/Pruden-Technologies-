@@ -17,6 +17,7 @@ export type GitHubProject = {
   deploymentName: string | null;
   deploymentType: string | null;
   deploymentBranch: string | null;
+  deploymentServices?: DeploymentService[];
 };
 
 // Snapshot of repositories visible to the connected GitHub account at implementation time.
