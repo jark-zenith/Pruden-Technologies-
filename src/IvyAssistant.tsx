@@ -192,8 +192,24 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: payloadMessages, context: { activeModule, workspace } }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Ivy could not respond.");
+      const responseText = await response.text();
+      let result: { error?: string; reply?: string; actions?: IvyAction[] } = {};
+      if (responseText.trim()) {
+        try {
+          result = JSON.parse(responseText) as typeof result;
+        } catch {
+          throw new Error(
+            response.ok
+              ? "Ivy's server returned an incomplete response. Please try again; if it repeats, the backend needs attention."
+              : `Ivy's server returned an unexpected response (HTTP ${response.status}). Check the backend deployment and logs.`
+          );
+        }
+      } else {
+        throw new Error(
+          `Ivy's server returned an empty response (HTTP ${response.status}). Check the backend deployment and logs.`
+        );
+      }
+      if (!response.ok) throw new Error(result.error || `Ivy could not respond (HTTP ${response.status}).`);
       const reply = String(result.reply || "I couldn't produce a response this time.");
       setMessages((current) => [...current, { role: "assistant", content: reply }]);
       for (const action of (result.actions || []) as IvyAction[]) {
