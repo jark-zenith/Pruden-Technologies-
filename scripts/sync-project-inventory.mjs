@@ -35,7 +35,7 @@ for (let cursor = ""; ; ) {
   });
   const rows = Array.isArray(payload) ? payload : (payload.services || payload.data || []);
   renderServices.push(...rows.map((row) => row.service || row));
-  const next = payload.cursor || payload.nextCursor || payload.next_cursor;
+  const next = payload.cursor || payload.nextCursor || payload.next_cursor || (Array.isArray(payload) ? payload[payload.length - 1]?.cursor : null);
   if (!next || rows.length === 0 || rows.length < 100) break;
   cursor = String(next);
 }
