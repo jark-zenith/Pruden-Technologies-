@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Activity, Bot, CheckCircle2, CircleAlert, LoaderCircle, Play, ShieldCheck, Sparkles } from "lucide-react";
+import "./workforce.css";
 
 type Agent = {
   id: string; name: string; title: string; reportsTo?: string; responsibilities?: string[];
