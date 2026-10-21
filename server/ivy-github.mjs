@@ -1,5 +1,6 @@
 const API = "https://api.github.com";
 const DEFAULT_REPOS = ["jark-zenith/Pruden-Technologies-"];
+const MAX_FILE_BYTES = 40 * 1024;
 
 function configuredRepos() {
   const raw = process.env.PRUDEN_GITHUB_REPOS || DEFAULT_REPOS.join(",");
@@ -10,8 +11,17 @@ function parseRepo(value) {
     throw new Error("Repository must use owner/repo format.");
   }
   const repo = value.trim().toLowerCase();
-  if (!configuredRepos().has(repo)) throw new Error("That repository is not in Ivy's approved GitHub allowlist.");
+  if (!configuredRepos().has(repo)) throw new Error("That repository is not in Ivy's approved GitHub allowlist. Add it to PRUDEN_GITHUB_REPOS on the private server.");
   return repo;
+}
+function safePath(value) {
+  if (typeof value !== "string" || !value.trim() || value.startsWith("/") || value.split("/").some((part) => !part || part === "." || part === "..") || value.includes("\\") || value.length > 500) {
+    throw new Error("Provide a valid repository-relative file path.");
+  }
+  return value;
+}
+function boundedLimit(value, fallback = 20, max = 50) {
+  return Math.max(1, Math.min(max, Number(value) || fallback));
 }
 async function githubRequest(path) {
   const token = process.env.GITHUB_TOKEN || "";
@@ -29,8 +39,13 @@ async function githubRequest(path) {
   return data;
 }
 export const ivyGitHubTools = [
-  { name: "github_list_repositories", description: "List repositories visible to Ivy's configured GitHub token. Read-only. Use for repository discovery.", input_schema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 30 } }, required: [] } },
-  { name: "github_list_pull_requests", description: "List pull requests for a repository in Ivy's allowlist. Read-only. Repository must be owner/repo format.", input_schema: { type: "object", properties: { repository: { type: "string" }, state: { type: "string", enum: ["open","closed","all"] }, limit: { type: "integer", minimum: 1, maximum: 30 } }, required: ["repository"] } },
+  { name: "github_list_repositories", description: "List repositories visible to Ivy's configured GitHub token. Read-only. Use for repository discovery; only allowlisted repositories can be inspected further.", input_schema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 30 } }, required: [] } },
+  { name: "github_get_repository", description: "Read repository metadata, description, default branch, visibility, language, size, archive status and timestamps for an allowlisted repository.", input_schema: { type: "object", properties: { repository: { type: "string" } }, required: ["repository"] } },
+  { name: "github_list_repository_branches", description: "List branches and their latest commit SHAs for an allowlisted repository. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 50 } }, required: ["repository"] } },
+  { name: "github_list_repository_commits", description: "List recent commits and messages for an allowlisted repository, optionally filtered by branch or ref. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, ref: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 30 } }, required: ["repository"] } },
+  { name: "github_get_repository_tree", description: "Inspect the directory/file tree of an allowlisted repository at a branch, tag, or commit. Returns up to 100 entries; use github_read_repository_file to read file contents. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, ref: { type: "string" } }, required: ["repository"] } },
+  { name: "github_read_repository_file", description: "Read a text file from an allowlisted repository at a branch, tag, or commit. Only reads files up to 40 KB. Binary/unsupported files are not returned. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, path: { type: "string" }, ref: { type: "string" } }, required: ["repository", "path"] } },
+  { name: "github_list_pull_requests", description: "List pull requests for a repository in Ivy's allowlist. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, state: { type: "string", enum: ["open","closed","all"] }, limit: { type: "integer", minimum: 1, maximum: 30 } }, required: ["repository"] } },
   { name: "github_get_pull_request", description: "Get details about one pull request in an allowlisted repository. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, number: { type: "integer", minimum: 1 } }, required: ["repository","number"] } },
   { name: "github_list_issues", description: "List issues for an allowlisted repository. Pull requests may also appear in GitHub's issues endpoint; use the PR tool for PR-specific details.", input_schema: { type: "object", properties: { repository: { type: "string" }, state: { type: "string", enum: ["open","closed","all"] }, limit: { type: "integer", minimum: 1, maximum: 30 } }, required: ["repository"] } }
 ];
@@ -44,15 +59,45 @@ export function githubCapabilityStatus() {
 }
 export async function executeIvyGitHubTool(name, input = {}) {
   if (name === "github_list_repositories") {
-    const limit = Math.max(1, Math.min(30, Number(input.limit) || 15));
+    const limit = boundedLimit(input.limit, 15, 30);
     const repos = await githubRequest("/user/repos?per_page=" + limit + "&sort=updated&affiliation=owner,collaborator,organization_member");
-    return repos.map((repo) => ({ full_name: repo.full_name, private: repo.private, default_branch: repo.default_branch, html_url: repo.html_url, updated_at: repo.updated_at, archived: repo.archived }));
+    return repos.map((repo) => ({ full_name: repo.full_name, private: repo.private, description: repo.description, default_branch: repo.default_branch, html_url: repo.html_url, updated_at: repo.updated_at, archived: repo.archived }));
   }
   const repository = parseRepo(input.repository);
+  if (name === "github_get_repository") {
+    const repo = await githubRequest("/repos/" + repository);
+    return { full_name: repo.full_name, description: repo.description, private: repo.private, visibility: repo.visibility, default_branch: repo.default_branch, language: repo.language, size_kb: repo.size, archived: repo.archived, fork: repo.fork, html_url: repo.html_url, created_at: repo.created_at, updated_at: repo.updated_at, pushed_at: repo.pushed_at, open_issues_count: repo.open_issues_count };
+  }
+  if (name === "github_list_repository_branches") {
+    const branches = await githubRequest("/repos/" + repository + "/branches?per_page=" + boundedLimit(input.limit, 30, 50));
+    return branches.map((branch) => ({ name: branch.name, protected: branch.protected, commit_sha: branch.commit?.sha }));
+  }
+  if (name === "github_list_repository_commits") {
+    const params = new URLSearchParams({ per_page: String(boundedLimit(input.limit, 10, 30)) });
+    if (typeof input.ref === "string" && input.ref.trim()) params.set("sha", input.ref.trim().slice(0, 250));
+    const commits = await githubRequest("/repos/" + repository + "/commits?" + params.toString());
+    return commits.map((item) => ({ sha: item.sha, message: String(item.commit?.message || "").slice(0, 1000), author: item.commit?.author?.name || item.author?.login || null, date: item.commit?.author?.date || null, html_url: item.html_url }));
+  }
+  if (name === "github_get_repository_tree") {
+    const meta = await githubRequest("/repos/" + repository);
+    const ref = typeof input.ref === "string" && input.ref.trim() ? input.ref.trim() : meta.default_branch;
+    const tree = await githubRequest("/repos/" + repository + "/git/trees/" + encodeURIComponent(ref) + "?recursive=1");
+    return { repository, ref, truncated: Boolean(tree.truncated), count_returned: Math.min(100, (tree.tree || []).length), entries: (tree.tree || []).slice(0, 100).map((item) => ({ path: item.path, type: item.type, size: item.size ?? null, sha: item.sha })) };
+  }
+  if (name === "github_read_repository_file") {
+    const path = safePath(input.path);
+    const ref = typeof input.ref === "string" && input.ref.trim() ? input.ref.trim().slice(0, 250) : undefined;
+    const query = ref ? "?ref=" + encodeURIComponent(ref) : "";
+    const file = await githubRequest("/repos/" + repository + "/contents/" + path.split("/").map(encodeURIComponent).join("/") + query);
+    if (Array.isArray(file) || file.type !== "file" || file.encoding !== "base64" || typeof file.content !== "string") throw new Error("That path is not a supported text file.");
+    if (Number(file.size) > MAX_FILE_BYTES) throw new Error("That file is larger than Ivy's 40 KB read limit.");
+    const content = Buffer.from(file.content.replace(/\n/g, ""), "base64").toString("utf8");
+    if (content.includes("\u0000")) throw new Error("Binary files are not supported.");
+    return { repository, path, ref: ref || null, size_bytes: Number(file.size) || Buffer.byteLength(content), html_url: file.html_url, content: content.slice(0, MAX_FILE_BYTES) };
+  }
   if (name === "github_list_pull_requests") {
     const state = ["open","closed","all"].includes(input.state) ? input.state : "open";
-    const limit = Math.max(1, Math.min(30, Number(input.limit) || 10));
-    const prs = await githubRequest("/repos/" + repository + "/pulls?state=" + state + "&per_page=" + limit + "&sort=updated&direction=desc");
+    const prs = await githubRequest("/repos/" + repository + "/pulls?state=" + state + "&per_page=" + boundedLimit(input.limit, 10, 30) + "&sort=updated&direction=desc");
     return prs.map((pr) => ({ number: pr.number, title: pr.title, state: pr.state, draft: pr.draft, html_url: pr.html_url, head: pr.head?.ref, base: pr.base?.ref, updated_at: pr.updated_at, mergeable_state: pr.mergeable_state }));
   }
   if (name === "github_get_pull_request") {
@@ -63,8 +108,7 @@ export async function executeIvyGitHubTool(name, input = {}) {
   }
   if (name === "github_list_issues") {
     const state = ["open","closed","all"].includes(input.state) ? input.state : "open";
-    const limit = Math.max(1, Math.min(30, Number(input.limit) || 10));
-    const issues = await githubRequest("/repos/" + repository + "/issues?state=" + state + "&per_page=" + limit + "&sort=updated&direction=desc");
+    const issues = await githubRequest("/repos/" + repository + "/issues?state=" + state + "&per_page=" + boundedLimit(input.limit, 10, 30) + "&sort=updated&direction=desc");
     return issues.filter((item) => !item.pull_request).map((item) => ({ number: item.number, title: item.title, state: item.state, html_url: item.html_url, labels: (item.labels || []).map((label) => label.name), updated_at: item.updated_at }));
   }
   throw new Error("Unsupported GitHub operation.");
