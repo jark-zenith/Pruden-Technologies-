@@ -1,0 +1,65 @@
+name: Build PRUDEN Command Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "capacitor.config.ts"
+      - "package.json"
+      - "package-lock.json"
+      - "index.html"
+      - "src/**"
+      - "public/**"
+      - "scripts/prepare-android.py"
+      - ".github/workflows/android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install dependencies
+        run: npm install
+      - name: Build web app
+        run: npm run build
+      - name: Add Android platform
+        run: npx cap add android
+      - name: Add Android microphone and camera permissions
+        run: python3 scripts/prepare-android.py
+      - name: Sync Capacitor Android project
+        run: npx cap sync android
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Publish APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v0.3.${{ github.run_number }}
+          name: PRUDEN Command Android v0.3.${{ github.run_number }}
+          body: |
+            Installable Android debug APK for PRUDEN Command.
+            This app connects to the live PRUDEN Command service and requires an internet connection.
+            This debug APK is for direct testing/sideload installation; it is not Play Store signed.
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          fail_on_unmatched_files: true
+      - name: Upload APK build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pruden-command-android-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,13 @@
+{
+  "id": "/",
+  "name": "PRUDEN Technologies Command Centre",
+  "short_name": "PRUDEN Command",
+  "description": "Secure PRUDEN Technologies management system and Ivy assistant.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080d17",
+  "theme_color": "#0b1525",
+  "icons": [{ "src": "/pruden-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
