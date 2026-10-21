@@ -109,3 +109,25 @@
 .workforce-chat-unconfigured{font-size:10px;line-height:1.5;color:#e6bd73;padding:0 12px 12px;margin:0}
 @keyframes workforce-orb-breathe{0%,100%{filter:brightness(1);transform:scale(1)}50%{filter:brightness(1.12);transform:scale(1.035)}}
 @media(max-width:760px){.workforce-orb-dock{right:90px;bottom:16px;width:min(220px,calc(100vw - 102px));padding:8px;max-height:190px;overflow-y:auto}.workforce-orb-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px 3px}.workforce-floating-orb>span{width:28px;height:28px}.workforce-floating-orb small{font-size:7px}.workforce-chat-panel{right:8px;bottom:170px;width:calc(100vw - 16px);max-height:calc(100vh - 195px)}}
+
+/* Shared Workforce Group orb and dual-mode chat */
+.workforce-group-launcher{position:fixed;z-index:77;left:22px;bottom:24px;display:flex;align-items:center;gap:10px;padding:10px 14px 10px 10px;border:1px solid #78e3c580;border-radius:999px;background:rgba(8,18,30,.96);color:#e9fff7;box-shadow:0 8px 30px #0008,0 0 25px #78e3c522;cursor:pointer}
+.workforce-group-launcher-orb{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 30% 20%,#d3fff2,#4bc9a8 35%,#12382f 82%);border:1px solid #8ff5d8;color:#f0fff9;box-shadow:0 0 0 4px #78e3c51c,0 0 18px #78e3c533}
+.workforce-group-launcher-copy{display:flex;flex-direction:column;gap:3px;text-align:left}
+.workforce-group-launcher-copy strong{font-size:11px}
+.workforce-group-launcher-copy small{font-size:9px;color:#91b8ae}
+.workforce-group-panel{position:fixed;z-index:80;left:22px;bottom:82px;width:min(430px,calc(100vw - 32px));height:min(620px,calc(100vh - 110px));display:flex;flex-direction:column;overflow:hidden;border:1px solid #34534e;border-radius:16px;background:rgba(8,16,27,.985);box-shadow:0 22px 75px #000b,0 0 35px #78e3c51a;color:#eaf0fc}
+.workforce-group-panel .workforce-chat-header{--orb-color:#78e3c5;background:linear-gradient(110deg,#143c35,#0b1423)}
+.workforce-group-panel .workforce-chat-avatar{background:radial-gradient(circle at 30% 20%,#d3fff2,#4bc9a8 35%,#12382f 82%);border-color:#8ff5d8}
+.workforce-group-panel .workforce-chat-messages{max-height:none;flex:1}
+.workforce-group-panel .workforce-chat-form{display:flex;gap:7px;padding:10px;border-top:1px solid #26364c}
+.workforce-group-panel .workforce-chat-form textarea{flex:1;min-width:0}
+.workforce-group-panel .workforce-chat-form .primary-button:disabled{opacity:.5}
+.workforce-group-members{padding:8px 12px;border-bottom:1px solid #202e42;display:flex;gap:5px;flex-wrap:wrap}
+.workforce-group-members span{font-size:8px;padding:4px 6px;border:1px solid #78e3c530;border-radius:999px;color:#a9d7cc}
+.workforce-group-notice{font-size:9px;line-height:1.5;color:#d5b779;padding:0 12px 8px;margin:0}
+.workforce-group-mode{display:flex;gap:6px;padding:8px 11px;border-bottom:1px solid #202e42}
+.workforce-group-mode button,.workforce-group-mode label{display:inline-flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid #2a3a51;border-radius:8px;background:#111d2e;color:#94a7c2;font-size:10px;cursor:pointer}
+.workforce-group-mode button.active{color:#eff8ff;border-color:#78e3c5;background:#78e3c51a}
+.workforce-group-mic{height:36px;width:36px;flex:none;display:grid;place-items:center;border:1px solid #4b8d7d;border-radius:9px;background:#12332d;color:#d8fff2}
+@media(max-width:760px){.workforce-group-launcher{left:10px;bottom:10px;padding:7px}.workforce-group-launcher-copy strong{font-size:10px}.workforce-group-launcher-copy small{display:none}.workforce-group-panel{left:8px;bottom:62px;width:calc(100vw - 16px);height:calc(100vh - 78px)}}

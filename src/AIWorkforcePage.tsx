@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, Bot, CircleAlert, LoaderCircle, MessageCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import "./workforce.css";
+import AIWorkforceGroupChat from "./AIWorkforceGroupChat";
 
 type Agent = {
   id: string; name: string; title: string; reportsTo?: string; responsibilities?: string[];
@@ -145,5 +146,6 @@ export default function AIWorkforcePage() {
       </form>
       {!status?.configured && <p className="workforce-chat-unconfigured">Text mode needs the existing ANTHROPIC_API_KEY in the server's private environment.</p>}
     </div>}
+    <AIWorkforceGroupChat agents={agents} status={status} />
   </section>;
 }
