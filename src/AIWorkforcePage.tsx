@@ -10,7 +10,7 @@ type Agent = {
 };
 type Department = { id: string; name: string; lead: string; independent?: boolean; agents: Agent[] };
 type Registry = { ivy: Agent; departments: Department[]; controls?: { autonomy?: string; toolsEnabled?: boolean; externalActionsEnabled?: boolean } };
-type WorkforceStatus = { configured: boolean; provider: string; model: string; agentCount: number; toolsEnabled: boolean; externalActionsEnabled: boolean };
+type WorkforceStatus = { configured: boolean; provider: string; model: string; agentCount: number; toolsEnabled: boolean; safeExternalToolsEnabled?: boolean; externalActionsEnabled: boolean; github?: { status: string; approvedRepositories?: string[] }; writeActions?: string };
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const defaultColor = "#66aaff";
@@ -81,11 +81,11 @@ export default function AIWorkforcePage() {
       <div><p className="eyebrow">INTELLIGENCE / WORKFORCE</p><h1>AI Workforce</h1><p className="welcome-subtitle">Your AI departments, under Founder authority.</p></div>
       <span className={status?.configured ? "workforce-status online" : "workforce-status offline"}><span />{status?.configured ? "Claude configured" : "Claude not configured"}</span>
     </div>
-    <div className="workforce-notice"><ShieldCheck size={17} /><div><strong>Bounded autonomy is active</strong><p>Agents can reason and draft. This runtime does not send messages, browse live websites, change repositories, access customer records, spend money, or deploy software.</p></div></div>
+    <div className="workforce-notice"><ShieldCheck size={17} /><div><strong>Safe tool access · write actions still gated</strong><p>When GitHub is configured on the private server, agents can inspect allowlisted repositories, branches, commits, files, issues and pull requests. Repository writes, outbound messages, spending and deployments remain disabled until approval controls are implemented.</p></div></div>
     <div className="workforce-metrics">
       <article className="metric-card"><div className="metric-top"><span>AI identities</span><span className="metric-icon violet"><Bot size={17} /></span></div><div className="metric-value">{status?.agentCount ?? (registry ? agents.length : "—")} <small>registered</small></div></article>
       <article className="metric-card"><div className="metric-top"><span>Departments</span><span className="metric-icon blue"><Activity size={17} /></span></div><div className="metric-value">{registry?.departments.length ?? "—"} <small>operational groups</small></div></article>
-      <article className="metric-card"><div className="metric-top"><span>External actions</span><span className="metric-icon amber"><ShieldCheck size={17} /></span></div><div className="metric-value">Disabled <small>by policy</small></div></article>
+      <article className="metric-card"><div className="metric-top"><span>GitHub tools</span><span className="metric-icon amber"><ShieldCheck size={17} /></span></div><div className="metric-value">{status?.toolsEnabled ? "Available" : "Needs setup"} <small>{status?.toolsEnabled ? "read-only" : "GITHUB_TOKEN"}</small></div></article>
     </div>
     {error && !chatOpen && <div className="workforce-error" role="alert"><CircleAlert size={16} /><span>{error}</span></div>}
     {loadingRegistry ? <div className="panel workforce-loading"><LoaderCircle size={18} /> Loading AI workforce registry…</div> : registry ? <>
