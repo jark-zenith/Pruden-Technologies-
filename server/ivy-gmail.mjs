@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes, createHash, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from "node:crypto";
 
 const IVY_EMAIL = "ivyassistantai@gmail.com";
 const TOKEN_ROW = "ivy-primary";
