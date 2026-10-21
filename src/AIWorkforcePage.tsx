@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Activity, Bot, CheckCircle2, CircleAlert, LoaderCircle, MessageCircle, Play, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Activity, Bot, CircleAlert, LoaderCircle, MessageCircle, ShieldCheck, Sparkles, X } from "lucide-react";
 import "./workforce.css";
 
 type Agent = {
