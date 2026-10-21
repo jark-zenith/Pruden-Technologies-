@@ -7,14 +7,14 @@ The approved workforce registry lives in `ai-workforce/agents.json`. The workfor
 - Claude-powered conversation, with the Anthropic key kept server-side.
 - Workspace operations scoped to the signed-in founder: list projects, tasks, approvals and CRM records; create projects/tasks/customers; update task status; create pending approval records.
 - Gmail has a separate OAuth connection panel supporting mailbox operations and explicit send confirmation. Confirm the Gmail panel reports connected before relying on it.
-- Optional read-only GitHub inspection through `server/ivy-github.mjs`: list visible repositories, list issues and pull requests, and inspect a pull request. Repository reads are restricted by `PRUDEN_GITHUB_REPOS`.
+- Optional read-only GitHub inspection through `server/ivy-github.mjs`: list visible repositories; inspect repository metadata, branches, recent commits, recursive file trees, and text file contents (40 KB per file maximum); and list/read issues and pull requests. Repository access is restricted by `PRUDEN_GITHUB_REPOS`. All GitHub operations remain read-only.
 - A live capability registry at `GET /api/ivy/capabilities`, surfaced in Ivy Settings, distinguishes configured-but-unverified services from integrations that are not implemented.
 
 ## Integration configuration
 
 Set secrets only in the private server environment, never in Vite variables or Git:
 - `ANTHROPIC_API_KEY` — existing Claude key.
-- `GITHUB_TOKEN` — optional GitHub token, scoped to read-only repository metadata and pull-request/issue contents where possible.
+- `GITHUB_TOKEN` — optional GitHub token, scoped to read-only repository metadata, contents, branches, commits, issues, and pull requests for approved repositories.
 - `PRUDEN_GITHUB_REPOS` — optional comma-separated allowlist such as `jark-zenith/Pruden-Technologies-`. Defaults to that repository only.
 
 A token being present is not proof of successful authentication. The capability registry uses `configured_unverified` until a real request verifies it.
@@ -31,7 +31,7 @@ Ivy may draft content or create a pending approval record, but must never claim 
 
 ## Workforce runtime
 
-The AI Workforce module displays all 13 identities across six departments and allows text-only role-specific task runs through the server-side Claude API. Those specialist runs do not yet have external tools. They cannot independently browse, send messages, modify repositories, change databases, spend money, or deploy.
+The AI Workforce module contains 13 specialist identities across six departments, plus Ivy as Chief of Staff (14 identities total) and allows text-only role-specific task runs through the server-side Claude API. Those specialist runs do not yet have external tools. They cannot independently browse, send messages, modify repositories, change databases, spend money, or deploy.
 
 ## Verification and rollout
 
