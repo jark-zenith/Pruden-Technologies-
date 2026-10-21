@@ -1,0 +1,58 @@
+
+/* PRUDEN AI Workforce */
+.workforce-page{min-width:0}
+.workforce-status{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 11px;font-size:11px;font-weight:700;white-space:nowrap}
+.workforce-status>span,.workforce-live-pill>span{width:7px;height:7px;border-radius:50%;background:#f0ad4e;box-shadow:0 0 10px #f0ad4e}
+.workforce-status.online>span,.workforce-live-pill>span{background:#26c98a;box-shadow:0 0 10px #26c98a}
+.workforce-status.offline{color:var(--muted)}
+.workforce-notice{display:flex;gap:12px;align-items:flex-start;padding:15px 17px;border:1px solid #b48b3b55;border-radius:12px;background:linear-gradient(120deg,#c99b2610,transparent);color:var(--text);margin:18px 0}
+.workforce-notice>svg{color:var(--gold);flex:none;margin-top:2px}
+.workforce-notice strong{font-size:12px}
+.workforce-notice p{margin:5px 0 0;color:var(--muted);font-size:11px;line-height:1.65}
+.workforce-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:18px 0}
+.workforce-layout{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(0,1.1fr);gap:15px;align-items:start}
+.workforce-roster,.workforce-profile,.workforce-runner{padding:17px;min-width:0}
+.workforce-panel-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.workforce-panel-heading h2{font-size:16px;letter-spacing:-.02em;margin:3px 0 0;color:var(--text)}
+.workforce-panel-heading .eyebrow{margin:0}
+.workforce-agent{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--text);text-align:left;cursor:pointer}
+.workforce-agent:hover,.workforce-agent.selected{background:var(--panel2);border-color:var(--line)}
+.workforce-agent.selected{box-shadow:inset 2px 0 var(--blue)}
+.workforce-avatar{width:31px;height:31px;display:grid;place-items:center;border-radius:9px;background:linear-gradient(145deg,#233e67,#182b49);border:1px solid #4a6d9b;color:#c8e1ff;font-size:12px;font-weight:800;flex:none}
+.workforce-avatar.ivy{background:linear-gradient(145deg,#2e63b8,#172e56);border-color:#5e9aff;color:#fff}
+.workforce-agent-copy{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.workforce-agent-copy strong{font-size:12px}
+.workforce-agent-copy small{font-size:10px;color:var(--muted);line-height:1.4;overflow-wrap:anywhere}
+.workforce-role-tag,.workforce-department-heading>span{font-size:8px;letter-spacing:.08em;font-weight:800;color:var(--muted);white-space:nowrap}
+.workforce-department{border-top:1px solid var(--line);margin-top:9px;padding-top:12px}
+.workforce-department-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:0 3px 7px}
+.workforce-department-heading>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.workforce-department-heading strong{font-size:11px}
+.workforce-department-heading small{font-size:9px;color:var(--muted)}
+.workforce-chevron{color:var(--muted);font-size:19px}
+.workforce-main-column{display:grid;gap:15px;min-width:0}
+.workforce-live-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 8px;border:1px solid #26c98a40;border-radius:999px;color:#26c98a;font-size:9px;font-weight:800}
+.workforce-role-title{font-size:14px;font-weight:700;margin:4px 0 8px}
+.workforce-reporting{font-size:11px;color:var(--muted);margin:0 0 16px}
+.workforce-profile h3{font-size:11px;margin:0 0 8px}
+.workforce-profile ul{margin:0;padding-left:18px;color:var(--muted);font-size:11px;line-height:1.7}
+.workforce-permissions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:17px}
+.workforce-permissions>div{padding:11px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);min-width:0}
+.workforce-permissions strong{font-size:10px}
+.workforce-permissions p{font-size:10px;line-height:1.6;color:var(--muted);margin:6px 0 0;overflow-wrap:anywhere}
+.workforce-runner .workforce-panel-heading>svg{color:var(--gold)}
+.workforce-help{font-size:11px;color:var(--muted);line-height:1.65;margin:0 0 14px}
+.workforce-task-input{display:block;width:100%;resize:vertical;min-height:120px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);font:inherit;font-size:12px;line-height:1.6;outline:none}
+.workforce-task-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px #438cff18}
+.workforce-run-button{margin-top:12px}
+.workforce-run-button:disabled{opacity:.5;cursor:not-allowed}
+.workforce-spinner{animation:workforce-spin 1s linear infinite}
+@keyframes workforce-spin{to{transform:rotate(360deg)}}
+.workforce-output{margin-top:16px;border:1px solid #26c98a40;border-radius:10px;overflow:hidden}
+.workforce-output-heading{display:flex;align-items:center;gap:8px;padding:11px 12px;background:#26c98a0c;color:#26c98a;font-size:11px}
+.workforce-output pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:12px;line-height:1.7;padding:13px;margin:0;max-height:520px;overflow:auto;color:var(--text)}
+.workforce-error{display:flex;gap:8px;align-items:center;padding:11px 13px;border:1px solid #e46b6b60;border-radius:9px;color:#e46b6b;font-size:12px;margin:12px 0}
+.workforce-loading{display:flex;align-items:center;gap:10px;padding:18px;color:var(--muted);font-size:12px}
+.workforce-footnote{font-size:10px;color:var(--muted);line-height:1.6;margin:14px 0 0}
+@media(max-width:980px){.workforce-layout{grid-template-columns:1fr}.workforce-roster{order:2}.workforce-main-column{order:1}}
+@media(max-width:600px){.workforce-metrics{grid-template-columns:1fr}.workforce-permissions{grid-template-columns:1fr}.workforce-department-heading{flex-wrap:wrap}.workforce-role-tag{display:none}}
