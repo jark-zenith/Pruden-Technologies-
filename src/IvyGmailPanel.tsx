@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { CheckCircle2, ExternalLink, FileText, Inbox, LoaderCircle, Mail, Search, Send, ShieldCheck, Unplug } from "lucide-react";
 
 type GmailMessage = { id: string; threadId?: string; from: string; to: string; subject: string; date: string; snippet: string; body?: string };
+type GmailLabel = { id: string; name: string; type: string };
 type GmailStatus = { oauthConfigured: boolean; tokenStoreConfigured: boolean; expectedEmail: string; connected: boolean; error?: string };
 const fieldStyle: React.CSSProperties = { width: "100%", boxSizing: "border-box", border: "1px solid var(--line, #2c405b)", background: "var(--surface, #0d1625)", color: "var(--text, #edf4ff)", borderRadius: 10, padding: "10px 12px", font: "inherit" };
 const actionStyle: React.CSSProperties = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, border: "1px solid var(--line, #2c405b)", borderRadius: 10, padding: "9px 12px", background: "var(--surface, #0d1625)", color: "var(--text, #edf4ff)", cursor: "pointer", fontWeight: 700, fontSize: 12 };
@@ -14,6 +15,9 @@ export default function IvyGmailPanel() {
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("in:inbox newer_than:30d");
   const [messages, setMessages] = useState<GmailMessage[]>([]);
+  const [labels, setLabels] = useState<GmailLabel[]>([]);
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const [newLabel, setNewLabel] = useState("");
   const [selected, setSelected] = useState<GmailMessage | null>(null);
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
@@ -30,6 +34,11 @@ export default function IvyGmailPanel() {
       if (!response.ok) throw new Error(data.error || "Could not check Gmail status.");
       setStatus(data);
       setError(data.error || "");
+      if (data.connected) {
+        const labelResponse = await fetch("/api/ivy/gmail/labels");
+        const labelData = await labelResponse.json();
+        if (labelResponse.ok) setLabels(labelData.labels || []);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not check Gmail status.");
     } finally { setLoading(false); }
@@ -79,6 +88,32 @@ export default function IvyGmailPanel() {
       setNotice("Gmail accepted the send request. Check Sent in Ivy's mailbox to verify delivery status.");
       setDraftId(""); setConfirmation(""); setShowComposer(false); setTo(""); setSubject(""); setBody("");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not send email."); }
+    finally { setBusy(false); }
+  }
+  async function organizeMessage(action: string) {
+    if (!selected) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await requestJson("/api/ivy/gmail/messages/" + encodeURIComponent(selected.id) + "/organize", {
+        method: "POST", body: JSON.stringify({ action, ...(selectedLabel ? { labelId: selectedLabel } : {}) })
+      });
+      setNotice(action === "archive" ? "Email archived." : action === "mark_read" ? "Email marked as read." : action === "mark_unread" ? "Email marked unread." : action === "add_label" ? "Label applied." : "Label removed.");
+      if (action === "archive") setMessages((current) => current.filter((item) => item.id !== selected.id));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not organize email."); }
+    finally { setBusy(false); }
+  }
+  async function createLabel(event: FormEvent) {
+    event.preventDefault();
+    const name = newLabel.trim();
+    if (!name) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const data = await requestJson("/api/ivy/gmail/labels", { method: "POST", body: JSON.stringify({ name }) });
+      setLabels((current) => [...current, data]);
+      setSelectedLabel(data.id);
+      setNewLabel("");
+      setNotice("Gmail label created.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create label."); }
     finally { setBusy(false); }
   }
   async function disconnect() {
@@ -132,6 +167,15 @@ export default function IvyGmailPanel() {
     {selected && <article style={{ marginTop: 14, padding: 14, border: "1px solid var(--line, #2c405b)", borderRadius: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}><h4 style={{ margin: "0 0 10px" }}>{selected.subject || "(No subject)"}</h4><button type="button" style={actionStyle} onClick={() => setSelected(null)}>Close</button></div>
       <p style={{ fontSize: 12, opacity: .8, overflowWrap: "anywhere" }}>From: {selected.from}<br />To: {selected.to}<br />Date: {selected.date}</p>
+      <div style={{ display: "flex", gap: 7, flexWrap: "wrap", margin: "10px 0" }}>
+        <button type="button" style={actionStyle} disabled={busy} onClick={() => void organizeMessage("archive")}>Archive</button>
+        <button type="button" style={actionStyle} disabled={busy} onClick={() => void organizeMessage("mark_read")}>Mark read</button>
+        <button type="button" style={actionStyle} disabled={busy} onClick={() => void organizeMessage("mark_unread")}>Mark unread</button>
+        <select aria-label="Gmail label" style={{ ...fieldStyle, width: "auto", maxWidth: 200 }} value={selectedLabel} onChange={(event) => setSelectedLabel(event.target.value)}><option value="">Choose label</option>{labels.filter((label) => label.type === "user").map((label) => <option key={label.id} value={label.id}>{label.name}</option>)}</select>
+        <button type="button" style={actionStyle} disabled={busy || !selectedLabel} onClick={() => void organizeMessage("add_label")}>Apply label</button>
+        <button type="button" style={actionStyle} disabled={busy || !selectedLabel} onClick={() => void organizeMessage("remove_label")}>Remove label</button>
+      </div>
+      <form onSubmit={createLabel} style={{ display: "flex", gap: 7, margin: "8px 0 12px" }}><input aria-label="New Gmail label" style={fieldStyle} value={newLabel} onChange={(event) => setNewLabel(event.target.value)} placeholder="Create a label" maxLength={225} /><button type="submit" style={actionStyle} disabled={busy || !newLabel.trim()}>Create label</button></form>
       <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", font: "inherit", fontSize: 13, lineHeight: 1.6, maxHeight: 420, overflow: "auto" }}>{selected.body || selected.snippet || "(No plain-text body was available.)"}</pre>
     </article>}
     {busy && <p style={{ display: "flex", gap: 7, alignItems: "center", fontSize: 12 }}><LoaderCircle size={14} /> Working with Gmail…</p>}
