@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [feat/pruden-ai-workforce-v1]
+    branches: [feat/pruden-ai-workforce-v1, feat/pruden-ai-workforce-dashboard]
   workflow_dispatch:
 
 permissions:
@@ -26,6 +26,8 @@ jobs:
         run: |
           node --check server.mjs
           node --check server/ai-workforce.mjs
+          node --check server/ivy-github.mjs
+          node --check server/ivy-capabilities.mjs
       - name: Validate workforce registry
         run: |
           node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("ai-workforce/agents.json","utf8")); const n=1+r.departments.reduce((s,d)=>s+d.agents.length,0); if(r.departments.length!==6||n!==13) throw new Error("Expected 6 departments and 13 identities; got "+r.departments.length+" departments and "+n+" identities"); if(!r.departments.find(d=>d.id==="quality-security")?.independent) throw new Error("Quality & Security must remain independent"); console.log("Registry OK:",n,"identities across",r.departments.length,"departments");'
