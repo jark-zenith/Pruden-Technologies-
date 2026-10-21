@@ -174,7 +174,7 @@ export function registerIvyGmailRoutes(app) {
       });
       const profileResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", { headers: { Authorization: "Bearer " + tokenData.access_token } });
       const profile = await profileResponse.json().catch(() => ({}));
-      if (!profileResponse.ok || String(profile.email || "").toLowerCase() !== IVY_EMAIL) return res.status(403).send("Google returned a different account. Ivy can only connect " + IVY_EMAIL + ". No token was saved.");
+      if (!profileResponse.ok || profile.verified_email !== true || String(profile.email || "").toLowerCase() !== IVY_EMAIL) return res.status(403).send("Google returned a different account. Ivy can only connect " + IVY_EMAIL + ". No token was saved.");
       const previous = await loadTokens().catch(() => null);
       const tokens = { access_token: tokenData.access_token, refresh_token: tokenData.refresh_token || previous?.refresh_token, expiry_date: Date.now() + Number(tokenData.expires_in || 3600) * 1000 };
       if (!tokens.refresh_token) return res.status(400).send("Google did not return a refresh token. Remove this app's access from your Google Account and reconnect with consent.");
@@ -209,6 +209,39 @@ export function registerIvyGmailRoutes(app) {
       const message = await gmailApi("messages/" + encodeURIComponent(req.params.id) + "?format=full");
       res.json({ ...safeMessage(message), body: decodePart(message.payload).slice(0, 30000) });
     } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Could not read this email." }); }
+  });
+
+  app.get("/api/ivy/gmail/labels", async (_req, res) => {
+    try {
+      const result = await gmailApi("labels");
+      res.json({ labels: (result.labels || []).map((label) => ({ id: label.id, name: label.name, type: label.type })) });
+    } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Could not load Gmail labels." }); }
+  });
+
+  app.post("/api/ivy/gmail/labels", async (req, res) => {
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    if (!name || name.length > 225 || /[\r\n]/.test(name)) return res.status(400).json({ error: "Label name must be 1–225 characters." });
+    try {
+      const label = await gmailApi("labels", { method: "POST", body: JSON.stringify({ name, labelListVisibility: "labelShow", messageListVisibility: "show" }) });
+      res.json({ id: label.id, name: label.name, type: label.type, created: true });
+    } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Could not create Gmail label." }); }
+  });
+
+  app.post("/api/ivy/gmail/messages/:id/organize", async (req, res) => {
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(req.params.id)) return res.status(400).json({ error: "Invalid message ID." });
+    const action = String(req.body?.action || "");
+    const labelId = typeof req.body?.labelId === "string" ? req.body.labelId : "";
+    let change;
+    if (action === "archive") change = { removeLabelIds: ["INBOX"] };
+    else if (action === "mark_read") change = { removeLabelIds: ["UNREAD"] };
+    else if (action === "mark_unread") change = { addLabelIds: ["UNREAD"] };
+    else if (action === "add_label" && /^[A-Za-z0-9_-]{1,200}$/.test(labelId)) change = { addLabelIds: [labelId] };
+    else if (action === "remove_label" && /^[A-Za-z0-9_-]{1,200}$/.test(labelId)) change = { removeLabelIds: [labelId] };
+    else return res.status(400).json({ error: "Choose a supported email organization action." });
+    try {
+      await gmailApi("messages/" + encodeURIComponent(req.params.id) + "/modify", { method: "POST", body: JSON.stringify(change) });
+      res.json({ updated: true, action });
+    } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Could not organize this email." }); }
   });
 
   app.post("/api/ivy/gmail/drafts", async (req, res) => {
