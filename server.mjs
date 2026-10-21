@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerIvyGmailRoutes } from "./server/ivy-gmail.mjs";
 import { registerIvyMediaRoutes } from "./server/ivy-media.mjs";
+import { registerAIWorkforceRoutes } from "./server/ai-workforce.mjs";
 import { ivyOperationTools, executeIvyOperation } from "./server/ivy-operations.mjs";
 
 const app = express();
@@ -88,6 +89,7 @@ app.use(express.static(dist, { index: false, maxAge: "1h" }));
 app.use("/api", (req, res, next) => isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
 registerIvyGmailRoutes(app);
 registerIvyMediaRoutes(app);
+registerAIWorkforceRoutes(app);
 
 // Ivy AI companion: Claude reasoning stays server-side; no provider key reaches the browser.
 const ivyAttempts = new Map();
