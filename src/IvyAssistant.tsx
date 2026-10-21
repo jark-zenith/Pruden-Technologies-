@@ -276,7 +276,16 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Ivy could not connect.";
       setError(message);
-      setMessages((current) => [...current, { role: "assistant", content: "I couldn't complete that request. " + message }]);
+      const recoveryReply = "I couldn't complete that request. " + message;
+      setMessages((current) => [...current, { role: "assistant", content: recoveryReply }]);
+      if (voiceActive) {
+        const resumeListening = () => {
+          waitingForReplyRef.current = false;
+          if (restartRecognitionRef.current) recognitionStarterRef.current?.();
+        };
+        if (preferences.voiceOutput) speak(recoveryReply, resumeListening);
+        else resumeListening();
+      }
     } finally {
       setBusy(false);
     }
@@ -285,11 +294,11 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   sendMessageRef.current = sendMessage;
 
   return <>
-    <button className={`ivy-orb ${open ? "is-open" : ""} ${listening ? "is-listening" : ""} ${speaking ? "is-speaking" : ""}`} onClick={() => { if (open) { stopVoice(); disableCamera(); } setOpen((value) => !value); }} aria-label={open ? "Close Ivy assistant" : "Open Ivy assistant"} title="Ivy · PRUDEN AI">
+    <button className={`ivy-orb ${open ? "is-open" : ""} ${listening ? "is-listening" : ""} ${speaking ? "is-speaking" : ""}`} onClick={() => { if (open) disableCamera(); setOpen((value) => !value); }} aria-label={open ? "Close Ivy assistant" : "Open Ivy assistant"} title="Ivy · PRUDEN AI">
       <span className="ivy-orb-halo" /><span className="ivy-orb-core"><Sparkles size={23} /></span><span className="ivy-orb-status" />
     </button>
     {open && <section className="ivy-panel" role="dialog" aria-label="Ivy AI assistant">
-      <header className="ivy-header"><div className="ivy-avatar"><Sparkles size={19} /></div><div className="ivy-heading"><strong>Ivy</strong><span><i className={providerReady ? "ivy-status-ready" : ""} /> {providerReady === null ? "Checking Claude…" : providerReady ? "Claude key configured" : "API key needed"} · PRUDEN AI</span></div><button className="ivy-icon-button" title="Stop voice" onClick={stopVoice}><MicOff size={15} /></button><button className="ivy-icon-button" title="Minimize Ivy" onClick={() => { stopVoice(); disableCamera(); setOpen(false); }}><ChevronDown size={17} /></button><button className="ivy-icon-button" title="Close Ivy" onClick={() => { stopVoice(); disableCamera(); setOpen(false); }}><X size={16} /></button></header>
+      <header className="ivy-header"><div className="ivy-avatar"><Sparkles size={19} /></div><div className="ivy-heading"><strong>Ivy</strong><span><i className={providerReady ? "ivy-status-ready" : ""} /> {providerReady === null ? "Checking Claude…" : providerReady ? "Claude key configured" : "API key needed"} · PRUDEN AI</span></div><button className="ivy-icon-button" title="Stop voice" onClick={stopVoice}><MicOff size={15} /></button><button className="ivy-icon-button" title="Minimize Ivy" onClick={() => { disableCamera(); setOpen(false); }}><ChevronDown size={17} /></button><button className="ivy-icon-button" title="Close Ivy" onClick={() => { disableCamera(); setOpen(false); }}><X size={16} /></button></header>
       <div className="ivy-session-bar"><span className={listening ? "active" : ""}><Activity size={13} /> {listening ? "Hands-free listening active" : voiceActive ? "Voice session active" : preferences.autoStartVoice ? "Hands-free mode enabled" : "Enable hands-free mode"}</span><button onClick={voiceActive ? stopVoice : () => startVoice(true)}>{voiceActive ? <><MicOff size={13} /> Stop session</> : <><Mic size={13} /> Enable hands-free</>}</button></div>
       <div className="ivy-context"><span>WORKSPACE</span><strong>{activeModule}</strong><span className="ivy-context-dot" /> <span>{workspace.repositories.length} repositories · {workspace.tasks.length} tasks</span></div>
       <div className="ivy-messages">
@@ -302,7 +311,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
       {error && <div className="ivy-error" role="alert">{error}</div>}
       <form className="ivy-composer" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><button type="button" className="ivy-icon-button" title={cameraOpen ? "Camera active" : "Enable camera"} onClick={() => cameraOpen ? disableCamera() : void enableCamera()}>{cameraOpen ? <CameraOff size={17} /> : <Camera size={17} />}</button><input value={input} onChange={(event) => setInput(event.target.value)} placeholder={voiceActive && listening ? "I'm listening… or type here" : "Ask Ivy anything…"} aria-label="Message Ivy" /><button type="submit" className="ivy-send" disabled={busy || (!input.trim() && !snapshot)} aria-label="Send message"><Send size={16} /></button></form>
       <footer className="ivy-footer"><span>{voiceActive ? "Microphone active · click stop to end" : preferences.autoStartVoice ? "Hands-free enabled · waiting for browser permission" : "Hands-free off until you enable it"}</span><button onClick={() => onNavigate("Reports & Settings")}><Settings2 size={13} /> Manage Ivy</button><button onClick={() => { stopVoice(); disableCamera(); setMessages([]); sessionStorage.removeItem(HISTORY_KEY); }} title="Clear this session">Clear</button></footer>
-      <div className="ivy-privacy"><ShieldCheck size={12} /> Camera frames are sent to Claude only when you capture and send them. No automatic camera streaming.</div>
+      <div className="ivy-privacy"><ShieldCheck size={12} /> {voiceActive ? "Hands-free conversation stays active while you navigate or minimize Ivy. Use Stop session to turn the microphone off." : "Microphone stays off until you explicitly enable hands-free mode. Camera frames are sent only when you capture and send them."}</div>
     </section>}
   </>;
 }
