@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
-import { CheckCircle2, ExternalLink, FileText, Inbox, LoaderCircle, Mail, RefreshCw, Search, Send, ShieldCheck, Unplug } from "lucide-react";
+import { CheckCircle2, ExternalLink, FileText, Inbox, LoaderCircle, Mail, Search, Send, ShieldCheck, Unplug } from "lucide-react";
 
 type GmailMessage = { id: string; threadId?: string; from: string; to: string; subject: string; date: string; snippet: string; body?: string };
 type GmailStatus = { oauthConfigured: boolean; tokenStoreConfigured: boolean; expectedEmail: string; connected: boolean; error?: string };
