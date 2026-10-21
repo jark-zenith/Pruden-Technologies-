@@ -319,9 +319,17 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
   </>;
 }
 
+type IvyCapabilityItem = { status?: string; provider?: string; note?: string; readOnlyTools?: boolean; writeToolsEnabled?: boolean; signingEnabled?: boolean; productionDeployEnabled?: boolean };
+
 export function IvySettingsPanel() {
   const [preferences, setPreferences] = useState<IvyPreferences>(readPreferences);
   const [provider, setProvider] = useState<"checking" | "ready" | "missing">("checking");
+  const [capabilities, setCapabilities] = useState<Record<string, IvyCapabilityItem>>({});
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/ivy/capabilities").then((response) => response.json()).then((data) => { if (alive) setCapabilities(data || {}); }).catch(() => { if (alive) setCapabilities({}); });
+    return () => { alive = false; };
+  }, []);
   useEffect(() => {
     let alive = true;
     fetch("/api/ivy/status").then((response) => response.json()).then((data) => { if (alive) setProvider(data.configured ? "ready" : "missing"); }).catch(() => { if (alive) setProvider("missing"); });
@@ -343,7 +351,8 @@ export function IvySettingsPanel() {
         <div className="ivy-setting-row"><span><strong>Workspace navigation</strong><small>Ivy can switch to supported management modules and open HTTPS links you request.</small></span><span className="ivy-capability-tag">FOUNDATION</span></div>
       </section>
       <section className="panel ivy-setting-card"><h3>Claude connection</h3><p>The Anthropic key stays on the private server and is never stored in this browser.</p><div className="ivy-connection-row"><span>Provider status</span><strong>{provider === "checking" ? "Checking…" : provider === "ready" ? "Configured" : "Waiting for ANTHROPIC_API_KEY"}</strong></div><div className="ivy-connection-row"><span>Voice provider</span><strong>Browser speech APIs</strong></div><div className="ivy-connection-row"><span>Persistent memory</span><strong>Not connected yet</strong></div><div className="ivy-connection-row"><span>External integrations</span><strong>Read-only foundation only</strong></div></section>
-      <section className="panel ivy-setting-card"><h3>Safety boundaries</h3><p>Current foundation supports conversation, workspace summaries, module navigation, HTTPS link opening and manual image inspection. It does not yet run arbitrary commands, edit repositories, deploy services, or change production data.</p><div className="ivy-safety-note"><ShieldCheck size={16} /> Consequential actions will require explicit authorization and an audit trail.</div></section>
+      <section className="panel ivy-setting-card"><h3>Safety boundaries</h3><p>Ivy can read permitted workspace records and create projects, tasks, CRM records, and pending approvals; workspace writes are limited to the signed-in founder's records. GitHub tools are read-only. She cannot yet deploy services, sign contracts, execute payments, or send WhatsApp messages.</p><div className="ivy-safety-note"><ShieldCheck size={16} /> Consequential actions require explicit authorization and an audit trail.</div></section>
+      <section className="panel ivy-setting-card ivy-integration-status"><h3>Integration readiness</h3><p>These states report implementation/configuration only. “Configured, unverified” means a secret is present; it does not prove the provider connection works.</p>{[["reasoning","Claude reasoning"],["workspaceDatabase","Workspace database"],["email","Gmail"],["github","GitHub"],["whatsapp","WhatsApp"],["payments","Payments"],["contracts","Contract signing"],["deployments","Deployments"]].map(([key,label]) => { const item = capabilities[key] || {}; const state = item.status || "checking"; const text = state === "configured_unverified" ? "CONFIGURED · UNVERIFIED" : state === "not_connected" ? "NOT CONNECTED" : state === "setup_required" ? "SETUP REQUIRED" : state === "not_implemented" ? "NOT IMPLEMENTED" : "CHECKING"; return <div className="ivy-connection-row" key={key}><span>{label}</span><strong className={state === "not_implemented" || state === "not_connected" || state === "setup_required" ? "ivy-capability-state inactive" : "ivy-capability-state"}>{text}</strong></div>; })}</section>
     </div>
     <IvyGmailPanel />
   </div>;

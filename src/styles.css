@@ -275,3 +275,10 @@ html[data-theme="dark"] .task-check{border-color:var(--line);color:var(--muted)}
 .ivy-safety-note svg{flex-shrink:0}
 @media(max-width:760px){.ivy-orb{right:16px;bottom:16px;width:56px;height:56px}.ivy-panel{right:10px;bottom:82px;width:calc(100vw - 20px);height:min(690px,calc(100vh - 100px));min-height:380px}.ivy-settings-grid{grid-template-columns:1fr}.ivy-settings-hero{align-items:flex-start;flex-wrap:wrap;padding:16px}.ivy-provider-badge{margin-left:68px}.ivy-footer{gap:5px}.ivy-footer>span{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.ivy-orb,.ivy-orb-core,.ivy-orb-halo,.ivy-thinking i{animation:none!important;transition:none!important}}
+
+/* Ivy integration readiness */
+.ivy-capability-state{font-size:10px;letter-spacing:.035em;color:#66d9a6}
+.ivy-capability-state.inactive{color:var(--muted)}
+.ivy-integration-status .ivy-connection-row{gap:12px}
+.ivy-integration-status .ivy-connection-row>span{font-size:12px}
+.ivy-integration-status .ivy-connection-row>strong{text-align:right}
