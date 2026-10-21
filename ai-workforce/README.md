@@ -1,26 +1,38 @@
 # PRUDEN TECHNOLOGIES AI Workforce
 
-The canonical agent registry lives in `agents.json`. The workforce API and dashboard are integrated into PRUDEN Command:
+The approved workforce registry lives in `ai-workforce/agents.json`. The workforce dashboard is integrated into PRUDEN Command.
 
-- `server/ai-workforce.mjs` registers the server-side workforce endpoints.
-- `src/AIWorkforcePage.tsx` provides the roster, reporting hierarchy, agent profiles, and task console.
-- `src/workforce.css` styles the workforce interface.
-- `src/App.tsx` connects the module to the existing dashboard navigation.
+## Ivy: current real capabilities
 
-## Runtime and security
+- Claude-powered conversation, with the Anthropic key kept server-side.
+- Workspace operations scoped to the signed-in founder: list projects, tasks, approvals and CRM records; create projects/tasks/customers; update task status; create pending approval records.
+- Gmail has a separate OAuth connection panel supporting mailbox operations and explicit send confirmation. Confirm the Gmail panel reports connected before relying on it.
+- Optional read-only GitHub inspection through `server/ivy-github.mjs`: list visible repositories, list issues and pull requests, and inspect a pull request. Repository reads are restricted by `PRUDEN_GITHUB_REPOS`.
+- A live capability registry at `GET /api/ivy/capabilities`, surfaced in Ivy Settings, distinguishes configured-but-unverified services from integrations that are not implemented.
 
-The workforce reuses the existing server-side `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` configuration. Agent identities are role-specific instructions, not separate paid API accounts. The key must stay in the hosting provider's private environment and must never be exposed to browser code or committed to Git.
+## Integration configuration
 
-The API is registered behind PRUDEN Command's existing server access gate. It provides:
+Set secrets only in the private server environment, never in Vite variables or Git:
+- `ANTHROPIC_API_KEY` — existing Claude key.
+- `GITHUB_TOKEN` — optional GitHub token, scoped to read-only repository metadata and pull-request/issue contents where possible.
+- `PRUDEN_GITHUB_REPOS` — optional comma-separated allowlist such as `jark-zenith/Pruden-Technologies-`. Defaults to that repository only.
 
-- `GET /api/workforce/status` — provider configuration and safe readiness metadata.
-- `GET /api/workforce/agents` — the approved registry and controls.
-- `POST /api/workforce/run` — run a bounded text-only task for a selected agent.
+A token being present is not proof of successful authentication. The capability registry uses `configured_unverified` until a real request verifies it.
 
-The runtime has no tools for live browsing, email, WhatsApp, GitHub mutation, database changes, purchases, contracts, or deployment. Outreach can be drafted but not sent. Production releases, spending, scope changes, and permission expansion remain Founder-approved. Requests are rate-limited and logs omit task content.
+## Not yet implemented
+
+- WhatsApp Business messaging.
+- Payment execution or payment-provider integration.
+- Electronic contract signing.
+- Ivy-controlled production deployments.
+- GitHub write operations such as editing files, opening PRs, merging, or changing repository settings.
+
+Ivy may draft content or create a pending approval record, but must never claim an external action succeeded without a verified provider result. Consequential actions require Founder approval and an auditable execution path.
+
+## Workforce runtime
+
+The AI Workforce module displays all 13 identities across six departments and allows text-only role-specific task runs through the server-side Claude API. Those specialist runs do not yet have external tools. They cannot independently browse, send messages, modify repositories, change databases, spend money, or deploy.
 
 ## Verification and rollout
 
-A GitHub Actions workflow checks JavaScript syntax, registry structure, and the Vite/TypeScript production build. Before public release, confirm the existing Claude key and selected model are valid in the host environment, deploy to the chosen workspace, then test `/health`, `/api/workforce/status`, agent listing, and a harmless task using an authorized account. A configured key does not by itself prove model access or a successful live inference.
-
-No secret should be pasted into ChatGPT or committed to the repository.
+GitHub Actions checks JavaScript syntax, registry structure, and the TypeScript/Vite production build. Before release, run CI, deploy only to the explicitly selected environment, verify the existing Claude key/model, and test a harmless Ivy task plus the read-only GitHub adapter if configured. Do not paste secrets into chat or commit them.
