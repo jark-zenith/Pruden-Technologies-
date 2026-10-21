@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, Bot, CheckCircle2, CircleAlert, LoaderCircle, MessageCircle, Play, ShieldCheck, Sparkles, X } from "lucide-react";
 import "./workforce.css";
 
@@ -92,19 +92,19 @@ export default function AIWorkforcePage() {
         <div className="panel workforce-roster">
           <div className="workforce-panel-heading"><div><p className="eyebrow">REPORTING STRUCTURE</p><h2>Departments & agents</h2></div><span className="neutral-tag">{agents.length} identities</span></div>
           <button className={selected === "ivy" ? "workforce-agent selected" : "workforce-agent"} onClick={() => openAgent(agents[0])}>
-            <span className="workforce-avatar ivy" style={{ "--orb-color": agents[0]?.orbColor || defaultColor } as React.CSSProperties}>I</span><span className="workforce-agent-copy"><strong>Ivy</strong><small>AI Chief of Staff · Reports to Founder</small></span><span className="workforce-role-tag">EXECUTIVE</span>
+            <span className="workforce-avatar ivy" style={{ "--orb-color": agents[0]?.orbColor || defaultColor } as CSSProperties}>I</span><span className="workforce-agent-copy"><strong>Ivy</strong><small>AI Chief of Staff · Reports to Founder</small></span><span className="workforce-role-tag">EXECUTIVE</span>
           </button>
           {registry.departments.map((department) => <div className="workforce-department" key={department.id}>
             <div className="workforce-department-heading"><div><strong>{department.name}</strong><small>{department.agents.length} specialist{department.agents.length === 1 ? "" : "s"}{department.independent ? " · Independent QA" : ""}</small></div><span>LEAD: {department.lead}</span></div>
             {department.agents.map((agent) => <button key={agent.id} className={selected === agent.id ? "workforce-agent selected" : "workforce-agent"} onClick={() => openAgent({ ...agent, department: department.name })}>
-              <span className="workforce-avatar" style={{ "--orb-color": agent.orbColor || defaultColor } as React.CSSProperties}>{agent.name.slice(0, 1)}</span><span className="workforce-agent-copy"><strong>{agent.name}</strong><small>{agent.title}</small></span><span className="workforce-chevron">›</span>
+              <span className="workforce-avatar" style={{ "--orb-color": agent.orbColor || defaultColor } as CSSProperties}>{agent.name.slice(0, 1)}</span><span className="workforce-agent-copy"><strong>{agent.name}</strong><small>{agent.title}</small></span><span className="workforce-chevron">›</span>
             </button>)}
           </div>)}
         </div>
         <div className="workforce-main-column">
           <div className="panel workforce-profile">
             <div className="workforce-profile-hero">
-              <span className="workforce-profile-orb" style={{ "--orb-color": selectedAgent?.orbColor || defaultColor } as React.CSSProperties}><span>{selectedAgent?.name.slice(0, 1) || "?"}</span></span>
+              <span className="workforce-profile-orb" style={{ "--orb-color": selectedAgent?.orbColor || defaultColor } as CSSProperties}><span>{selectedAgent?.name.slice(0, 1) || "?"}</span></span>
               <div><p className="eyebrow">AGENT PROFILE</p><h2>{selectedAgent?.name || "Select an agent"}</h2><p className="workforce-role-title">{selectedAgent?.title}</p><p className="workforce-reporting">Reports to <strong>{selectedAgent?.reportsTo || "Founder"}</strong>{selectedAgent?.department ? " · " + selectedAgent.department : ""}</p></div>
             </div>
             <div className="workforce-persona"><span>{selectedAgent?.presentationGender === "female" ? "Female presentation" : selectedAgent?.presentationGender === "male" ? "Male presentation" : "AI persona"}</span><p>{selectedAgent?.personality || "Professional, clear, and evidence-led."}</p></div>
@@ -120,21 +120,21 @@ export default function AIWorkforcePage() {
     {registry && <div className="workforce-orb-dock" aria-label="AI workforce floating orbs">
       <div className="workforce-orb-dock-label"><span><Sparkles size={13} /> WORKFORCE ORBS</span><small>{agents.length} agents</small></div>
       <div className="workforce-orb-grid">
-        {agents.map((agent) => <button key={agent.id} className={selected === agent.id ? "workforce-floating-orb active" : "workforce-floating-orb"} style={{ "--orb-color": agent.orbColor || defaultColor } as React.CSSProperties} onClick={() => openAgent(agent)} title={agent.name} aria-label={"Open text mode with " + agent.name}>
+        {agents.map((agent) => <button key={agent.id} className={selected === agent.id ? "workforce-floating-orb active" : "workforce-floating-orb"} style={{ "--orb-color": agent.orbColor || defaultColor } as CSSProperties} onClick={() => openAgent(agent)} title={agent.name} aria-label={"Open text mode with " + agent.name}>
           <span>{agent.name.slice(0, 1)}</span><small>{agent.name}</small>
         </button>)}
       </div>
     </div>}
 
     {chatOpen && selectedAgent && <div className="workforce-chat-panel" role="dialog" aria-modal="false" aria-label={"Text chat with " + selectedAgent.name}>
-      <div className="workforce-chat-header" style={{ "--orb-color": selectedAgent.orbColor || defaultColor } as React.CSSProperties}>
+      <div className="workforce-chat-header" style={{ "--orb-color": selectedAgent.orbColor || defaultColor } as CSSProperties}>
         <span className="workforce-chat-avatar">{selectedAgent.name.slice(0, 1)}</span>
         <div><strong>{selectedAgent.name}</strong><small>{selectedAgent.title} · Text mode</small></div>
         <button className="workforce-chat-close" onClick={() => setChatOpen(false)} aria-label="Close agent text mode"><X size={17} /></button>
       </div>
       <div className="workforce-chat-context"><span>{selectedAgent.presentationGender === "female" ? "Female" : "Male"} persona</span><p>{selectedAgent.personality}</p></div>
       <div className="workforce-chat-messages">
-        {chatHistory.length === 0 && <div className="workforce-chat-empty"><span className="workforce-chat-empty-orb" style={{ "--orb-color": selectedAgent.orbColor || defaultColor } as React.CSSProperties}>{selectedAgent.name.slice(0, 1)}</span><strong>You're connected to {selectedAgent.name}</strong><p>Send a message or task. {selectedAgent.name} will respond in their assigned role and personality.</p></div>}
+        {chatHistory.length === 0 && <div className="workforce-chat-empty"><span className="workforce-chat-empty-orb" style={{ "--orb-color": selectedAgent.orbColor || defaultColor } as CSSProperties}>{selectedAgent.name.slice(0, 1)}</span><strong>You're connected to {selectedAgent.name}</strong><p>Send a message or task. {selectedAgent.name} will respond in their assigned role and personality.</p></div>}
         {chatHistory.map((message, index) => <div className={"workforce-chat-message " + message.role} key={index}><span>{message.role === "user" ? "YOU" : selectedAgent.name.toUpperCase()}</span><p>{message.content}</p></div>)}
         {running && <div className="workforce-chat-thinking"><LoaderCircle size={14} className="workforce-spinner" /> {selectedAgent.name} is thinking…</div>}
       </div>
