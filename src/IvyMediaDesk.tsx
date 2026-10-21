@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Clapperboard, Search, Globe, Youtube, Play, X, Minus, Maximize2, ExternalLink, Grip, AlertCircle, LoaderCircle, PictureInPicture2 } from "lucide-react";
 import "./IvyMediaDesk.css";
 
@@ -25,14 +25,7 @@ export default function IvyMediaDesk() {
     const finishDrag = () => { drag.current = null; };
     const move = (event: PointerEvent) => {
       if (!drag.current || !panelRef.current) return;
-      const width = panelRef.current.offsetWidth || 420;
-      const height = panelRef.current.offsetHeight || 540;
-      const maxX = Math.max(0, window.innerWidth - width - 12);
-      const maxY = Math.max(0, window.innerHeight - Math.min(height, 70) - 12);
-      setPosition({
-        x: Math.max(-maxX, Math.min(0, drag.current.x + event.clientX - drag.current.pointerX)),
-        y: Math.max(-maxY, Math.min(0, drag.current.y + event.clientY - drag.current.pointerY)),
-      });
+      const width = panelRef.current.offsetWidth || 420;\n      const height = panelRef.current.offsetHeight || 540;\n      setPosition({\n        x: Math.max(8, Math.min(window.innerWidth - width - 8, drag.current.x + event.clientX - drag.current.pointerX)),\n        y: Math.max(8, Math.min(window.innerHeight - Math.min(height, 120), drag.current.y + event.clientY - drag.current.pointerY)),\n      });
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finishDrag);
@@ -44,7 +37,7 @@ export default function IvyMediaDesk() {
     };
   }, []);
 
-  async function searchMedia(event?: React.FormEvent) {
+  async function searchMedia(event?: FormEvent) {
     event?.preventDefault();
     const term = query.trim();
     if (term.length < 2) { setError("Enter at least two characters to search."); return; }
@@ -76,7 +69,7 @@ export default function IvyMediaDesk() {
     event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
-  const style = positioned ? { right: 18, bottom: 18, transform: `translate(${position.x}px, ${position.y}px)` } : undefined;
+  const style = positioned ? { left: position.x, top: position.y, right: "auto", bottom: "auto" } : undefined;
 
   return <>
     {!open && <button className="ivy-media-launcher" onClick={() => setOpen(true)} aria-label="Open Ivy Media Desk" title="Ivy Media Desk"><Clapperboard size={18} /><span>Media Desk</span></button>}

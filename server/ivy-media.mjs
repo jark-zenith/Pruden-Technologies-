@@ -18,7 +18,7 @@ function takeRateLimit(ip) {
 }
 
 function safeText(value, max = 500) {
-  return typeof value === "string" ? value.replace(/[\\u0000-\\u001f\\u007f]/g, " ").trim().slice(0, max) : "";
+  return typeof value === "string" ? value.replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, max) : "";
 }
 
 function safeHttpsUrl(value) {
@@ -84,7 +84,7 @@ export function registerIvyMediaRoutes(app) {
     if (!takeRateLimit(ip)) return res.status(429).json({ error: "Media search is limited to 20 requests per minute. Wait a moment and try again." });
     const query = typeof req.body?.query === "string" ? req.body.query.trim() : "";
     const kind = req.body?.kind;
-    if (query.length < 2 || query.length > MAX_QUERY_LENGTH || /[\\u0000-\\u001f\\u007f]/.test(query)) {
+    if (query.length < 2 || query.length > MAX_QUERY_LENGTH || /[\u0000-\u001f\u007f]/.test(query)) {
       return res.status(400).json({ error: "Search must be between 2 and 180 characters and contain no control characters." });
     }
     if (kind !== "web" && kind !== "youtube") return res.status(400).json({ error: "Choose either web or youtube search." });
