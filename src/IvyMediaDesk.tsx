@@ -25,7 +25,12 @@ export default function IvyMediaDesk() {
     const finishDrag = () => { drag.current = null; };
     const move = (event: PointerEvent) => {
       if (!drag.current || !panelRef.current) return;
-      const width = panelRef.current.offsetWidth || 420;\n      const height = panelRef.current.offsetHeight || 540;\n      setPosition({\n        x: Math.max(8, Math.min(window.innerWidth - width - 8, drag.current.x + event.clientX - drag.current.pointerX)),\n        y: Math.max(8, Math.min(window.innerHeight - Math.min(height, 120), drag.current.y + event.clientY - drag.current.pointerY)),\n      });
+      const width = panelRef.current.offsetWidth || 420;
+      const height = panelRef.current.offsetHeight || 540;
+      setPosition({
+        x: Math.max(8, Math.min(window.innerWidth - width - 8, drag.current.x + event.clientX - drag.current.pointerX)),
+        y: Math.max(8, Math.min(window.innerHeight - Math.min(height, 120), drag.current.y + event.clientY - drag.current.pointerY)),
+      });
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", finishDrag);
