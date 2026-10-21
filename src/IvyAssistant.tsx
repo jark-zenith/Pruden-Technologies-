@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Activity, Camera, CameraOff, ChevronDown, Mic, MicOff, Send, Settings2, ShieldCheck, Sparkles, X } from "lucide-react";
+import IvyGmailPanel from "./IvyGmailPanel";
 
 type IvyMessage = { role: "user" | "assistant"; content: string; imageDataUrl?: string };
 type IvyAction = { type: "navigate_module" | "open_external_url"; value: string };
@@ -332,5 +333,6 @@ export function IvySettingsPanel() {
       <section className="panel ivy-setting-card"><h3>Claude connection</h3><p>The Anthropic key stays on the private server and is never stored in this browser.</p><div className="ivy-connection-row"><span>Provider status</span><strong>{provider === "checking" ? "Checking…" : provider === "ready" ? "Configured" : "Waiting for ANTHROPIC_API_KEY"}</strong></div><div className="ivy-connection-row"><span>Voice provider</span><strong>Browser speech APIs</strong></div><div className="ivy-connection-row"><span>Persistent memory</span><strong>Not connected yet</strong></div><div className="ivy-connection-row"><span>External integrations</span><strong>Read-only foundation only</strong></div></section>
       <section className="panel ivy-setting-card"><h3>Safety boundaries</h3><p>Current foundation supports conversation, workspace summaries, module navigation, HTTPS link opening and manual image inspection. It does not yet run arbitrary commands, edit repositories, deploy services, or change production data.</p><div className="ivy-safety-note"><ShieldCheck size={16} /> Consequential actions will require explicit authorization and an audit trail.</div></section>
     </div>
+    <IvyGmailPanel />
   </div>;
 }
