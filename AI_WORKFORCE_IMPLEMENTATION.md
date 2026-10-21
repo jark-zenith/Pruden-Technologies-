@@ -1,25 +1,28 @@
 # PRUDEN TECHNOLOGIES AI Workforce — Implementation Record
 
 **Approved identity specification:** v1.2  
-**Implementation stage:** Initial isolated runtime, on feature branch  
-**Production status:** Not deployed; no production integrations are enabled.
+**Implementation stage:** Integrated into PRUDEN Command on feature branch  
+**Production status:** Not yet deployed or live-tested
 
-## Roster
-The approved roster and department reporting structure live in `ai-workforce/agents.json`. Ivy is the Chief of Staff. Sentinel is independent from Engineering for QA/security reporting. Future agents are added only when a demonstrated workload justifies them.
+## Roster and reporting
+The approved roster and reporting structure are stored in `ai-workforce/agents.json`: Ivy plus twelve specialists across six departments. Sentinel remains independent from Engineering for QA/security decisions.
 
-## Security and model key
-All agent identities use a single server-side `ANTHROPIC_API_KEY` by default. Separate API keys per persona are not required; per-agent cost attribution can be added through usage logs. The key must be configured in the runtime's host secret manager and must never be sent to the browser or committed to Git.
+## Dashboard and runtime
+The AI Workforce module is connected to the existing dashboard. It displays departments, agent profiles, reporting lines, responsibilities, permitted/restricted task categories, and a task console. The backend uses the existing `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` values server-side; it does not require a separate key per agent.
 
-## Initial capability
-The initial runtime provides authenticated role-specific text generation, a roster endpoint, bounded input/output, and approval-required handling for high-impact action requests. It does not yet include live browsing, email, WhatsApp, GitHub mutation, project database writes, or deployments.
+Endpoints:
+- `GET /api/workforce/status`
+- `GET /api/workforce/agents`
+- `POST /api/workforce/run`
 
-## Required next rollout gates
-1. Review the pull request and verify the runtime in a controlled environment.
-2. Confirm host and domain for a non-production deployment.
-3. Configure secrets securely; do not paste keys into chat or source files.
-4. Add rate limiting, durable audit storage, tests, and backend-to-backend authentication.
-5. Add one integration at a time with least-privilege credentials and human approval gates.
-6. Connect the dashboard only through a trusted server-side backend.
-7. Verify behavior, costs, and security before any production release.
+All are behind the existing PRUDEN Command server access gate. The run endpoint has a bounded input/output, request rate limiting, timeout, and structured logs that do not store task text. It is text-only with no tools, so it cannot actually browse, send messages, mutate GitHub/database records, spend money, or deploy.
 
-No production deployment or external action is authorized by this change.
+## Remaining go-live gates
+1. Pass automated syntax, registry, and production-build checks.
+2. Select the intended Render workspace/service and deploy the feature branch or merge after review.
+3. Verify the existing server-side Claude key and model without exposing the secret.
+4. Test authenticated status, roster, a harmless agent run, missing-key behavior, rate limiting, and mobile layout.
+5. Add persistent task history and audit storage before broader operational use.
+6. Introduce any external integration separately with least-privilege access and Founder approval gates.
+
+No live API inference or deployment is claimed until verified.
