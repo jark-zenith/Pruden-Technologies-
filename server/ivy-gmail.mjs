@@ -4,6 +4,7 @@ const IVY_EMAIL = "ivyassistantai@gmail.com";
 const TOKEN_ROW = "ivy-primary";
 const STATE_COOKIE = "ivy_gmail_oauth_state";
 const TOKEN_TABLE = "ivy_gmail_tokens";
+const AUDIT_TABLE = "ivy_gmail_audit";
 
 function encryptionKey() {
   const raw = process.env.IVY_TOKEN_ENCRYPTION_KEY || "";
@@ -47,6 +48,13 @@ async function saveTokens(tokens, email) {
     const rows = await dbRequest(TOKEN_TABLE + "?id=eq." + encodeURIComponent(TOKEN_ROW) + "&select=id");
     if (!rows?.length) await dbRequest(TOKEN_TABLE, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ id: TOKEN_ROW, ...sealed }) });
   });
+}
+async function audit(action, details = {}) {
+  try {
+    await dbRequest(AUDIT_TABLE, { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ action, mailbox: IVY_EMAIL, details }) });
+  } catch (error) {
+    console.error("Ivy Gmail audit write failed for action:", action, error instanceof Error ? error.message : "unknown error");
+  }
 }
 async function loadTokens() {
   const rows = await dbRequest(TOKEN_TABLE + "?id=eq." + encodeURIComponent(TOKEN_ROW) + "&select=id,encrypted_tokens,token_iv,token_tag");
@@ -179,6 +187,7 @@ export function registerIvyGmailRoutes(app) {
       const tokens = { access_token: tokenData.access_token, refresh_token: tokenData.refresh_token || previous?.refresh_token, expiry_date: Date.now() + Number(tokenData.expires_in || 3600) * 1000 };
       if (!tokens.refresh_token) return res.status(400).send("Google did not return a refresh token. Remove this app's access from your Google Account and reconnect with consent.");
       await saveTokens(tokens, IVY_EMAIL);
+      await audit("gmail.connected");
       return res.redirect("/?ivyGmail=connected");
     } catch (cause) {
       console.error("Ivy Gmail OAuth callback failed", cause instanceof Error ? cause.message : "unknown error");
@@ -189,6 +198,7 @@ export function registerIvyGmailRoutes(app) {
   app.post("/api/ivy/gmail/disconnect", async (_req, res) => {
     try {
       await dbRequest(TOKEN_TABLE + "?id=eq." + encodeURIComponent(TOKEN_ROW), { method: "DELETE" });
+      await audit("gmail.disconnected");
       res.json({ connected: false });
     } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Could not disconnect Gmail." }); }
   });
@@ -240,6 +250,7 @@ export function registerIvyGmailRoutes(app) {
     else return res.status(400).json({ error: "Choose a supported email organization action." });
     try {
       await gmailApi("messages/" + encodeURIComponent(req.params.id) + "/modify", { method: "POST", body: JSON.stringify(change) });
+      await audit("gmail.message_organized", { action, messageId: req.params.id.slice(0, 200) });
       res.json({ updated: true, action });
     } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Could not organize this email." }); }
   });
@@ -253,6 +264,7 @@ export function registerIvyGmailRoutes(app) {
     try {
       const raw = mimeMessage({ to, subject, body });
       const draft = await gmailApi("drafts", { method: "POST", body: JSON.stringify({ message: { raw } }) });
+      await audit("gmail.draft_created", { draftId: String(draft.id || "").slice(0, 200) });
       res.json({ id: draft.id, messageId: draft.message?.id, to, subject, created: true });
     } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Could not save the draft." }); }
   });
@@ -263,6 +275,7 @@ export function registerIvyGmailRoutes(app) {
     if (!/^[A-Za-z0-9_-]{1,200}$/.test(draftId)) return res.status(400).json({ error: "Choose a valid saved draft to send." });
     try {
       const sent = await gmailApi("drafts/send", { method: "POST", body: JSON.stringify({ id: draftId }) });
+      await audit("gmail.email_sent", { messageId: String(sent.id || "").slice(0, 200), draftId });
       res.json({ sent: true, id: sent.id, threadId: sent.threadId, message: "Gmail accepted the send request." });
     } catch (cause) { res.status(502).json({ error: cause instanceof Error ? cause.message : "Gmail could not send the draft." }); }
   });
