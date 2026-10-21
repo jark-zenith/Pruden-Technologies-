@@ -5,10 +5,10 @@
 **Production status:** Not yet deployed or live-tested
 
 ## Roster and reporting
-The approved roster and reporting structure are stored in `ai-workforce/agents.json`: Ivy plus twelve specialists across six departments. Sentinel remains independent from Engineering for QA/security decisions.
+The approved roster and reporting structure are stored in `ai-workforce/agents.json`: Ivy plus thirteen specialists across six departments. Sentinel remains independent from Engineering for QA/security decisions.
 
 ## Dashboard and runtime
-The AI Workforce module is connected to the existing dashboard. It displays departments, agent profiles, reporting lines, responsibilities, permitted/restricted task categories, and a task console. The backend uses the existing `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` values server-side; it does not require a separate key per agent.
+The AI Workforce module is connected to the existing dashboard. Ivy's management-system assistant now receives the same authoritative registry and can delegate bounded text subtasks to registered specialists. It displays departments, agent profiles, reporting lines, responsibilities, permitted/restricted task categories, and a task console. The backend uses the existing `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` values server-side; it does not require a separate key per agent.
 
 Endpoints:
 - `GET /api/workforce/status`
@@ -24,5 +24,6 @@ All are behind the existing PRUDEN Command server access gate. The run endpoint 
 4. Test authenticated status, roster, a harmless agent run, missing-key behavior, rate limiting, and mobile layout.
 5. Add persistent task history and audit storage before broader operational use.
 6. Introduce any external integration separately with least-privilege access and Founder approval gates.
+7. Add persistent shared task history and assignment records before describing the agents as having shared memory or durable coordination.
 
 No live API inference or deployment is claimed until verified.
