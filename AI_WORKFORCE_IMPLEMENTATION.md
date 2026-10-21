@@ -5,7 +5,7 @@
 **Production status:** Not deployed or live-tested in this change
 
 ## Workforce
-The approved registry contains Ivy plus twelve specialists across six departments. The AI Workforce dashboard displays agent roles, reporting lines, responsibilities, permission boundaries, and a text-only task console.
+The approved registry contains Ivy plus thirteen specialists across six departments. The AI Workforce dashboard displays agent roles, reporting lines, responsibilities, permission boundaries, and a text-only task console.
 
 ## Ivy capability preparation
 - Added `GET /api/ivy/capabilities`, which reports implementation/configuration state without returning secrets.
@@ -19,7 +19,7 @@ The approved registry contains Ivy plus twelve specialists across six department
 Ivy already has bounded workspace operations using the signed-in founder's Supabase session: list projects/tasks/approvals/customers; create projects/tasks/customers; update task status; and create pending approval records. Gmail has a separate OAuth-backed panel with explicit confirmation for sending. Those connections must be checked in their own status UI.
 
 ## Not yet available
-WhatsApp Business sending, payments, electronic contract signing, Ivy-controlled deployment actions, and GitHub write operations remain disabled/not implemented. The workforce specialist task runtime also remains text-only and separate from Ivy's operational tools.
+WhatsApp Business sending, payments, electronic contract signing, Ivy-controlled deployment actions, and GitHub write operations remain disabled/not implemented. The workforce specialist task runtime remains text-only. Ivy's management-system assistant now receives the same authoritative roster and can delegate bounded subtasks to specialists; durable shared task history is not implemented yet.
 
 ## Go-live gates
 1. Pass automated syntax, registry, and production-build checks.
