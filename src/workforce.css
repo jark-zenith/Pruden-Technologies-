@@ -56,3 +56,56 @@
 .workforce-footnote{font-size:10px;color:var(--muted);line-height:1.6;margin:14px 0 0}
 @media(max-width:980px){.workforce-layout{grid-template-columns:1fr}.workforce-roster{order:2}.workforce-main-column{order:1}}
 @media(max-width:600px){.workforce-metrics{grid-template-columns:1fr}.workforce-permissions{grid-template-columns:1fr}.workforce-department-heading{flex-wrap:wrap}.workforce-role-tag{display:none}}
+
+
+/* Workforce character orbs: mounted only while the AI Workforce module is active. */
+.workforce-avatar,.workforce-avatar.ivy{background:radial-gradient(circle at 32% 24%,color-mix(in srgb,var(--orb-color,#66aaff) 95%,white),var(--orb-color,#66aaff) 38%,#101a2c 100%);border-color:color-mix(in srgb,var(--orb-color,#66aaff) 70%,transparent);color:#fff;box-shadow:0 0 12px color-mix(in srgb,var(--orb-color,#66aaff) 24%,transparent)}
+.workforce-profile-hero{display:flex;align-items:center;gap:15px;margin-bottom:16px}
+.workforce-profile-hero h2{font-size:20px;letter-spacing:-.03em;margin:3px 0 5px}
+.workforce-profile-hero .eyebrow{margin:0}
+.workforce-profile-hero .workforce-reporting{margin:0}
+.workforce-profile-orb{width:70px;height:70px;border-radius:50%;display:grid;place-items:center;flex:none;background:radial-gradient(circle at 30% 22%,color-mix(in srgb,var(--orb-color) 60%,white),var(--orb-color) 36%,#0a1222 78%);border:1px solid color-mix(in srgb,var(--orb-color) 85%,white);box-shadow:0 0 0 6px color-mix(in srgb,var(--orb-color) 12%,transparent),0 0 30px color-mix(in srgb,var(--orb-color) 45%,transparent),inset 0 0 18px #ffffff33;animation:workforce-orb-breathe 4s ease-in-out infinite}
+.workforce-profile-orb span{font-size:26px;font-weight:800;color:white;text-shadow:0 2px 12px #0008}
+.workforce-persona{border:1px solid color-mix(in srgb,var(--orb-color,#66aaff) 30%,var(--line));background:color-mix(in srgb,var(--orb-color,#66aaff) 5%,var(--panel2));border-radius:10px;padding:12px;margin:0 0 17px}
+.workforce-persona>span,.workforce-chat-context>span{font-size:9px;text-transform:uppercase;letter-spacing:.1em;font-weight:800;color:var(--orb-color,#66aaff)}
+.workforce-persona p,.workforce-chat-context p{font-size:11px;line-height:1.7;color:var(--muted);margin:6px 0 0}
+.workforce-open-chat{margin-top:16px}
+.workforce-orb-dock{position:fixed;z-index:78;right:100px;bottom:22px;width:min(430px,calc(100vw - 120px));padding:12px;border:1px solid #344762;background:rgba(8,14,26,.96);backdrop-filter:blur(20px);border-radius:17px;box-shadow:0 14px 55px #0009,0 0 30px #4c8fff12}
+.workforce-orb-dock-label{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 9px;color:#93a8c5;font:9px 'DM Mono',monospace;letter-spacing:1px}
+.workforce-orb-dock-label>span{display:flex;align-items:center;gap:6px;color:#b9cfff}
+.workforce-orb-dock-label svg{color:#8ebaff}
+.workforce-orb-dock-label small{font-size:9px;color:#6f819c;letter-spacing:0}
+.workforce-orb-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px 5px}
+.workforce-floating-orb{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:transparent;color:#9daec6;min-width:0;padding:2px;border-radius:10px;font-size:8px}
+.workforce-floating-orb>span{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:white;font-size:12px;font-weight:800;background:radial-gradient(circle at 30% 22%,color-mix(in srgb,var(--orb-color) 50%,white),var(--orb-color) 36%,#091324 82%);border:1px solid color-mix(in srgb,var(--orb-color) 80%,white);box-shadow:0 0 0 3px color-mix(in srgb,var(--orb-color) 12%,transparent),0 0 13px color-mix(in srgb,var(--orb-color) 30%,transparent);transition:transform .18s,box-shadow .18s}
+.workforce-floating-orb small{font-size:8px;line-height:1.1;white-space:nowrap}
+.workforce-floating-orb:hover>span,.workforce-floating-orb.active>span{transform:translateY(-2px) scale(1.08);box-shadow:0 0 0 4px color-mix(in srgb,var(--orb-color) 22%,transparent),0 0 19px color-mix(in srgb,var(--orb-color) 55%,transparent)}
+.workforce-floating-orb.active{color:#eef5ff}
+.workforce-chat-panel{position:fixed;z-index:79;right:24px;bottom:115px;width:min(380px,calc(100vw - 32px));max-height:min(650px,calc(100vh - 145px));display:flex;flex-direction:column;overflow:hidden;border:1px solid #344762;border-radius:16px;background:rgba(10,16,29,.98);box-shadow:0 22px 75px #000b,0 0 32px color-mix(in srgb,var(--orb-color,#66aaff) 13%,transparent);color:#eaf0fc}
+.workforce-chat-header{display:flex;align-items:center;gap:10px;padding:13px;border-bottom:1px solid #26364c;background:linear-gradient(110deg,color-mix(in srgb,var(--orb-color) 15%,#0b1423),#0b1423)}
+.workforce-chat-avatar{width:37px;height:37px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 30% 22%,color-mix(in srgb,var(--orb-color) 50%,white),var(--orb-color) 40%,#091324 82%);border:1px solid color-mix(in srgb,var(--orb-color) 80%,white);color:white;font-weight:800;box-shadow:0 0 16px color-mix(in srgb,var(--orb-color) 35%,transparent)}
+.workforce-chat-header>div{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.workforce-chat-header strong{font-size:12px}
+.workforce-chat-header small{font-size:9px;color:#8da0bb;line-height:1.4}
+.workforce-chat-close{width:29px;height:29px;border:1px solid #2a3a50;border-radius:8px;background:#111d2e;color:#aebed4;display:grid;place-items:center}
+.workforce-chat-context{padding:10px 13px;border-bottom:1px solid #202e42}
+.workforce-chat-context p{font-size:10px;margin-top:4px}
+.workforce-chat-messages{padding:12px;overflow-y:auto;flex:1;min-height:130px;max-height:310px;display:flex;flex-direction:column;gap:11px}
+.workforce-chat-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:13px 8px;color:#eaf0fc}
+.workforce-chat-empty-orb{width:43px;height:43px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 30% 22%,color-mix(in srgb,var(--orb-color) 50%,white),var(--orb-color) 38%,#091324 82%);border:1px solid color-mix(in srgb,var(--orb-color) 80%,white);box-shadow:0 0 24px color-mix(in srgb,var(--orb-color) 35%,transparent);margin-bottom:10px;font-weight:800}
+.workforce-chat-empty strong{font-size:11px}
+.workforce-chat-empty p{max-width:270px;font-size:10px;line-height:1.6;color:#8da0bb}
+.workforce-chat-message{max-width:95%;padding:9px 10px;border-radius:10px;border:1px solid #26374f;background:#101c2e;align-self:flex-start}
+.workforce-chat-message.user{align-self:flex-end;background:#132d4a;border-color:#2b4f78}
+.workforce-chat-message>span{font:8px 'DM Mono',monospace;color:#8ca4c3;letter-spacing:.08em}
+.workforce-chat-message p{font-size:11px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;margin:5px 0 0;color:#dce7f8}
+.workforce-chat-thinking{display:flex;align-items:center;gap:7px;color:#9eb5d5;font-size:10px}
+.workforce-chat-error{display:flex;gap:7px;align-items:flex-start;padding:8px 12px;color:#ff9b9b;font-size:10px;line-height:1.5}
+.workforce-chat-form{padding:10px;border-top:1px solid #26364c;display:flex;align-items:flex-end;gap:8px}
+.workforce-chat-form textarea{flex:1;min-width:0;resize:vertical;max-height:110px;padding:10px;border:1px solid #2a3a51;border-radius:9px;background:#0d1727;color:#eaf0fc;font:inherit;font-size:11px;line-height:1.5;outline:none}
+.workforce-chat-form textarea:focus{border-color:var(--orb-color,#66aaff)}
+.workforce-chat-form .primary-button{padding:10px;font-size:10px}
+.workforce-chat-form .primary-button:disabled{opacity:.5;cursor:not-allowed}
+.workforce-chat-unconfigured{font-size:10px;line-height:1.5;color:#e6bd73;padding:0 12px 12px;margin:0}
+@keyframes workforce-orb-breathe{0%,100%{filter:brightness(1);transform:scale(1)}50%{filter:brightness(1.12);transform:scale(1.035)}}
+@media(max-width:760px){.workforce-orb-dock{right:12px;bottom:16px;width:min(290px,calc(100vw - 24px));padding:9px}.workforce-orb-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px 3px}.workforce-floating-orb>span{width:28px;height:28px}.workforce-floating-orb small{font-size:7px}.workforce-chat-panel{right:8px;bottom:130px;width:calc(100vw - 16px);max-height:calc(100vh - 155px)}}
