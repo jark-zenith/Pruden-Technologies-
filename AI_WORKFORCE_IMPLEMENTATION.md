@@ -1,28 +1,31 @@
 # PRUDEN TECHNOLOGIES AI Workforce — Implementation Record
 
 **Approved identity specification:** v1.2  
-**Implementation stage:** Integrated into PRUDEN Command on feature branch  
-**Production status:** Not yet deployed or live-tested
+**Implementation stage:** Dashboard + initial Ivy integration preparation on feature branch  
+**Production status:** Not deployed or live-tested in this change
 
-## Roster and reporting
-The approved roster and reporting structure are stored in `ai-workforce/agents.json`: Ivy plus twelve specialists across six departments. Sentinel remains independent from Engineering for QA/security decisions.
+## Workforce
+The approved registry contains Ivy plus twelve specialists across six departments. The AI Workforce dashboard displays agent roles, reporting lines, responsibilities, permission boundaries, and a text-only task console.
 
-## Dashboard and runtime
-The AI Workforce module is connected to the existing dashboard. It displays departments, agent profiles, reporting lines, responsibilities, permitted/restricted task categories, and a task console. The backend uses the existing `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` values server-side; it does not require a separate key per agent.
+## Ivy capability preparation
+- Added `GET /api/ivy/capabilities`, which reports implementation/configuration state without returning secrets.
+- Added an Ivy capability status tool and made the current capability state available to the system prompt.
+- Added optional read-only GitHub tools for repository discovery, issue lists, pull-request lists, and pull-request details.
+- GitHub repository reads are restricted by `PRUDEN_GITHUB_REPOS`; the default allowlist is `jark-zenith/Pruden-Technologies-`.
+- Added Integration Readiness indicators to Ivy Settings.
+- Clarified that configured credentials are unverified until a real request succeeds.
 
-Endpoints:
-- `GET /api/workforce/status`
-- `GET /api/workforce/agents`
-- `POST /api/workforce/run`
+## Existing abilities
+Ivy already has bounded workspace operations using the signed-in founder's Supabase session: list projects/tasks/approvals/customers; create projects/tasks/customers; update task status; and create pending approval records. Gmail has a separate OAuth-backed panel with explicit confirmation for sending. Those connections must be checked in their own status UI.
 
-All are behind the existing PRUDEN Command server access gate. The run endpoint has a bounded input/output, request rate limiting, timeout, and structured logs that do not store task text. It is text-only with no tools, so it cannot actually browse, send messages, mutate GitHub/database records, spend money, or deploy.
+## Not yet available
+WhatsApp Business sending, payments, electronic contract signing, Ivy-controlled deployment actions, and GitHub write operations remain disabled/not implemented. The workforce specialist task runtime also remains text-only and separate from Ivy's operational tools.
 
-## Remaining go-live gates
+## Go-live gates
 1. Pass automated syntax, registry, and production-build checks.
-2. Select the intended Render workspace/service and deploy the feature branch or merge after review.
-3. Verify the existing server-side Claude key and model without exposing the secret.
-4. Test authenticated status, roster, a harmless agent run, missing-key behavior, rate limiting, and mobile layout.
-5. Add persistent task history and audit storage before broader operational use.
-6. Introduce any external integration separately with least-privilege access and Founder approval gates.
+2. Configure a least-privilege GitHub token privately if read-only repository access is wanted.
+3. Confirm Anthropic model access and Gmail connection state through harmless live tests.
+4. Deploy only after the intended hosting environment is explicitly selected.
+5. Add separately reviewed integrations for WhatsApp, payment provider, contract workflow, GitHub writes and deployments, each with permission boundaries, approval gates, audit logs, and post-action verification.
 
-No live API inference or deployment is claimed until verified.
+No successful live request or deployment is claimed until verified.
