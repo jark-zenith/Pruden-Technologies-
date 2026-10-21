@@ -41,6 +41,23 @@ function rateLimited(req) {
   return false;
 }
 
+export function getAIWorkforceDirectory() {
+  return { chiefOfStaff: { ...registry.ivy, department: "Executive Office" }, departments: registry.departments.map(({ id, name, lead, independent, agents }) => ({ id, name, lead, independent: Boolean(independent), agents })), controls: registry.globalControls };
+}
+
+export async function runAIWorkforceAgent(agentId, task) {
+  const agent = agentById.get(typeof agentId === "string" ? agentId : "");
+  if (!agent) throw new Error("Unknown workforce agent.");
+  if (typeof task !== "string" || !task.trim() || task.trim().length > registry.globalControls.maxInputCharacters) throw new Error("Task is missing or too long.");
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("Claude is not configured on the server.");
+  const response = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" }, body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", max_tokens: registry.globalControls.maxOutputTokens || 1200, system: systemPrompt(agent) + "\n\nTeam directory: " + JSON.stringify(getAIWorkforceDirectory()) + ". You have no persistent memory or direct tools. Return concise findings, assumptions, risks and handoff notes for Ivy. Never claim you contacted agents or changed records.", messages: [{ role: "user", content: task.trim() }] }), signal: AbortSignal.timeout(45000) });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(response.status === 401 ? "Claude rejected the configured API key." : response.status === 429 ? "Claude rate limit or account quota reached." : "Claude agent request failed with status " + response.status + ".");
+  const output = Array.isArray(data.content) ? data.content.filter((part) => part.type === "text").map((part) => part.text).join("\n").slice(0, 20000) : "";
+  if (!output) throw new Error("Claude returned no text output.");
+  return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output, usage: data.usage || null };
+}
 export function registerAIWorkforceRoutes(app) {
   app.get("/api/workforce/status", (_req, res) => {
     res.json({
