@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { registerIvyGmailRoutes } from "./server/ivy-gmail.mjs";
 
 const app = express();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -83,6 +84,7 @@ app.post("/api/auth/lock", (_req, res) => {
 app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y" }));
 app.use(express.static(dist, { index: false, maxAge: "1h" }));
 app.use("/api", (req, res, next) => isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
+registerIvyGmailRoutes(app);
 
 // Ivy AI companion: Claude reasoning stays server-side; no provider key reaches the browser.
 const ivyAttempts = new Map();
