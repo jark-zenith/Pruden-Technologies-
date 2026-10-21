@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Activity, Camera, CameraOff, ChevronDown, Mic, MicOff, Send, Settings2, ShieldCheck, Sparkles, X } from "lucide-react";
 import IvyGmailPanel from "./IvyGmailPanel";
+import { requireSupabase } from "./lib/supabase";
 
 type IvyMessage = { role: "user" | "assistant"; content: string; imageDataUrl?: string };
 type IvyAction = { type: "navigate_module" | "open_external_url"; value: string };
@@ -235,10 +236,12 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
         const parts = dataUrlParts(message.imageDataUrl);
         return { role: message.role, content: [{ type: "text", text: message.content }, { type: "image", source: { type: "base64", media_type: parts.mediaType, data: parts.data } }] };
       });
+      const { data: { session }, error: sessionError } = await requireSupabase().auth.getSession();
+      if (sessionError || !session?.access_token) throw new Error("Sign in to your PRUDEN workspace before asking Ivy to access company records.");
       const response = await fetch("/api/ivy/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: payloadMessages, context: { activeModule, workspace } }),
+        body: JSON.stringify({ messages: payloadMessages, accessToken: session.access_token, context: { activeModule, workspace } }),
       });
       const responseText = await response.text();
       let result: { error?: string; reply?: string; actions?: IvyAction[] } = {};
