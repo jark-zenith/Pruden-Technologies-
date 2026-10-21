@@ -1,0 +1,17 @@
+{
+  "name": "pruden-ai-workforce",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Bounded, server-side Claude-powered agent runtime for PRUDEN TECHNOLOGIES",
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0"
+  }
+}
