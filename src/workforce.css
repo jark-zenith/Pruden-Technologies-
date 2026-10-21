@@ -108,4 +108,4 @@
 .workforce-chat-form .primary-button:disabled{opacity:.5;cursor:not-allowed}
 .workforce-chat-unconfigured{font-size:10px;line-height:1.5;color:#e6bd73;padding:0 12px 12px;margin:0}
 @keyframes workforce-orb-breathe{0%,100%{filter:brightness(1);transform:scale(1)}50%{filter:brightness(1.12);transform:scale(1.035)}}
-@media(max-width:760px){.workforce-orb-dock{right:12px;bottom:16px;width:min(290px,calc(100vw - 24px));padding:9px}.workforce-orb-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px 3px}.workforce-floating-orb>span{width:28px;height:28px}.workforce-floating-orb small{font-size:7px}.workforce-chat-panel{right:8px;bottom:130px;width:calc(100vw - 16px);max-height:calc(100vh - 155px)}}
+@media(max-width:760px){.workforce-orb-dock{right:90px;bottom:16px;width:min(220px,calc(100vw - 102px));padding:8px;max-height:190px;overflow-y:auto}.workforce-orb-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px 3px}.workforce-floating-orb>span{width:28px;height:28px}.workforce-floating-orb small{font-size:7px}.workforce-chat-panel{right:8px;bottom:170px;width:calc(100vw - 16px);max-height:calc(100vh - 195px)}}
