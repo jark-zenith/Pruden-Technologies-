@@ -1,0 +1,33 @@
+name: PRUDEN AI Workforce checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/pruden-ai-workforce-v1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check server JavaScript syntax
+        run: |
+          node --check server.mjs
+          node --check server/ai-workforce.mjs
+      - name: Validate workforce registry
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("ai-workforce/agents.json","utf8")); const n=1+r.departments.reduce((s,d)=>s+d.agents.length,0); if(r.departments.length!==6||n!==13) throw new Error("Expected 6 departments and 13 identities; got "+r.departments.length+" departments and "+n+" identities"); if(!r.departments.find(d=>d.id==="quality-security")?.independent) throw new Error("Quality & Security must remain independent"); console.log("Registry OK:",n,"identities across",r.departments.length,"departments");'
+      - name: Build dashboard and type-check TypeScript
+        run: npm run build
