@@ -6,6 +6,7 @@ const PAGE_LIMIT_BYTES = 900_000;
 const PAGE_LIMIT_CHARS = 18_000;
 const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 3;
+let tavilyLastSuccessAt = null;
 
 const JOB_SITES = [
   { name: "LinkedIn Jobs", url: "https://www.linkedin.com/jobs/", category: "jobs", note: "Professional roles; some listings require sign-in." },
@@ -41,7 +42,7 @@ const JOB_SITES = [
 ];
 
 export const researchTools = [
-  { name: "research_search_web", description: "Search the public web for current jobs, internships, industrial attachment, tenders, freelance gigs, grants, fellowships, tech communities, and partnerships. Requires BRAVE_SEARCH_API_KEY. Search with role/skill + location/work mode + recency. Search snippets are leads, not final verification.", input_schema: { type: "object", properties: { query: { type: "string", minLength: 2, maxLength: 300 }, country: { type: "string", maxLength: 80, description: "Two-letter country code such as KE." }, freshness: { type: "string", enum: ["day","week","month","year"] }, count: { type: "integer", minimum: 1, maximum: 8 } }, required: ["query"] } },
+  { name: "research_search_web", description: "Search the public web for current jobs, internships, industrial attachment, tenders, freelance gigs, grants, fellowships, tech communities, and partnerships. Requires TAVILY_API_KEY. Search with role/skill + location/work mode + recency. Search snippets are leads, not final verification.", input_schema: { type: "object", properties: { query: { type: "string", minLength: 2, maxLength: 300 }, country: { type: "string", maxLength: 80, description: "Two-letter country code such as KE." }, freshness: { type: "string", enum: ["day","week","month","year"] }, count: { type: "integer", minimum: 1, maximum: 8 } }, required: ["query"] } },
   { name: "research_open_page", description: "Open and extract readable text and links from a public HTTPS page to inspect an original listing. Login walls, CAPTCHA, JavaScript-only pages, and access restrictions may prevent full inspection. Never submit applications, create accounts, message employers, or upload files.", input_schema: { type: "object", properties: { url: { type: "string", minLength: 8, maxLength: 2048 } }, required: ["url"] } },
   { name: "research_job_sites", description: "Return a curated directory of job, freelance, internship, technology, public-sector, international-development, and opportunity websites. Not proof that a listing is current.", input_schema: { type: "object", properties: { category: { type: "string", enum: ["all","jobs","remote","freelance","internships","public-sector","tenders","technology","international","programs","volunteering","community","startups"] } }, required: [] } }
 ];
@@ -97,20 +98,61 @@ function extractLinks(html, baseUrl) {
   return links;
 }
 async function searchWeb(input) {
-  const key = process.env.BRAVE_SEARCH_API_KEY;
-  if (!key) throw new Error("Web search is not configured. Add BRAVE_SEARCH_API_KEY in the private server environment. The curated directory remains available, but live search is not configured.");
+  const key = process.env.TAVILY_API_KEY;
+  if (!key) throw new Error("Web search is not configured. Add TAVILY_API_KEY in the private server environment. The curated directory remains available, but live search is not configured.");
   const query = typeof input.query === "string" ? input.query.trim().slice(0, 300) : "";
   if (query.length < 2) throw new Error("A specific search query is required.");
   const count = Math.max(1, Math.min(SEARCH_LIMIT, Number(input.count) || 6));
-  const params = new URLSearchParams({ q: query, count: String(count), safesearch: "moderate" });
-  if (input.country && /^[A-Za-z]{2}$/.test(input.country)) params.set("country", input.country.toUpperCase());
-  const freshnessMap = { day: "pd", week: "pw", month: "pm", year: "py" };
-  if (input.freshness && freshnessMap[input.freshness]) params.set("freshness", freshnessMap[input.freshness]);
-  const response = await fetch("https://api.search.brave.com/res/v1/web/search?" + params.toString(), { headers: { Accept: "application/json", "X-Subscription-Token": key }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
-  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "Brave Search rejected the configured API key or plan access." : response.status === 429 ? "Brave Search rate limit or quota reached." : "Web search failed with status " + response.status + ".");
+  const body = {
+    api_key: key,
+    query,
+    search_depth: "basic",
+    topic: "general",
+    max_results: count,
+    include_answer: false,
+    include_raw_content: false,
+    include_images: false
+  };
+  const freshness = new Set(["day", "week", "month", "year"]);
+  if (typeof input.freshness === "string" && freshness.has(input.freshness)) body.time_range = input.freshness;
+  const countries = {
+    KE: "Kenya", US: "United States", GB: "United Kingdom", CA: "Canada", AU: "Australia",
+    IN: "India", ZA: "South Africa", NG: "Nigeria", GH: "Ghana", DE: "Germany",
+    FR: "France", IE: "Ireland", SG: "Singapore", NZ: "New Zealand", AE: "United Arab Emirates"
+  };
+  if (typeof input.country === "string" && input.country.trim()) {
+    const country = input.country.trim();
+    body.country = countries[country.toUpperCase()] || country.slice(0, 80);
+  }
+  const response = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: { "content-type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+  });
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) throw new Error("Tavily rejected the configured API key or account access.");
+    if (response.status === 429) throw new Error("Tavily rate limit or search-credit quota reached.");
+    throw new Error("Tavily web search failed with status " + response.status + ".");
+  }
   const data = await response.json();
-  const results = (data.web?.results || []).slice(0, count).map(item => ({ title: String(item.title || "").slice(0, 300), url: String(item.url || "").slice(0, 2048), snippet: String(item.description || "").slice(0, 1000), age: String(item.age || item.page_age || "").slice(0, 80) })).filter(item => item.title && /^https:\/\//i.test(item.url));
-  return { provider: "Brave Search", query, country: input.country || null, results, inspectedOriginalPages: false, note: "Search results are discovery leads. Open original listing pages and verify deadline, eligibility, location, and live status before recommending an application." };
+  const results = (Array.isArray(data.results) ? data.results : []).slice(0, count).map(item => ({
+    title: String(item.title || "").slice(0, 300),
+    url: String(item.url || "").slice(0, 2048),
+    snippet: String(item.content || item.snippet || "").slice(0, 1000),
+    age: String(item.published_date || "").slice(0, 80),
+    score: Number.isFinite(item.score) ? item.score : null
+  })).filter(item => item.title && /^https:\/\//i.test(item.url));
+  tavilyLastSuccessAt = new Date().toISOString();
+  return {
+    provider: "Tavily",
+    query,
+    country: body.country || null,
+    freshness: body.time_range || null,
+    results,
+    inspectedOriginalPages: false,
+    note: "Search results are discovery leads. Open original listing pages and verify deadline, eligibility, location, and live status before recommending an application."
+  };
 }
 async function openPage(input) {
   let url = await validatePublicHttpsUrl(String(input.url || ""));
@@ -150,4 +192,16 @@ export async function executeResearchTool(name, input = {}) {
     return { sites, count: sites.length, note: "Curated starting points, not a guarantee that a site or vacancy is current. Verify live listings before recommending them." };
   }
   throw new Error("Unknown research tool.");
+}
+
+export function getResearchStatus() {
+  const configured = Boolean(process.env.TAVILY_API_KEY);
+  return {
+    availableTo: ["atlas", "nova"],
+    provider: "Tavily Search API",
+    status: !configured ? "setup_required" : tavilyLastSuccessAt ? "live_verified" : "configured_unverified",
+    pageInspection: "public-https-bounded-fetch",
+    liveSearchTested: Boolean(tavilyLastSuccessAt),
+    lastSuccessfulSearchAt: tavilyLastSuccessAt
+  };
 }

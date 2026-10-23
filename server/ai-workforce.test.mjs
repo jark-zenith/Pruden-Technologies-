@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allowedGitHubToolNames } from "./ai-workforce.mjs";
+import { allowedGitHubToolNames, availableToolNamesForAgent } from "./ai-workforce.mjs";
 
 test("Ivy receives read, controlled write, and repository creation tools", () => {
   const tools = allowedGitHubToolNames("ivy");
@@ -48,4 +48,20 @@ test("business, research, creative, and operations agents do not receive GitHub 
 
 test("unknown agent IDs fail closed", () => {
   assert.equal(allowedGitHubToolNames("unexpected-agent").size, 0);
+});
+
+
+test("Atlas and Nova receive the read-only research toolset", () => {
+  const expected = ["research_search_web", "research_open_page", "research_job_sites"];
+  for (const agentId of ["atlas", "nova"]) {
+    const tools = availableToolNamesForAgent(agentId);
+    for (const name of expected) assert.ok(tools.has(name), agentId + " missing " + name);
+    assert.equal(tools.has("github_create_pull_request"), false, agentId + " must not get GitHub writes");
+  }
+});
+test("non-research agents do not receive Tavily research tools", () => {
+  for (const agentId of ["ivy", "sentinel", "forge", "echo"]) {
+    const tools = availableToolNamesForAgent(agentId);
+    assert.equal(tools.has("research_search_web"), false, agentId);
+  }
 });
