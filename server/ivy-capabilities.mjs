@@ -14,7 +14,7 @@ export function ivyCapabilityStatus() {
     payments: { status: "not_implemented", writeToolsEnabled: false },
     contracts: { status: "not_implemented", signingEnabled: false, note: "Document drafting only; no electronic signature integration." },
     deployments: { status: "not_implemented", productionDeployEnabled: false },
-    controls: { founderApprovalRequiredFor: ["external messages", "payments", "contracts and signatures", "production deployments", "permission changes", "secret access"], githubWriteToolsEnabled: false }
+    controls: { founderApprovalRequiredFor: ["external messages", "payments", "contracts and signatures", "production deployments", "permission changes", "secret access", "merging pull requests"], githubWriteToolsEnabled: githubCapabilityStatus().writeToolsEnabled, repositoryCreationEnabled: githubCapabilityStatus().repositoryCreationEnabled }
   };
 }
 export const ivyCapabilityTool = {
