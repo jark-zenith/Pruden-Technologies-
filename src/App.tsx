@@ -281,7 +281,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
         <div className="content-wrap">
           <div className="prototype-banner"><span><Activity size={14} /> {backendLoading ? "CONNECTING" : backendError ? "BACKEND ISSUE" : "LIVE DATA"}</span><p>{backendError || (backendLoading ? "Loading your workspace from Supabase…" : "Authenticated workspace · Records protected by Supabase Row Level Security")}</p><button onClick={() => chooseModule("Infrastructure")}>View system status <ArrowRight size={13} /></button></div>
 
-          {active === "GitHub" ? <GitHubProjectsPage /> : active === "Infrastructure" ? <InfrastructurePage /> : active === "Social Media Monitoring" ? <SocialMonitoringPage /> : active === "Website Inbox" ? <WebsiteInboxPage user={user} /> : active === "Overview" ? (
+          {active === "GitHub" ? <GitHubProjectsPage /> : active === "Infrastructure" ? <InfrastructurePage /> : active === "Social Media Monitoring" ? <SocialMonitoringPage user={user} /> : active === "Website Inbox" ? <WebsiteInboxPage user={user} /> : active === "Overview" ? (
             <>
               <section className="welcome-row">
                 <div><p className="eyebrow"><span className="live-indicator" /> TECHNOLOGY OPERATIONS / 01</p><h1>Welcome back, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
