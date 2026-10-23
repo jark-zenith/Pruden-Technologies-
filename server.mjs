@@ -112,7 +112,7 @@ const ivyTools = [
   ...ivyGitHubTools,
   ivyCapabilityTool
 ];
-app.get("/api/ivy/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5" }));
+app.get("/api/ivy/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-opus-5" }));
 app.get("/api/ivy/capabilities", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(ivyCapabilityStatus()); });
 app.post("/api/ivy/chat", async (req, res) => {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -170,7 +170,7 @@ app.post("/api/ivy/chat", async (req, res) => {
       const upstream = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", max_tokens: 1200, system, messages, tools: ivyTools })
+        body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-opus-5", max_tokens: 1200, system, messages, tools: ivyTools })
       });
       const data = await upstream.json().catch(() => ({}));
       if (!upstream.ok) {
