@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { researchTools, executeResearchTool } from "./research-web.mjs";
+import { researchTools, executeResearchTool, getResearchStatus } from "./research-web.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ivyGitHubTools, executeIvyGitHubTool, githubCapabilityStatus } from "./ivy-github.mjs";
@@ -105,7 +105,7 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     const results = [];
     for (const call of calls) {
       if (!allowedToolNames.has(call.name) || !tools.some(tool => tool.name === call.name) || toolCalls >= 4) {
-        results.push({ type: "tool_result", tool_use_id: call.id, content: "Tool denied: this GitHub tool is not available or the four-call per-agent limit was reached. Writes are still constrained by the server-side write allowlist and feature-branch safeguards." });
+        results.push({ type: "tool_result", tool_use_id: call.id, content: "Tool denied: it is not enabled for this agent or the four-call per-agent limit was reached. Server-side permissions remain enforced." });
         continue;
       }
       toolCalls += 1;
@@ -140,7 +140,7 @@ export async function runAIWorkforceAgent(agentId, task) {
   return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
 }
 export function registerAIWorkforceRoutes(app) {
-  app.get("/api/workforce/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", agentCount: allAgents.length, toolsEnabled: Boolean(process.env.GITHUB_TOKEN), safeExternalToolsEnabled: Boolean(process.env.GITHUB_TOKEN), externalActionsEnabled: false, github: githubCapabilityStatus(), writeActions: githubCapabilityStatus().writeToolsEnabled ? "enabled-for-write-allowlisted-repositories; feature-branch-and-PR-only" : "disabled-until-PRUDEN_GITHUB_WRITE_REPOS-is-configured", sharedContext: "process-memory", persistentHistory: false, research: { availableTo: ["atlas","nova"], provider: "Tavily Search API", status: process.env.TAVILY_API_KEY ? "configured_unverified" : "setup_required", pageInspection: "public-https-bounded-fetch", liveSearchTested: false } }));
+  app.get("/api/workforce/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", agentCount: allAgents.length, toolsEnabled: Boolean(process.env.GITHUB_TOKEN), safeExternalToolsEnabled: Boolean(process.env.GITHUB_TOKEN), externalActionsEnabled: false, github: githubCapabilityStatus(), writeActions: githubCapabilityStatus().writeToolsEnabled ? "enabled-for-write-allowlisted-repositories; feature-branch-and-PR-only" : "disabled-until-PRUDEN_GITHUB_WRITE_REPOS-is-configured", sharedContext: "process-memory", persistentHistory: false, research: getResearchStatus() }));
   app.get("/api/workforce/agents", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(getAIWorkforceDirectory()); });
   app.get("/api/workforce/group-context", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false }); });
   app.post("/api/workforce/run", async (req, res) => {
