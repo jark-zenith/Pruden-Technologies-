@@ -43,10 +43,11 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error("Claude is not configured on the server. Add ANTHROPIC_API_KEY in the host's private environment settings."), { statusCode: 503 });
   const messages = [{ role: "user", content: task }];
-  const tools = [
-    ...(process.env.GITHUB_TOKEN ? ivyGitHubTools : []),
-    ...(agentId === "atlas" || agentId === "nova" ? researchTools : [])
-  ];
+  const researchAgent = agentId === "atlas" || agentId === "nova";
+  const githubTools = process.env.GITHUB_TOKEN
+    ? (researchAgent ? ivyGitHubTools.filter(tool => !/(create|update)_/.test(tool.name)) : ivyGitHubTools)
+    : [];
+  const tools = [...githubTools, ...(researchAgent ? researchTools : [])];
   let lastData = null;
   let toolCalls = 0;
   for (let iteration = 0; iteration < 4; iteration += 1) {
@@ -76,7 +77,7 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
         console.log(JSON.stringify({ event: "workforce_tool_completed", tool: call.name, agent: system.slice(0, 100), at: new Date().toISOString() }));
         results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
       } catch (error) {
-        results.push({ type: "tool_result", tool_use_id: call.id, content: "Read-only GitHub tool failed: " + String(error?.message || error).slice(0, 300) });
+        results.push({ type: "tool_result", tool_use_id: call.id, content: (call.name.startsWith("research_") ? "Research tool failed: " : "GitHub tool failed: ") + String(error?.message || error).slice(0, 300) });
       }
     }
     messages.push({ role: "user", content: results });
@@ -101,7 +102,7 @@ export async function runAIWorkforceAgent(agentId, task) {
   return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
 }
 export function registerAIWorkforceRoutes(app) {
-  app.get("/api/workforce/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", agentCount: allAgents.length, toolsEnabled: Boolean(process.env.GITHUB_TOKEN), safeExternalToolsEnabled: Boolean(process.env.GITHUB_TOKEN), externalActionsEnabled: false, github: githubCapabilityStatus(), writeActions: githubCapabilityStatus().writeToolsEnabled ? "enabled-for-write-allowlisted-repositories; feature-branch-and-PR-only" : "disabled-until-PRUDEN_GITHUB_WRITE_REPOS-is-configured", sharedContext: "process-memory", persistentHistory: false, research: { availableTo: ["atlas","nova"], provider: "Brave Search API", status: process.env.BRAVE_SEARCH_API_KEY ? "configured_unverified" : "setup_required", pageInspection: "public-https-bounded-fetch" } }));
+  app.get("/api/workforce/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", agentCount: allAgents.length, toolsEnabled: Boolean(process.env.GITHUB_TOKEN), safeExternalToolsEnabled: Boolean(process.env.GITHUB_TOKEN), externalActionsEnabled: false, github: githubCapabilityStatus(), writeActions: githubCapabilityStatus().writeToolsEnabled ? "enabled-for-write-allowlisted-repositories; feature-branch-and-PR-only" : "disabled-until-PRUDEN_GITHUB_WRITE_REPOS-is-configured", sharedContext: "process-memory", persistentHistory: false, research: { availableTo: ["atlas","nova"], provider: "Brave Search API", status: process.env.BRAVE_SEARCH_API_KEY ? "configured_unverified" : "setup_required", pageInspection: "public-https-bounded-fetch", liveSearchTested: false } }));
   app.get("/api/workforce/agents", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(getAIWorkforceDirectory()); });
   app.get("/api/workforce/group-context", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false }); });
   app.post("/api/workforce/run", async (req, res) => {
