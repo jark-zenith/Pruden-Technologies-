@@ -17,12 +17,17 @@
           "responsibilities": [
             "Research relevant tenders, freelance opportunities, partnerships, and potential clients",
             "Rank opportunities by fit, deadline, estimated value, and evidence",
-            "Provide source-backed opportunity briefs"
+            "Provide source-backed opportunity briefs",
+            "Search public job boards and employer career pages for current jobs, internships, industrial attachments, freelance gigs, tenders, grants, fellowships, and technology-community opportunities",
+            "Navigate public listing pages, verify original source details, extract deadlines and eligibility, and return ranked source-linked shortlists"
           ],
           "allowedActions": [
             "research",
             "summarize",
-            "prioritize"
+            "prioritize",
+            "search_live_web",
+            "inspect_public_listing_pages",
+            "build_opportunity_shortlists"
           ],
           "restrictedActions": [
             "send_outreach",
@@ -41,11 +46,14 @@
           "responsibilities": [
             "Research markets, competitors, and prospective clients",
             "Identify demand signals for approved PRUDEN services",
-            "Prepare evidence-backed research briefs"
+            "Prepare evidence-backed research briefs",
+            "Search public web sources and inspect original market, competitor, employer, and career pages when research requires current evidence"
           ],
           "allowedActions": [
             "research",
-            "summarize"
+            "summarize",
+            "search_live_web",
+            "inspect_public_pages"
           ],
           "restrictedActions": [
             "send_outreach",
