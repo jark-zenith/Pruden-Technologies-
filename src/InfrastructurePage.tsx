@@ -12,9 +12,9 @@ export default function InfrastructurePage() {
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
-    setBackend({ state: "checking", detail: "Requesting /health from the current application origin…" });
+    setBackend({ state: "checking", detail: "Requesting the private backend health endpoint…" });
     try {
-      const response = await fetch("/health", { headers: { Accept: "application/json" }, cache: "no-store" });
+      const response = await fetch("https://pruden-command-secure.onrender.com/health", { headers: { Accept: "application/json" }, cache: "no-store", mode: "cors" });
       if (!response.ok) throw new Error("Health endpoint returned HTTP " + response.status);
       const payload = await response.json() as HealthResult;
       if (payload.ok !== true) throw new Error("Health response did not confirm ok=true.");
@@ -33,7 +33,7 @@ export default function InfrastructurePage() {
   const statusLabel = (state: CheckState["state"]) => state === "ok" ? "Verified responding" : state === "error" ? "Check failed" : state === "checking" ? "Checking…" : "Not checked";
 
   return <section className="module-page">
-    <div className="module-title-row"><div><p className="eyebrow">PTMS / SYSTEMS / DAY 1</p><h1>Infrastructure</h1><p className="welcome-subtitle">Live checks and verified connection inventory. A configured URL is not treated as proof of uptime.</p></div><button className="secondary-button" onClick={() => void refresh()} disabled={refreshing}><RefreshCw size={15} /> {refreshing ? "Checking…" : "Refresh checks"}</button></div>
+    <div className="module-title-row"><div><p className="eyebrow">PTMS / SYSTEMS / DAY 1</p><h1>Infrastructure</h1><p className="welcome-subtitle">Live checks and verified connection inventory. The read-only backend health check is cross-origin; API execution remains separately authenticated.</p></div><button className="secondary-button" onClick={() => void refresh()} disabled={refreshing}><RefreshCw size={15} /> {refreshing ? "Checking…" : "Refresh checks"}</button></div>
     <div className="github-summary-grid">
       <article className="github-summary-card"><span>Backend health</span><strong>{statusLabel(backend.state)}</strong><small>{backend.checkedAt ? "Checked " + backend.checkedAt : "Initial check in progress"}</small></article>
       <article className="github-summary-card"><span>Render services</span><strong>2 inventoried</strong><small>Provider API verification still required</small></article>
