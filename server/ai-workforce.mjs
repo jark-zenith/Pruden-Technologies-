@@ -13,6 +13,26 @@ const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 20;
 const MAX_SHARED_MESSAGES = 30;
 
+const GITHUB_READ_TOOLS = new Set([
+  "github_list_repositories", "github_get_repository", "github_list_repository_branches",
+  "github_list_repository_commits", "github_get_repository_tree", "github_read_repository_file",
+  "github_list_pull_requests", "github_get_pull_request", "github_list_issues"
+]);
+const GITHUB_WRITE_TOOLS = new Set([
+  "github_create_branch", "github_create_repository_file", "github_update_repository_file",
+  "github_create_pull_request"
+]);
+const GITHUB_REPOSITORY_ADMIN_TOOLS = new Set(["github_create_repository"]);
+const ENGINEERING_AGENTS = new Set(["forge", "pixel", "stack", "vector"]);
+function allowedGitHubToolNames(agentId) {
+  if (agentId === "ivy") return new Set([...GITHUB_READ_TOOLS, ...GITHUB_WRITE_TOOLS, ...GITHUB_REPOSITORY_ADMIN_TOOLS]);
+  if (agentId === "sentinel") return new Set(GITHUB_READ_TOOLS);
+  if (ENGINEERING_AGENTS.has(agentId)) {
+    return new Set([...GITHUB_READ_TOOLS, ...GITHUB_WRITE_TOOLS, ...(agentId === "forge" ? GITHUB_REPOSITORY_ADMIN_TOOLS : [])]);
+  }
+  return new Set();
+}
+
 function rateLimited(req) {
   const key = req.ip || req.socket?.remoteAddress || "unknown";
   const now = Date.now();
@@ -34,11 +54,11 @@ function promptFor(agent) {
     "Escalate sensitive data, costs, external commitments, access changes, and releases to the Founder via Ivy. Draft outreach only; never send."
   ].join("\n");
 }
-async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200) {
+async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200, allowedToolNames = new Set(), agentId = "group") {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error("Claude is not configured on the server. Add ANTHROPIC_API_KEY in the host's private environment settings."), { statusCode: 503 });
   const messages = [{ role: "user", content: task }];
-  const tools = process.env.GITHUB_TOKEN ? ivyGitHubTools : [];
+  const tools = process.env.GITHUB_TOKEN ? ivyGitHubTools.filter(tool => allowedToolNames.has(tool.name)) : [];
   let lastData = null;
   let toolCalls = 0;
   for (let iteration = 0; iteration < 4; iteration += 1) {
@@ -56,17 +76,17 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     messages.push({ role: "assistant", content: data.content });
     const results = [];
     for (const call of calls) {
-      if (!tools.some(tool => tool.name === call.name) || toolCalls >= 4) {
+      if (!allowedToolNames.has(call.name) || !tools.some(tool => tool.name === call.name) || toolCalls >= 4) {
         results.push({ type: "tool_result", tool_use_id: call.id, content: "Tool denied: this GitHub tool is not available or the four-call per-agent limit was reached. Writes are still constrained by the server-side write allowlist and feature-branch safeguards." });
         continue;
       }
       toolCalls += 1;
       try {
         const result = await executeIvyGitHubTool(call.name, call.input || {});
-        console.log(JSON.stringify({ event: "workforce_tool_completed", tool: call.name, agent: system.slice(0, 100), at: new Date().toISOString() }));
+        console.log(JSON.stringify({ event: "workforce_tool_completed", tool: call.name, agentId, at: new Date().toISOString() }));
         results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
       } catch (error) {
-        results.push({ type: "tool_result", tool_use_id: call.id, content: "Read-only GitHub tool failed: " + String(error?.message || error).slice(0, 300) });
+        results.push({ type: "tool_result", tool_use_id: call.id, content: "GitHub tool failed: " + String(error?.message || error).slice(0, 300) });
       }
     }
     messages.push({ role: "user", content: results });
@@ -86,7 +106,7 @@ export async function runAIWorkforceAgent(agentId, task) {
   if (typeof task !== "string" || !task.trim() || task.length > registry.globalControls.maxInputCharacters) throw Object.assign(new Error(`Task is required and must be at most ${registry.globalControls.maxInputCharacters} characters.`), { statusCode: 400 });
   console.log(JSON.stringify({ event: "workforce_run_started", agentId, at: new Date().toISOString(), inputCharacters: task.length }));
   const context = sharedContext();
-  const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task);
+  const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task, registry.globalControls.maxOutputTokens || 1200, allowedGitHubToolNames(agent.id), agent.id);
   console.log(JSON.stringify({ event: "workforce_run_completed", agentId, at: new Date().toISOString(), usage: result.usage }));
   return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
 }
@@ -117,9 +137,9 @@ export function registerAIWorkforceRoutes(app) {
         "Registered roster:\n" + roster,
         "Respond naturally as a group. Have Ivy coordinate when useful and let at most three relevant specialists contribute, clearly labeled with registered names. Do not force every agent to speak.",
         "Agents know each other's work only through the supplied shared thread. Identify handoffs and disagreements honestly.",
-        "GitHub read tools are limited to PRUDEN_GITHUB_REPOS. Controlled GitHub writes are available only for repositories in PRUDEN_GITHUB_WRITE_REPOS: create feature branches, create/update files on non-default branches, and open pull requests. Repository creation requires PRUDEN_GITHUB_CREATE_REPOSITORIES=true. Never merge, write directly to the default branch, change permissions, expose secrets, send external messages, spend money, or deploy. Verify tool results and be honest about blockers.",
+        "Group chat has read-only GitHub tools for repository inspection; it cannot perform writes. Individual agent runs receive tools according to server-side role policy. Controlled writes are limited to PRUDEN_GITHUB_WRITE_REPOS, feature branches, and pull requests. Repository creation is only exposed to Ivy and Forge and still requires PRUDEN_GITHUB_CREATE_REPOSITORIES=true. Never merge, write directly to the default branch, change permissions, expose secrets, send external messages, spend money, or deploy. Verify tool results and be honest about blockers.",
         "The shared history is in process memory and may be lost on restart; never describe it as durable storage."
-      ].join("\n\n"), "Recent shared group thread:\n" + sharedContext() + "\n\nRespond to the latest Founder message: " + message, Math.min(2200, (registry.globalControls.maxOutputTokens || 1200) * 2));
+      ].join("\n\n"), "Recent shared group thread:\n" + sharedContext() + "\n\nRespond to the latest Founder message: " + message, Math.min(2200, (registry.globalControls.maxOutputTokens || 1200) * 2), GITHUB_READ_TOOLS, "group");
       sharedThread.push({ role: "Workforce", name: "AI Workforce", content: result.output, at: new Date().toISOString() });
       if (sharedThread.length > MAX_SHARED_MESSAGES) sharedThread.splice(0, sharedThread.length - MAX_SHARED_MESSAGES);
       console.log(JSON.stringify({ event: "workforce_group_run_completed", at: new Date().toISOString(), usage: result.usage }));
