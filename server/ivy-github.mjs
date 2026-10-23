@@ -87,12 +87,12 @@ export const ivyGitHubTools = [
 export function githubCapabilityStatus() {
   const writeRepos = [...configuredWriteRepos()];
   const tokenConfigured = Boolean(process.env.GITHUB_TOKEN);
-  const writeToolsEnabled = tokenConfigured && writeRepos.length > 0;
+  const writeToolsEnabled = tokenConfigured && (writeRepos.length > 0 || runtimeCreatedRepos.size > 0);
   return {
     status: tokenConfigured ? "configured_unverified" : "not_connected",
     readOnlyTools: !writeToolsEnabled,
     writeToolsEnabled,
-    repositoryCreationEnabled: process.env.PRUDEN_GITHUB_CREATE_REPOSITORIES === "true",
+    repositoryCreationEnabled: tokenConfigured && process.env.PRUDEN_GITHUB_CREATE_REPOSITORIES === "true",
     approvedRepositories: [...new Set([...configuredRepos(), ...runtimeCreatedRepos])],
     writeApprovedRepositories: [...new Set([...writeRepos, ...runtimeCreatedRepos])]
   };
