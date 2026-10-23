@@ -36,6 +36,9 @@ async function main() {
     throw new Error(`Unexpected health response: ${JSON.stringify(health)}`);
   }
 
+  const protectedBeforeUnlock = await fetch(`${baseUrl}/api/ivy/status`);
+  if (protectedBeforeUnlock.status !== 401) throw new Error(`Expected protected API to reject locked requests with 401, got ${protectedBeforeUnlock.status}`);
+
   const status = await fetch(`${baseUrl}/api/auth/status`);
   if (!status.ok || (await status.json()).configured !== true) {
     throw new Error("Auth status did not report a configured test secret");
@@ -60,12 +63,17 @@ async function main() {
     throw new Error("Unlock response did not issue the expected secure HttpOnly session cookie");
   }
 
+  const protectedAfterUnlock = await fetch(`${baseUrl}/api/ivy/status`, {
+    headers: { cookie: cookie.split(";")[0] },
+  });
+  if (!protectedAfterUnlock.ok) throw new Error(`Expected protected API to allow unlocked requests, got ${protectedAfterUnlock.status}`);
+
   const unlockedStatus = await fetch(`${baseUrl}/api/auth/status`, {
     headers: { cookie: cookie.split(";")[0] },
   }).then((response) => response.json());
   if (unlockedStatus.unlocked !== true) throw new Error("Issued session cookie did not unlock the session");
 
-  console.log("Infrastructure smoke test passed: health, auth status, rejected unlock, valid unlock, secure cookie, session validation.");
+  console.log("Infrastructure smoke test passed: health, auth status, locked API rejection, rejected unlock, valid unlock, secure cookie, unlocked API access, session validation.");
 }
 
 try {
