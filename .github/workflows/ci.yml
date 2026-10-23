@@ -24,6 +24,6 @@ jobs:
       - name: Typecheck and production build
         run: npm run build
       - name: Agent tool permission tests
-        run: node --test server/ai-workforce.test.mjs
+        run: node --test server/ai-workforce.test.mjs server/ivy-operations.test.mjs
       - name: Backend infrastructure smoke test
         run: node scripts/smoke-test.mjs
