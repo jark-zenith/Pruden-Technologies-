@@ -76,9 +76,9 @@ export async function executeIvyOperation(name, input, accessToken) {
     query = query.eq("status", requireEnum(input.status, [...allowedStatuses.pruden_ivy_memory], "active"));
     if (input.memory_type) query = query.eq("memory_type", requireEnum(input.memory_type, ["project_decision","responsibility","verified_result","blocker","preference","project_context"]));
     const project = cleanString(input.project_name, 120);
-    if (project) query = query.ilike("project_name", "%" + project.replace(/[^a-zA-Z0-9\\s_-]/g, "") + "%");
+    if (project) query = query.ilike("project_name", "%" + project.replace(/[^a-zA-Z0-9 _-]/g, "") + "%");
     const search = cleanString(input.query, 200);
-    if (search) { const safeSearch = search.replace(/[^a-zA-Z0-9\\s_-]/g, "").trim(); if (safeSearch) query = query.or("title.ilike.%" + safeSearch + "%,content.ilike.%" + safeSearch + "%,project_name.ilike.%" + safeSearch + "%"); }
+    if (search) { const safeSearch = search.replace(/[^a-zA-Z0-9 _-]/g, "").trim(); if (safeSearch) query = query.or("title.ilike.%" + safeSearch + "%,content.ilike.%" + safeSearch + "%,project_name.ilike.%" + safeSearch + "%"); }
     const { data, error } = await query;
     if (error) throw new Error("Persistent memory search failed: " + error.message);
     return { records: data || [], persistent: true, ownerScoped: true };
