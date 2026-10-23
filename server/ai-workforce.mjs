@@ -24,7 +24,7 @@ const GITHUB_WRITE_TOOLS = new Set([
 ]);
 const GITHUB_REPOSITORY_ADMIN_TOOLS = new Set(["github_create_repository"]);
 const ENGINEERING_AGENTS = new Set(["forge", "pixel", "stack", "vector"]);
-function allowedGitHubToolNames(agentId) {
+export function allowedGitHubToolNames(agentId) {
   if (agentId === "ivy") return new Set([...GITHUB_READ_TOOLS, ...GITHUB_WRITE_TOOLS, ...GITHUB_REPOSITORY_ADMIN_TOOLS]);
   if (agentId === "sentinel") return new Set(GITHUB_READ_TOOLS);
   if (ENGINEERING_AGENTS.has(agentId)) {
@@ -58,7 +58,13 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error("Claude is not configured on the server. Add ANTHROPIC_API_KEY in the host's private environment settings."), { statusCode: 503 });
   const messages = [{ role: "user", content: task }];
-  const tools = process.env.GITHUB_TOKEN ? ivyGitHubTools.filter(tool => allowedToolNames.has(tool.name)) : [];
+  const capability = githubCapabilityStatus();
+  const tools = process.env.GITHUB_TOKEN ? ivyGitHubTools.filter(tool => {
+    if (!allowedToolNames.has(tool.name)) return false;
+    if (GITHUB_WRITE_TOOLS.has(tool.name) && !capability.writeToolsEnabled) return false;
+    if (GITHUB_REPOSITORY_ADMIN_TOOLS.has(tool.name) && !capability.repositoryCreationEnabled) return false;
+    return true;
+  }) : [];
   let lastData = null;
   let toolCalls = 0;
   for (let iteration = 0; iteration < 4; iteration += 1) {
@@ -98,7 +104,12 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
 function sharedContext() { return sharedThread.slice(-MAX_SHARED_MESSAGES).map(m => `[${m.role}] ${m.name}: ${m.content}`).join("\n"); }
 
 export function getAIWorkforceDirectory() {
-  return { ivy: registry.ivy, departments: registry.departments.map(({ id, name, lead, independent, agents }) => ({ id, name, lead, independent: Boolean(independent), agents })), controls: registry.globalControls };
+  const annotate = agent => ({ ...agent, toolAccess: process.env.GITHUB_TOKEN ? [...allowedGitHubToolNames(agent.id)].filter(name => {
+    if (GITHUB_WRITE_TOOLS.has(name) && !githubCapabilityStatus().writeToolsEnabled) return false;
+    if (GITHUB_REPOSITORY_ADMIN_TOOLS.has(name) && !githubCapabilityStatus().repositoryCreationEnabled) return false;
+    return true;
+  }) : [] });
+  return { ivy: annotate(registry.ivy), departments: registry.departments.map(({ id, name, lead, independent, agents }) => ({ id, name, lead, independent: Boolean(independent), agents: agents.map(annotate) })), controls: registry.globalControls };
 }
 export async function runAIWorkforceAgent(agentId, task) {
   const agent = agentById.get(agentId);
