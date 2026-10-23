@@ -4,11 +4,13 @@ export function ivyCapabilityStatus() {
   const supabaseConfigured = Boolean((process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY));
   const gmailConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REDIRECT_URI && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.IVY_TOKEN_ENCRYPTION_KEY);
   const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
+  const tiktokConfigured = Boolean(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET && process.env.TIKTOK_REDIRECT_URI && process.env.IVY_TOKEN_ENCRYPTION_KEY && process.env.COMMAND_ACCESS_SECRET);
   return {
     generatedAt: new Date().toISOString(),
     reasoning: { status: anthropicConfigured ? "configured_unverified" : "not_connected", provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5" },
     workspaceDatabase: { status: supabaseConfigured ? "configured_unverified" : "not_connected", scope: "signed-in founder's row-level-security-protected workspace tables" },
     email: { status: gmailConfigured ? "configured_unverified" : "setup_required", provider: "Gmail OAuth", note: "Gmail has a separate connection/status panel; confirm its connected status before use." },
+    tiktok: { status: tiktokConfigured ? "configured_unverified" : "setup_required", provider: "TikTok Display API", monitoringEnabled: true, writeActionsEnabled: false, note: "Read-only profile and video monitoring; publishing, comments and other write actions are disabled." },
     github: githubCapabilityStatus(),
     whatsapp: { status: "not_implemented", provider: "WhatsApp Business Platform", writeToolsEnabled: false },
     payments: { status: "not_implemented", writeToolsEnabled: false },
