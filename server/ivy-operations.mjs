@@ -73,12 +73,12 @@ export async function executeIvyOperation(name, input, accessToken) {
   if (name === "list_customers") return await list("pruden_customers", input.status);
   if (name === "search_ivy_memory") {
     let query = client.from("pruden_ivy_memory").select("id,memory_type,project_name,title,content,status,source,evidence,tags,created_at,updated_at").eq("owner_id", ownerId).order("updated_at", { ascending: false }).limit(50);
-    if (input.status) query = query.eq("status", requireEnum(input.status, [...allowedStatuses.pruden_ivy_memory]));
+    query = query.eq("status", requireEnum(input.status, [...allowedStatuses.pruden_ivy_memory], "active"));
     if (input.memory_type) query = query.eq("memory_type", requireEnum(input.memory_type, ["project_decision","responsibility","verified_result","blocker","preference","project_context"]));
     const project = cleanString(input.project_name, 120);
-    if (project) query = query.ilike("project_name", "%" + project.replace(/[%,()]/g, "") + "%");
+    if (project) query = query.ilike("project_name", "%" + project.replace(/[^\\p{L}\\p{N}\\s_-]/gu, "") + "%");
     const search = cleanString(input.query, 200);
-    if (search) query = query.or("title.ilike.%" + search.replace(/[%,()]/g, "") + "%,content.ilike.%" + search.replace(/[%,()]/g, "") + "%,project_name.ilike.%" + search.replace(/[%,()]/g, "") + "%");
+    if (search) { const safeSearch = search.replace(/[^\\p{L}\\p{N}\\s_-]/gu, "").trim(); if (safeSearch) query = query.or("title.ilike.%" + safeSearch + "%,content.ilike.%" + safeSearch + "%,project_name.ilike.%" + safeSearch + "%"); }
     const { data, error } = await query;
     if (error) throw new Error("Persistent memory search failed: " + error.message);
     return { records: data || [], persistent: true, ownerScoped: true };
