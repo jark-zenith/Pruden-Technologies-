@@ -64,7 +64,7 @@ function gatePage(configured) {
 '<script>const f=document.getElementById("unlock"),i=document.getElementById("secret"),b=document.getElementById("submit"),e=document.getElementById("error");f.addEventListener("submit",async x=>{x.preventDefault();b.disabled=true;e.textContent="Checking secret…";try{const r=await fetch("/api/auth/unlock",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secret:i.value})});const d=await r.json();if(!r.ok)throw Error(d.error||"Unable to unlock.");location.replace("/")}catch(z){e.textContent=z.message||"Connection failed.";i.value="";i.focus()}finally{b.disabled=false}})</script></body></html>'
   ].join("");
 }
-app.get("/health", (_req, res) => res.json({ ok: true, service: "pruden-command", accessConfigured: secret.length >= 24 }));
+app.get("/health", (req, res) => {\n  // Public, read-only liveness endpoint. Allow the static dashboard to read health only; do not enable cross-origin API access here.\n  const origin = req.headers.origin;\n  if (origin === "https://pruden-technologies.onrender.com") { res.setHeader("Access-Control-Allow-Origin", origin); res.setHeader("Vary", "Origin"); }\n  res.setHeader("Cache-Control", "no-store");\n  res.json({ ok: true, service: "pruden-command", accessConfigured: secret.length >= 24 });\n});
 app.get("/api/auth/status", (req, res) => {
   if (secret.length < 24) return res.status(503).json({ unlocked: false, configured: false });
   res.json({ unlocked: isUnlocked(req), configured: true });
