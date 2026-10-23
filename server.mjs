@@ -89,7 +89,7 @@ app.post("/api/auth/lock", (_req, res) => {
 });
 app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y" }));
 app.use(express.static(dist, { index: false, maxAge: "1h" }));
-app.use("/api", (req, res, next) => isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
+app.use("/api", (req, res, next) => req.path === "/social/tiktok/callback" || isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
 registerTikTokRoutes(app);
 registerIvyGmailRoutes(app);
 registerIvyMediaRoutes(app);
