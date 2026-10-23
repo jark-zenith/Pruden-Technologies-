@@ -23,5 +23,7 @@ jobs:
         run: npm install
       - name: Typecheck and production build
         run: npm run build
+      - name: Atlas web research tool tests
+        run: node --test server/research-web.test.mjs
       - name: Backend infrastructure smoke test
         run: node scripts/smoke-test.mjs
