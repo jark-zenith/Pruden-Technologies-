@@ -6,6 +6,7 @@ const PAGE_LIMIT_BYTES = 900_000;
 const PAGE_LIMIT_CHARS = 18_000;
 const REQUEST_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 3;
+let tavilyLastSuccessAt = null;
 
 const JOB_SITES = [
   { name: "LinkedIn Jobs", url: "https://www.linkedin.com/jobs/", category: "jobs", note: "Professional roles; some listings require sign-in." },
@@ -142,6 +143,7 @@ async function searchWeb(input) {
     age: String(item.published_date || "").slice(0, 80),
     score: Number.isFinite(item.score) ? item.score : null
   })).filter(item => item.title && /^https:\/\//i.test(item.url));
+  tavilyLastSuccessAt = new Date().toISOString();
   return {
     provider: "Tavily",
     query,
@@ -190,4 +192,16 @@ export async function executeResearchTool(name, input = {}) {
     return { sites, count: sites.length, note: "Curated starting points, not a guarantee that a site or vacancy is current. Verify live listings before recommending them." };
   }
   throw new Error("Unknown research tool.");
+}
+
+export function getResearchStatus() {
+  const configured = Boolean(process.env.TAVILY_API_KEY);
+  return {
+    availableTo: ["atlas", "nova"],
+    provider: "Tavily Search API",
+    status: !configured ? "setup_required" : tavilyLastSuccessAt ? "live_verified" : "configured_unverified",
+    pageInspection: "public-https-bounded-fetch",
+    liveSearchTested: Boolean(tavilyLastSuccessAt),
+    lastSuccessfulSearchAt: tavilyLastSuccessAt
+  };
 }
