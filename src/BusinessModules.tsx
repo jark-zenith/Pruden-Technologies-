@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import type { User } from "@supabase/supabase-js";
-import { Activity, BookOpen, Check, CircleAlert, CreditCard, Plus, Search, ShieldCheck, Users, BriefcaseBusiness, FileText, RefreshCw } from "lucide-react";
+import { Activity, BookOpen, Check, CircleAlert, CreditCard, Plus, Search, ShieldCheck, Users, BriefcaseBusiness, RefreshCw } from "lucide-react";
 import { requireSupabase } from "./lib/supabase";
 
 type ModuleName = "Customers & CRM" | "Finance" | "Products & Services" | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "Approvals";
