@@ -27,6 +27,6 @@ test("live search fails honestly when the provider key is missing", async () => 
 });
 test("page inspection rejects non-HTTPS and local/private destinations", async () => {
   await assert.rejects(() => executeResearchTool("research_open_page", { url: "http://example.com" }), /HTTPS/);
-  await assert.rejects(() => executeResearchTool("research_open_page", { url: "https://127.0.0.1" }), /private or reserved/);
+  await assert.rejects(() => executeResearchTool("research_open_page", { url: "https://127.0.0.1" }), /[Pp]rivate or reserved/);
   await assert.rejects(() => executeResearchTool("research_open_page", { url: "https://localhost" }), /local hosts/);
 });
