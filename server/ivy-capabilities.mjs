@@ -1,5 +1,7 @@
 import { githubCapabilityStatus } from "./ivy-github.mjs";
 
+// IVY_MODEL and WORKFORCE_MODEL can be configured independently; environment presence alone is not a live capability check.
+
 export function ivyCapabilityStatus() {
   const supabaseConfigured = Boolean((process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY));
   const gmailConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_REDIRECT_URI && process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.IVY_TOKEN_ENCRYPTION_KEY);
