@@ -23,5 +23,7 @@ jobs:
         run: npm install
       - name: Typecheck and production build
         run: npm run build
+      - name: Agent tool permission tests
+        run: node --test server/ai-workforce.test.mjs
       - name: Backend infrastructure smoke test
         run: node scripts/smoke-test.mjs
