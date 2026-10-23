@@ -170,7 +170,7 @@ app.post("/api/ivy/chat", async (req, res) => {
       const upstream = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({ model: process.env.IVY_MODEL || process.env.ANTHROPIC_MODEL || "claude-opus-5", max_tokens: Number(process.env.IVY_MAX_OUTPUT_TOKENS || 1800), system, messages, tools: ivyTools })
+        body: JSON.stringify({ model: process.env.IVY_MODEL || process.env.ANTHROPIC_MODEL || "claude-opus-5", max_tokens: Math.min(4096, Math.max(800, Number(process.env.IVY_MAX_OUTPUT_TOKENS) || 1800)), system, messages, tools: ivyTools })
       });
       const data = await upstream.json().catch(() => ({}));
       if (!upstream.ok) {
