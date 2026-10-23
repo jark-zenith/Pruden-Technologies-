@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { researchTools, executeResearchTool } from "./research-web.mjs";
+import { researchTools, executeResearchTool, getResearchStatus } from "./research-web.mjs";
 
 const byName = new Map(researchTools.map(tool => [tool.name, tool]));
 test("Atlas research tools expose bounded search, page inspection, and site discovery", () => {
@@ -50,6 +50,8 @@ test("live search calls Tavily and normalizes sourced results", async () => {
     assert.equal(result.results[0].url, "https://example.com/job");
     assert.equal(result.results[0].snippet, "Entry-level role");
     assert.equal(result.results[0].age, "2026-10-20");
+    assert.equal(getResearchStatus().status, "live_verified");
+    assert.equal(getResearchStatus().liveSearchTested, true);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.TAVILY_API_KEY;
