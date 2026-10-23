@@ -4,11 +4,6 @@ import { Activity, CheckCircle2, CircleAlert, Clock3, Database, ExternalLink, Gi
 type HealthResult = { ok?: boolean; service?: string; accessConfigured?: boolean };
 type CheckState = { state: "checking" | "ok" | "error" | "unknown"; detail: string; checkedAt?: string };
 
-const checks = [
-  { name: "Application backend", detail: "GET /health", url: "/health", icon: Server },
-  { name: "Supabase", detail: "Browser client is configured; database access is verified by authenticated module queries.", url: "", icon: Database },
-  { name: "GitHub repository", detail: "Repository inventory link", url: "https://github.com/jark-zenith/Pruden-Technologies-", icon: Github },
-];
 
 export default function InfrastructurePage() {
   const [backend, setBackend] = useState<CheckState>({ state: "checking", detail: "Checking the current application backend…" });
