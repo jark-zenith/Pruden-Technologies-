@@ -24,6 +24,8 @@ export default function SocialMonitoringPage({ user }: { user: User }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [tiktokStatus, setTiktokStatus] = useState<{ configured: boolean; connected: boolean; handle?: string; message?: string } | null>(null);
+  const [tiktokBusy, setTiktokBusy] = useState(false);
 
   const reload = useCallback(async () => {
     setLoading(true); setError("");
@@ -43,6 +45,20 @@ export default function SocialMonitoringPage({ user }: { user: User }) {
   }, [user.id]);
 
   useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => { fetch("/api/social/tiktok/status", { credentials: "same-origin" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "TikTok status unavailable"); setTiktokStatus(d); }).catch((e) => setTiktokStatus({ configured: false, connected: false, message: e instanceof Error ? e.message : "TikTok status unavailable" })); }, []);
+
+  const connectTikTok = () => {
+    const account = accounts.find((item) => item.id === selected) || accounts.find((item) => item.platform === "TikTok");
+    if (!account) { setError("Add or select your TikTok account first, then connect it."); return; }
+    if (account.platform !== "TikTok") { setError("Select a TikTok account before connecting."); return; }
+    setTiktokBusy(true); window.location.assign("/api/social/tiktok/connect?accountId=" + encodeURIComponent(account.id));
+  };
+  const syncTikTok = async () => {
+    setTiktokBusy(true); setError(""); setNotice("");
+    try { const response = await fetch("/api/social/tiktok/sync", { method: "POST", credentials: "same-origin" }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "TikTok sync failed."); setNotice("TikTok sync completed. Saved " + data.metricsSaved + " read-only metrics."); await reload(); }
+    catch (e) { setError(e instanceof Error ? e.message : "TikTok sync failed."); }
+    finally { setTiktokBusy(false); }
+  };
 
   const visibleAccounts = useMemo(() => accounts.filter((account) => filter === "All" || account.platform === filter), [accounts, filter]);
   const latestByAccount = (id: string) => logs.filter((entry) => entry.account_id === id);
@@ -119,6 +135,17 @@ export default function SocialMonitoringPage({ user }: { user: User }) {
     <div className="github-toolbar"><div className="github-filters" role="group" aria-label="Filter by platform"><button className={filter === "All" ? "selected" : ""} onClick={() => setFilter("All")}>All</button>{platforms.map((platform) => <button key={platform} className={filter === platform ? "selected" : ""} onClick={() => setFilter(platform)}>{platform}</button>)}</div></div>
     <div id="social-metrics" className="github-project-grid">{visibleAccounts.map((account) => <article className="github-project-card" key={account.id}><div className="github-project-content"><div className="github-project-heading"><h2>{account.platform}</h2><span className="deployment-label configured"><i /> TRACKED</span></div><p className="github-project-meta"><strong>{account.handle}</strong> · Goal: {account.goal}</p>{account.notes && <p>{account.notes}</p>}{account.profile_url && <p><a href={account.profile_url} target="_blank" rel="noreferrer">{account.profile_url} <ExternalLink size={12} /></a></p>}<p className="github-project-meta">Added {new Date(account.created_at).toLocaleDateString()}</p><div className="github-project-actions"><button onClick={() => setSelected(selected === account.id ? "" : account.id)}><Activity size={14} /> {selected === account.id ? "Hide metrics" : "Log metrics"}</button><button onClick={() => void removeAccount(account.id)} disabled={saving}><Trash2 size={14} /> Remove</button></div>{selected === account.id && <div className="metric-log-form"><label className="field-label">Metric<select className="task-input" value={metric} onChange={(event) => setMetric(event.target.value)}>{["Followers", "Views", "Reach", "Engagement rate", "Link clicks", "Leads", "Ad spend (KSh)", "Posts published", "Comments", "Shares"].map((item) => <option key={item}>{item}</option>)}</select></label><label className="field-label">Value<input className="task-input" value={value} onChange={(event) => setValue(event.target.value)} placeholder="e.g. 1250 or 4.8%" /></label><label className="field-label">Context<input className="task-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Campaign or date-range details" /></label><button className="primary-button" onClick={() => void addMetric(account.id)} disabled={!value.trim() || saving}><Plus size={14} /> Save metric</button><div className="metric-history">{latestByAccount(account.id).slice(0, 5).map((entry) => <p key={entry.id}><strong>{entry.recorded_at.slice(0, 10)} · {entry.metric_key}:</strong> {entry.metric_value} {entry.note && "— " + entry.note}</p>)}{latestByAccount(account.id).length === 0 && <p>No metrics recorded yet.</p>}</div></div>}</div></article>)}{!loading && visibleAccounts.length === 0 && <article className="github-project-detail-panel"><h2>No accounts in this view</h2><p>Add a social account to begin tracking goals and recording metrics.</p></article>}</div>
     <article className="github-project-detail-panel"><h2><Bot size={17} /> AI Workforce analysis brief</h2><p>Copy this context into Ivy or your designated AI Workforce analyst. It uses saved records and does not pretend to have direct access to social platform APIs.</p><textarea className="task-input" rows={8} readOnly value={prompt} /><div className="github-project-actions"><button className="primary-button" onClick={() => void copyPrompt()}><Copy size={14} /> {copied ? <><Check size={14} /> Copied</> : "Copy AI analysis brief"}</button><button className="secondary-button" onClick={() => { setSelected(accounts[0]?.id || ""); if (accounts.length) document.getElementById("social-metrics")?.scrollIntoView({ behavior: "smooth" }); }}><RefreshCw size={14} /> Prepare next review</button></div></article>
-    <footer className="footer-note"><span>PTMS · SOCIAL MEDIA INTELLIGENCE</span><span>Shared database · Manual metrics · Platform APIs pending</span></footer>
+    <article className="panel-card" style={{ marginBottom: 18 }}>
+      <div className="section-heading"><div><span className="eyebrow">OFFICIAL API CONNECTION</span><h2><Activity size={18} /> TikTok monitoring</h2></div><span className="status-pill">{tiktokStatus?.connected ? "CONNECTED" : tiktokStatus?.configured ? "READY TO AUTHORIZE" : "SETUP REQUIRED"}</span></div>
+      <p className="muted-text">Read-only monitoring of your authorized TikTok profile and recent videos. Ivy will not publish, like, follow, delete videos, or reply to comments. Those actions remain disabled until separately implemented and explicitly requested.</p>
+      {tiktokStatus?.connected && <p>Connected account: <strong>{tiktokStatus.handle || "TikTok account"}</strong></p>}
+      {tiktokStatus?.message && <p className="muted-text">{tiktokStatus.message}</p>}
+      <div className="github-project-actions">
+        <button className="primary-button" disabled={tiktokBusy || !tiktokStatus?.configured} onClick={connectTikTok}><ExternalLink size={14} /> Connect TikTok</button>
+        <button className="secondary-button" disabled={tiktokBusy || !tiktokStatus?.connected} onClick={() => void syncTikTok()}><RefreshCw size={14} /> {tiktokBusy ? "Working…" : "Sync metrics now"}</button>
+      </div>
+      {!tiktokStatus?.configured && <p className="muted-text">Server setup needed: TikTok app credentials, an exact OAuth redirect URL, and a 32-byte token-encryption key must be configured privately on the backend.</p>}
+    </article>
+    <footer className="footer-note"><span>PTMS · SOCIAL MEDIA INTELLIGENCE</span><span>Shared database · Manual + authorized read-only TikTok sync</span></footer>
   </section>;
 }
