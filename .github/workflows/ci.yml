@@ -2,7 +2,7 @@ name: PRUDEN Command CI
 
 on:
   push:
-    branches: ["main", "feature/**"]
+    branches: ["main", "feature/**", "infra/**"]
   pull_request:
     branches: ["main"]
 
