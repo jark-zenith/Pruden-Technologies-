@@ -6,7 +6,8 @@ export function ivyCapabilityStatus() {
   const anthropicConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
   return {
     generatedAt: new Date().toISOString(),
-    reasoning: { status: anthropicConfigured ? "configured_unverified" : "not_connected", provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5" },
+    reasoning: { status: anthropicConfigured ? "configured_unverified" : "not_connected", provider: "anthropic", model: process.env.IVY_MODEL || process.env.ANTHROPIC_MODEL || "claude-opus-5", workforceModel: process.env.WORKFORCE_MODEL || process.env.ANTHROPIC_MODEL || "claude-sonnet-5" },
+    persistentMemory: { status: supabaseConfigured ? "configured_unverified" : "setup_required", table: "pruden_ivy_memory", ownerScoped: true, note: "Requires the persistent-memory migration to be applied and the signed-in founder session to be valid; verify a read/write test before treating memory as live." },
     workspaceDatabase: { status: supabaseConfigured ? "configured_unverified" : "not_connected", scope: "signed-in founder's row-level-security-protected workspace tables" },
     email: { status: gmailConfigured ? "configured_unverified" : "setup_required", provider: "Gmail OAuth", note: "Gmail has a separate connection/status panel; confirm its connected status before use." },
     github: githubCapabilityStatus(),
