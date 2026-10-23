@@ -6,6 +6,7 @@ import AIWorkforcePage from "./AIWorkforcePage";
 import WebsiteInboxPage from "./WebsiteInboxPage";
 import IvyAssistant, { IvySettingsPanel } from "./IvyAssistant";
 import IvyMediaDesk from "./IvyMediaDesk";
+import BusinessModules from "./BusinessModules";
 import type { User } from "@supabase/supabase-js";
 import { listProjects, createProject, listTasks, createTask, updateTaskStatus, listApprovals } from "./lib/operations";
 import { githubProjects } from "./githubProjects";
@@ -327,7 +328,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
               <footer className="footer-note"><span>PRUDEN COMMAND <b>·</b> BUILD. LEARN. INVENT. EVOLVE.</span><span><StatusDot tone={backendError ? "amber" : "cyan"} /> {backendError ? "Backend needs attention" : "Authenticated live workspace"}</span></footer>
             </>
           ) : (
-            <ModulePage active={active} onCreateTask={() => { setTaskCreated(false); setShowQuickAdd(true); }} localTasks={localTasks} projects={projects} approvals={approvals} onToggleTask={toggleTaskCompletion} />
+            <ModulePage active={active} user={user} onCreateTask={() => { setTaskCreated(false); setShowQuickAdd(true); }} localTasks={localTasks} projects={projects} approvals={approvals} onToggleTask={toggleTaskCompletion} />
           )}
         </div>
       </main>
@@ -340,7 +341,8 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
   );
 }
 
-function ModulePage({ active, onCreateTask, localTasks, projects, approvals, onToggleTask }: { active: ModuleKey; onCreateTask: () => void; localTasks: TaskView[]; projects: ProjectView[]; approvals: ApprovalView[]; onToggleTask: (task: TaskView) => void }) {
+function ModulePage({ active, user, onCreateTask, localTasks, projects, approvals, onToggleTask }: { active: ModuleKey; user: User; onCreateTask: () => void; localTasks: TaskView[]; projects: ProjectView[]; approvals: ApprovalView[]; onToggleTask: (task: TaskView) => void }) {
+  if (["Customers & CRM", "Finance", "Products & Services", "Security & Audit", "Knowledge Base", "Reports & Settings", "Approvals"].includes(active)) return <BusinessModules active={active as "Customers & CRM" | "Finance" | "Products & Services" | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "Approvals"} user={user} />;
   const item = navItems.find((nav) => nav.label === active);
   const Icon = item?.icon ?? Gauge;
   const [tab, setTab] = useState("All");
