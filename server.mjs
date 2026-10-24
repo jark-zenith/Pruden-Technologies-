@@ -182,6 +182,7 @@ app.post("/api/ivy/chat", async (req, res) => {
     let actions = [];
     let response;
     const ivyStartedAt = Date.now();
+    let ivyToolCalls = 0;
     let budgetStopReason = "";
     for (let iteration = 0; iteration < IVY_RUNTIME_BUDGET.maxModelCallsPerRequest; iteration += 1) {
       const remainingMs = IVY_RUNTIME_BUDGET.maxExecutionMsPerRequest - (Date.now() - ivyStartedAt);
@@ -214,6 +215,12 @@ app.post("/api/ivy/chat", async (req, res) => {
       const results = [];
       for (const call of toolUses) {
         let result;
+        if (typeof ivyToolCalls !== "number") ivyToolCalls = 0;
+        if (ivyToolCalls >= IVY_RUNTIME_BUDGET.maxToolCallsPerRequest) {
+          results.push({ type: "tool_result", tool_use_id: call.id, content: "Tool denied: Ivy's total per-request tool-call budget is exhausted. Stop and report partial findings." });
+          continue;
+        }
+        ivyToolCalls += 1;
         if (Date.now() - ivyStartedAt >= IVY_RUNTIME_BUDGET.maxExecutionMsPerRequest) {
           budgetStopReason = "The Ivy request deadline was reached; remaining tools were not executed.";
           results.push({ type: "tool_result", tool_use_id: call.id, content: "Denied: Ivy's overall execution deadline has been reached. Stop and report partial findings." });
@@ -241,7 +248,7 @@ app.post("/api/ivy/chat", async (req, res) => {
             const count = Number(req.workforceDelegatedRuns || 0);
             if (count >= 3) throw new Error("Ivy has reached the limit of three specialist runs for this request.");
             req.workforceDelegatedRuns = count + 1;
-            result = JSON.stringify(await runAIWorkforceAgent(String(call.input?.agentId || ""), typeof call.input?.task === "string" ? call.input.task : ""));
+            result = JSON.stringify(await runAIWorkforceAgent(String(call.input?.agentId || ""), typeof call.input?.task === "string" ? call.input.task : "", { deadlineAt: ivyStartedAt + IVY_RUNTIME_BUDGET.maxExecutionMsPerRequest }));
           } catch (error) {
             result = JSON.stringify({ status: "failed", error: error instanceof Error ? error.message : "Unknown delegation error." });
           }
