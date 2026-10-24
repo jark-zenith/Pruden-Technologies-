@@ -232,7 +232,7 @@ app.post("/api/ivy/chat", async (req, res) => {
       messages.push({ role: "user", content: results });
     }
     const reply = (response?.content || []).filter((block) => block.type === "text").map((block) => block.text).join("\n").trim();
-    return res.json({ reply: reply || "I completed the request but did not receive a text response.", actions });
+    return res.json({ reply: reply || "I couldn't produce a text report for this request. The operation may be incomplete. Please retry; if this happens again, check the private server logs and Claude API status.", actions });
   } catch (error) {
     console.error("Ivy request failed", error instanceof Error ? error.message : "unknown error");
     return res.status(502).json({ error: "Ivy could not reach Claude. Check the private service's network and server logs." });
