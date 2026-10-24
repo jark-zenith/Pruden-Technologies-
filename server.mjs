@@ -217,6 +217,12 @@ app.post("/api/ivy/chat", async (req, res) => {
           }
         } else if (call.name === "get_capability_status") {
           result = JSON.stringify(ivyCapabilityStatus());
+        } else if (call.name.startsWith("ivy_memory_")) {
+          try {
+            result = JSON.stringify(await executeIvyMemory(call.name, call.input || {}, accessToken));
+          } catch (error) {
+            result = "Memory operation failed: " + (error instanceof Error ? error.message : "Unknown memory error.");
+          }
         } else if (call.name.startsWith("github_") || call.name.startsWith("render_")) {
           try {
             const githubResult = await executeIvyGitHubTool(call.name, call.input || {});
