@@ -69,7 +69,8 @@ function encodeContentPath(path) {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 export const ivyGitHubTools = [
-  { name: "github_list_repositories", description: "List repositories visible to Ivy's configured GitHub token. Read-only. Use for repository discovery; only allowlisted repositories can be inspected further.", input_schema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 30 } }, required: [] } },
+  { name: "github_list_repositories", description: "List the newest repositories visible to Ivy's configured GitHub token. Read-only. Include created_at, updated_at, pushed_at and GitHub URLs so you can determine whether a repository was created today or merely updated today. Only allowlisted repositories can be inspected further.", input_schema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 30 } }, required: [] } },
+  { name: "render_list_services", description: "Read-only inventory of current Render services using RENDER_API_KEY configured on the private server. Returns service name, type, status/suspension, live URL, linked GitHub repo when available, and service creation/update timestamps. Use to verify which projects have Render services and whether a service was created today. If unavailable, report that Render integration is not configured or the API call failed; do not infer current Render state from the workspace snapshot.", input_schema: { type: "object", properties: { limit: { type: "integer", minimum: 1, maximum: 100 } }, required: [] } },
   { name: "github_get_repository", description: "Read repository metadata, description, default branch, visibility, language, size, archive status and timestamps for an allowlisted repository.", input_schema: { type: "object", properties: { repository: { type: "string" } }, required: ["repository"] } },
   { name: "github_list_repository_branches", description: "List branches and their latest commit SHAs for an allowlisted repository. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 50 } }, required: ["repository"] } },
   { name: "github_list_repository_commits", description: "List recent commits and messages for an allowlisted repository, optionally filtered by branch or ref. Read-only.", input_schema: { type: "object", properties: { repository: { type: "string" }, ref: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 30 } }, required: ["repository"] } },
@@ -110,8 +111,39 @@ export async function executeIvyGitHubTool(name, input = {}) {
   }
   if (name === "github_list_repositories") {
     const limit = boundedLimit(input.limit, 15, 30);
-    const repos = await githubRequest("/user/repos?per_page=" + limit + "&sort=updated&affiliation=owner,collaborator,organization_member");
-    return repos.map((repo) => ({ full_name: repo.full_name, private: repo.private, description: repo.description, default_branch: repo.default_branch, html_url: repo.html_url, updated_at: repo.updated_at, archived: repo.archived }));
+    const repos = await githubRequest("/user/repos?per_page=" + limit + "&sort=created&direction=desc&affiliation=owner,collaborator,organization_member");
+    return repos.map((repo) => ({ full_name: repo.full_name, private: repo.private, description: repo.description, default_branch: repo.default_branch, html_url: repo.html_url, created_at: repo.created_at, updated_at: repo.updated_at, pushed_at: repo.pushed_at, archived: repo.archived }));
+  }
+  if (name === "render_list_services") {
+    const key = process.env.RENDER_API_KEY || "";
+    if (!key) throw new Error("Render is not connected to Ivy. Add RENDER_API_KEY to the private Render service environment, then redeploy/restart it. A GitHub Actions secret is not automatically available to the running Ivy service.");
+    const limit = boundedLimit(input.limit, 100, 100);
+    const response = await fetch("https://api.render.com/v1/services?limit=" + limit, {
+      headers: { Accept: "application/json", Authorization: "Bearer " + key },
+      signal: AbortSignal.timeout(20000)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) throw new Error("Render rejected the configured API key or it lacks service-read access. Check the private server environment without sharing the key.");
+      throw new Error("Render services API request failed with status " + response.status + ".");
+    }
+    const items = Array.isArray(data) ? data : Array.isArray(data.services) ? data.services : [];
+    return items.map((item) => {
+      const service = item.service || item;
+      const details = service.serviceDetails || {};
+      return {
+        id: service.id || null,
+        name: service.name || null,
+        type: service.type || null,
+        status: service.suspended ? "suspended" : (service.status || details.status || "unknown"),
+        suspended: service.suspended || false,
+        url: details.url || service.url || null,
+        repo_url: service.repo || details.repo || service.repository || null,
+        created_at: service.createdAt || service.created_at || null,
+        updated_at: service.updatedAt || service.updated_at || null
+      };
+    });
+  }
   }
   if (["github_create_branch", "github_create_repository_file", "github_update_repository_file", "github_create_pull_request"].includes(name)) {
     const repository = parseWriteRepo(input.repository);

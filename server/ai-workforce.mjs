@@ -17,7 +17,7 @@ const MAX_SHARED_MESSAGES = 30;
 const GITHUB_READ_TOOLS = new Set([
   "github_list_repositories", "github_get_repository", "github_list_repository_branches",
   "github_list_repository_commits", "github_get_repository_tree", "github_read_repository_file",
-  "github_list_pull_requests", "github_get_pull_request", "github_list_issues"
+  "github_list_pull_requests", "github_get_pull_request", "github_list_issues", "render_list_services"
 ]);
 const GITHUB_WRITE_TOOLS = new Set([
   "github_create_branch", "github_create_repository_file", "github_update_repository_file",
