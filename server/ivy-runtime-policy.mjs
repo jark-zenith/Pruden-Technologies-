@@ -10,10 +10,13 @@ export const IVY_RUNTIME_BUDGET = Object.freeze({
 
 export const SPECIALIST_RUNTIME_BUDGET = Object.freeze({
   maxModelCallsPerRun: 4,
+  maxModelCallsPerRequest: 4,
   maxOutputTokensPerCall: 1200,
   maxOutputTokensPerRun: 4800,
+  maxOutputTokensPerRequest: 4800,
   maxToolCallsPerRun: 4,
   maxExecutionMsPerRun: 120000,
+  maxExecutionMsPerRequest: 120000,
   maxModelCallMs: 45000
 });
 
