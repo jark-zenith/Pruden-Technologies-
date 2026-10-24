@@ -32,7 +32,7 @@ Ivy is the executive coordinator outside the six specialist departments. Total r
 - Ivy request: at most 4 model calls, 1,800 output tokens per call, 7,200 output tokens total by call ceiling, 48,000 aggregate input-message characters, and 120 seconds elapsed time.
 - Specialist run: at most 4 model calls, 1,200 output tokens per call, 4,800 output tokens total by call ceiling, 4 tool calls, and 120 seconds elapsed time.
 - Per-model-call timeout: at most 45 seconds, shortened when the remaining task deadline is lower.
-- Specialist delegation: at most 3 runs per Ivy request; Sentinel counts if called.
+- Specialist delegation: at most 3 runs per Ivy request; Sentinel counts if called. Ivy also has a total limit of 8 tool calls per request. Delegated work shares Ivy's overall deadline; a specialist cannot extend the parent request deadline.
 - Stop on budget exhaustion; report partial findings and ask for a new request before continuing.
 - These are enforceable token, step, tool-call, input-size, and time ceilings. A precise USD ceiling requires model-specific pricing to be configured and enforced; do not claim one when it is not.
 
