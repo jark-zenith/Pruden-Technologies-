@@ -38,6 +38,9 @@ test("Sentinel must remain an independent QA/security reviewer", () => {
 test("Ivy delegation and model-call budgets are explicit and bounded", () => {
   assert.equal(IVY_RUNTIME_BUDGET.maxSpecialistRunsPerRequest, 3);
   assert.equal(IVY_RUNTIME_BUDGET.maxToolCallsPerRequest, 8);
+  assert.equal(IVY_RUNTIME_BUDGET.maxTotalModelCallsPerIvyRequest, 16);
+  assert.equal(IVY_RUNTIME_BUDGET.maxTotalOutputTokensPerIvyRequest, 21600);
+  assert.equal(IVY_RUNTIME_BUDGET.maxTotalToolCallsPerIvyRequest, 20);
   assert.equal(IVY_RUNTIME_BUDGET.maxModelCallsPerRequest, 4);
   assert.equal(IVY_RUNTIME_BUDGET.maxOutputTokensPerCall * IVY_RUNTIME_BUDGET.maxModelCallsPerRequest, IVY_RUNTIME_BUDGET.maxOutputTokensPerRequest);
   assert.equal(IVY_RUNTIME_BUDGET.maxExecutionMsPerRequest, 120000);
