@@ -246,7 +246,7 @@ app.post("/api/ivy/chat", async (req, res) => {
         } else if (call.name === "workforce_run_agent") {
           try {
             const count = Number(req.workforceDelegatedRuns || 0);
-            if (count >= 3) throw new Error("Ivy has reached the limit of three specialist runs for this request.");
+            if (count >= IVY_RUNTIME_BUDGET.maxSpecialistRunsPerRequest) throw new Error("Ivy has reached the limit of three specialist runs for this request.");
             req.workforceDelegatedRuns = count + 1;
             result = JSON.stringify(await runAIWorkforceAgent(String(call.input?.agentId || ""), typeof call.input?.task === "string" ? call.input.task : "", { deadlineAt: ivyStartedAt + IVY_RUNTIME_BUDGET.maxExecutionMsPerRequest }));
           } catch (error) {
