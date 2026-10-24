@@ -48,6 +48,26 @@ export function validateWorkforceRegistry(registry) {
     if (!ids.includes(id)) errors.push(`Missing required agent: ${id}.`);
   }
   if (registry.chiefOfStaff !== "ivy") errors.push("Ivy must remain the chief of staff.");
+  const controls = registry.globalControls || {};
+  const budgetChecks = [
+    ["maxModelCallsPerRequest", IVY_RUNTIME_BUDGET.maxModelCallsPerRequest],
+    ["maxIvyOutputTokensPerCall", IVY_RUNTIME_BUDGET.maxOutputTokensPerCall],
+    ["maxIvyOutputTokensPerRequest", IVY_RUNTIME_BUDGET.maxOutputTokensPerRequest],
+    ["maxInputCharactersPerIvyRequest", IVY_RUNTIME_BUDGET.maxInputCharactersPerRequest],
+    ["maxSpecialistRunsPerIvyRequest", IVY_RUNTIME_BUDGET.maxSpecialistRunsPerRequest],
+    ["maxToolCallsPerIvyRequest", IVY_RUNTIME_BUDGET.maxToolCallsPerRequest],
+    ["maxSpecialistModelCallsPerRun", SPECIALIST_RUNTIME_BUDGET.maxModelCallsPerRun],
+    ["maxSpecialistOutputTokensPerCall", SPECIALIST_RUNTIME_BUDGET.maxOutputTokensPerCall],
+    ["maxSpecialistOutputTokensPerRun", SPECIALIST_RUNTIME_BUDGET.maxOutputTokensPerRun],
+    ["maxToolCallsPerSpecialistRun", SPECIALIST_RUNTIME_BUDGET.maxToolCallsPerRun],
+    ["maxExecutionMsPerRequest", IVY_RUNTIME_BUDGET.maxExecutionMsPerRequest],
+    ["maxModelCallMs", IVY_RUNTIME_BUDGET.maxModelCallMs]
+  ];
+  for (const [key, expected] of budgetChecks) {
+    if (controls[key] !== expected) errors.push(`Registry budget ${key} must equal ${expected}.`);
+  }
+  if (controls.sentinelCountsTowardDelegationLimit !== true) errors.push("Sentinel must count toward the specialist-run limit.");
+
   for (const department of registry.departments) {
     const memberIds = (department.agents || []).map(agent => agent.id);
     if (!memberIds.includes(department.lead)) errors.push(`Department lead ${department.lead} is not a member of ${department.id}.`);
