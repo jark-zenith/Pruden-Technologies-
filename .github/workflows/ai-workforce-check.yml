@@ -28,6 +28,7 @@ jobs:
           node --check server/ai-workforce.mjs
           node --check server/ivy-github.mjs
           node --check server/ivy-capabilities.mjs
+          node --check server/ivy-memory.mjs
       - name: Validate workforce registry
         run: |
           node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("ai-workforce/agents.json","utf8")); const n=1+r.departments.reduce((s,d)=>s+d.agents.length,0); if(r.departments.length!==6||n!==14) throw new Error("Expected 6 departments and 14 identities (Ivy plus 13 specialists); got "+r.departments.length+" departments and "+n+" identities"); if(!r.departments.find(d=>d.id==="quality-security")?.independent) throw new Error("Quality & Security must remain independent"); console.log("Registry OK:",n,"identities across",r.departments.length,"departments");'
