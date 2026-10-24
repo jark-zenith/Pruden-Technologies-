@@ -1,6 +1,6 @@
 {
   "version": "1.2",
-  "status": "proposed-runtime-registry",
+  "status": "authoritative-runtime-registry",
   "company": "PRUDEN TECHNOLOGIES",
   "chiefOfStaff": "ivy",
   "departments": [
@@ -403,6 +403,18 @@
     "maxOutputTokens": 2200,
     "maxRetries": 2,
     "toolsEnabled": false,
-    "externalActionsEnabled": false
+    "externalActionsEnabled": false,
+    "maxModelCallsPerRequest": 4,
+    "maxIvyOutputTokensPerCall": 1800,
+    "maxIvyOutputTokensPerRequest": 7200,
+    "maxInputCharactersPerIvyRequest": 48000,
+    "maxSpecialistRunsPerIvyRequest": 3,
+    "maxSpecialistModelCallsPerRun": 4,
+    "maxSpecialistOutputTokensPerCall": 1200,
+    "maxSpecialistOutputTokensPerRun": 4800,
+    "maxToolCallsPerSpecialistRun": 4,
+    "maxExecutionMsPerRequest": 120000,
+    "maxModelCallMs": 45000,
+    "sentinelCountsTowardDelegationLimit": true
   }
 }
