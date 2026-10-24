@@ -24,6 +24,7 @@ export const GROUP_RUNTIME_BUDGET = Object.freeze({
   maxModelCallsPerRequest: 4,
   maxOutputTokensPerCall: 1600,
   maxOutputTokensPerRequest: 6400,
+  maxToolCallsPerRun: 4,
   maxExecutionMsPerRequest: 120000,
   maxModelCallMs: 45000
 });
