@@ -144,7 +144,6 @@ export async function executeIvyGitHubTool(name, input = {}) {
       };
     });
   }
-  }
   if (["github_create_branch", "github_create_repository_file", "github_update_repository_file", "github_create_pull_request"].includes(name)) {
     const repository = parseWriteRepo(input.repository);
     if (name === "github_create_branch") {
