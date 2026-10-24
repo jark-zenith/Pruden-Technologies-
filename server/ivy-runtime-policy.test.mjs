@@ -15,6 +15,8 @@ const registry = JSON.parse(await readFile(path.join(here, "..", "ai-workforce",
 
 test("authoritative workforce registry has 14 identities across six departments", () => {
   assert.deepEqual(validateWorkforceRegistry(registry), []);
+  assert.equal(registry.globalControls.maxToolCallsPerIvyRequest, IVY_RUNTIME_BUDGET.maxToolCallsPerRequest);
+  assert.equal(registry.globalControls.maxSpecialistRunsPerIvyRequest, IVY_RUNTIME_BUDGET.maxSpecialistRunsPerRequest);
 });
 
 test("registry validation catches a missing specialist and department inconsistency", () => {
