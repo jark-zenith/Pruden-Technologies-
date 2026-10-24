@@ -83,7 +83,7 @@ function promptFor(agent) {
     "Escalate sensitive data, costs, external commitments, access changes, and releases to the Founder via Ivy. Draft outreach only; never send."
   ].join("\n");
 }
-async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200, allowedToolNames = new Set(), agentId = "group") {
+async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200, allowedToolNames = new Set(), agentId = "group", parentDeadlineAt = null) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw Object.assign(new Error("Claude is not configured on the server. Add ANTHROPIC_API_KEY in the host's private environment settings."), { statusCode: 503 });
   const messages = [{ role: "user", content: task }];
@@ -95,10 +95,11 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
   let toolCalls = 0;
   const budget = agentId === "group" ? GROUP_RUNTIME_BUDGET : SPECIALIST_RUNTIME_BUDGET;
   const startedAt = Date.now();
+  const absoluteDeadline = Math.min(startedAt + budget.maxExecutionMsPerRequest, Number.isFinite(parentDeadlineAt) ? parentDeadlineAt : Number.POSITIVE_INFINITY);
   let outputTokens = 0;
   let budgetStopReason = "";
   for (let iteration = 0; iteration < budget.maxModelCallsPerRequest && outputTokens < budget.maxOutputTokensPerRequest; iteration += 1) {
-    const remainingMs = budget.maxExecutionMsPerRequest - (Date.now() - startedAt);
+    const remainingMs = absoluteDeadline - Date.now();
     if (remainingMs <= 0) { budgetStopReason = "The execution deadline was reached."; break; }
     const callMaxTokens = Math.min(maxTokens, budget.maxOutputTokensPerCall, budget.maxOutputTokensPerRequest - outputTokens);
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -112,7 +113,7 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     lastData = data;
     outputTokens += Number(data?.usage?.output_tokens || 0);
     const calls = (data.content || []).filter(p => p.type === "tool_use");
-    if (Date.now() - startedAt >= budget.maxExecutionMsPerRequest) {
+    if (Date.now() >= absoluteDeadline) {
       budgetStopReason = "The execution deadline was reached before additional tools could run.";
       break;
     }
@@ -120,7 +121,7 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     messages.push({ role: "assistant", content: data.content });
     const results = [];
     for (const call of calls) {
-      if (Date.now() - startedAt >= budget.maxExecutionMsPerRequest) {
+      if (Date.now() >= absoluteDeadline) {
         budgetStopReason = "The execution deadline was reached; remaining tools were not executed.";
         results.push({ type: "tool_result", tool_use_id: call.id, content: "Denied: task execution deadline reached. Stop and report partial findings." });
         continue;
@@ -151,13 +152,13 @@ export function getAIWorkforceDirectory() {
   const annotate = agent => ({ ...agent, toolAccess: [...availableGitHubToolNames(agent.id)] });
   return { ivy: annotate(registry.ivy), departments: registry.departments.map(({ id, name, lead, independent, agents }) => ({ id, name, lead, independent: Boolean(independent), agents: agents.map(annotate) })), controls: registry.globalControls };
 }
-export async function runAIWorkforceAgent(agentId, task) {
+export async function runAIWorkforceAgent(agentId, task, options = {}) {
   const agent = agentById.get(agentId);
   if (!agent) throw Object.assign(new Error("Unknown agent."), { statusCode: 404 });
   if (typeof task !== "string" || !task.trim() || task.length > registry.globalControls.maxInputCharacters) throw Object.assign(new Error(`Task is required and must be at most ${registry.globalControls.maxInputCharacters} characters.`), { statusCode: 400 });
   console.log(JSON.stringify({ event: "workforce_run_started", agentId, at: new Date().toISOString(), inputCharacters: task.length }));
   const context = sharedContext();
-  const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task, registry.globalControls.maxOutputTokens || 1200, availableToolNamesForAgent(agent.id), agent.id);
+  const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task, registry.globalControls.maxOutputTokens || 1200, availableToolNamesForAgent(agent.id), agent.id, options.deadlineAt);
   console.log(JSON.stringify({ event: "workforce_run_completed", agentId, at: new Date().toISOString(), usage: result.usage }));
   return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
 }
