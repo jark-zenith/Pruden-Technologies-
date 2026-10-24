@@ -400,7 +400,7 @@
       "approval_required"
     ],
     "maxInputCharacters": 12000,
-    "maxOutputTokens": 1200,
+    "maxOutputTokens": 2200,
     "maxRetries": 2,
     "toolsEnabled": false,
     "externalActionsEnabled": false
