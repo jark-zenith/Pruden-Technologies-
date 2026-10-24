@@ -3,10 +3,12 @@ import { researchTools, executeResearchTool, getResearchStatus } from "./researc
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ivyGitHubTools, executeIvyGitHubTool, githubCapabilityStatus } from "./ivy-github.mjs";
-import { SPECIALIST_RUNTIME_BUDGET, GROUP_RUNTIME_BUDGET } from "./ivy-runtime-policy.mjs";
+import { SPECIALIST_RUNTIME_BUDGET, GROUP_RUNTIME_BUDGET, validateWorkforceRegistry } from "./ivy-runtime-policy.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const registry = JSON.parse(await readFile(path.join(here, "..", "ai-workforce", "agents.json"), "utf8"));
+const registryErrors = validateWorkforceRegistry(registry);
+if (registryErrors.length) throw new Error("Invalid AI workforce registry: " + registryErrors.join(" "));
 const allAgents = [{ ...registry.ivy, department: "Executive Office" }, ...registry.departments.flatMap(d => d.agents.map(a => ({ ...a, department: d.name, departmentId: d.id })))];
 const agentById = new Map(allAgents.map(a => [a.id, a]));
 const attempts = new Map();
