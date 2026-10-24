@@ -3,6 +3,7 @@ import { researchTools, executeResearchTool, getResearchStatus } from "./researc
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ivyGitHubTools, executeIvyGitHubTool, githubCapabilityStatus } from "./ivy-github.mjs";
+import { SPECIALIST_RUNTIME_BUDGET, GROUP_RUNTIME_BUDGET } from "./ivy-runtime-policy.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const registry = JSON.parse(await readFile(path.join(here, "..", "ai-workforce", "agents.json"), "utf8"));
@@ -90,22 +91,39 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
   ];
   let lastData = null;
   let toolCalls = 0;
-  for (let iteration = 0; iteration < 6; iteration += 1) {
+  const budget = agentId === "group" ? GROUP_RUNTIME_BUDGET : SPECIALIST_RUNTIME_BUDGET;
+  const startedAt = Date.now();
+  let outputTokens = 0;
+  let budgetStopReason = "";
+  for (let iteration = 0; iteration < budget.maxModelCallsPerRequest && outputTokens < budget.maxOutputTokensPerRequest; iteration += 1) {
+    const remainingMs = budget.maxExecutionMsPerRequest - (Date.now() - startedAt);
+    if (remainingMs <= 0) { budgetStopReason = "The execution deadline was reached."; break; }
+    const callMaxTokens = Math.min(maxTokens, budget.maxOutputTokensPerCall, budget.maxOutputTokensPerRequest - outputTokens);
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", max_tokens: maxTokens, system, messages, ...(tools.length && iteration < 5 ? { tools } : {}) }),
-      signal: AbortSignal.timeout(45_000)
+      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", max_tokens: callMaxTokens, system, messages, ...(tools.length && iteration < budget.maxModelCallsPerRequest - 1 ? { tools } : {}) }),
+      signal: AbortSignal.timeout(Math.min(budget.maxModelCallMs, remainingMs))
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw Object.assign(new Error(response.status === 401 ? "Claude rejected the configured API key. Check the host secret." : response.status === 429 ? "Claude rate limit or account quota reached. Try again later." : "Claude could not complete the request. Check server logs and model access."), { statusCode: 502 });
     lastData = data;
+    outputTokens += Number(data?.usage?.output_tokens || 0);
     const calls = (data.content || []).filter(p => p.type === "tool_use");
+    if (Date.now() - startedAt >= budget.maxExecutionMsPerRequest) {
+      budgetStopReason = "The execution deadline was reached before additional tools could run.";
+      break;
+    }
     if (!calls.length) break;
     messages.push({ role: "assistant", content: data.content });
     const results = [];
     for (const call of calls) {
-      if (!allowedToolNames.has(call.name) || !tools.some(tool => tool.name === call.name) || toolCalls >= 4) {
+      if (Date.now() - startedAt >= budget.maxExecutionMsPerRequest) {
+        budgetStopReason = "The execution deadline was reached; remaining tools were not executed.";
+        results.push({ type: "tool_result", tool_use_id: call.id, content: "Denied: task execution deadline reached. Stop and report partial findings." });
+        continue;
+      }
+      if (!allowedToolNames.has(call.name) || !tools.some(tool => tool.name === call.name) || toolCalls >= budget.maxToolCallsPerRun) {
         results.push({ type: "tool_result", tool_use_id: call.id, content: "Tool denied: it is not enabled for this agent or the four-call per-agent limit was reached. Server-side permissions remain enforced." });
         continue;
       }
@@ -121,8 +139,9 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     messages.push({ role: "user", content: results });
   }
   const output = Array.isArray(lastData?.content) ? lastData.content.filter(p => p.type === "text").map(p => p.text).join("\n").slice(0, 20000) : "";
+  if (!output && budgetStopReason) return { output: "Execution stopped at the configured budget boundary. Partial tool results may be available; start a follow-up task to continue. " + budgetStopReason, usage: lastData?.usage || null, toolCalls, budgetStopReason };
   if (!output) throw Object.assign(new Error("Claude returned no text output."), { statusCode: 502 });
-  return { output, usage: lastData?.usage || null, toolCalls };
+  return { output: budgetStopReason ? output + "\n\nBudget note: " + budgetStopReason : output, usage: lastData?.usage || null, toolCalls, budgetStopReason };
 }
 function sharedContext() { return sharedThread.slice(-MAX_SHARED_MESSAGES).map(m => `[${m.role}] ${m.name}: ${m.content}`).join("\n"); }
 
