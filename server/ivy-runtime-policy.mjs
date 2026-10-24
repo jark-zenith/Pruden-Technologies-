@@ -5,6 +5,9 @@ export const IVY_RUNTIME_BUDGET = Object.freeze({
   maxInputCharactersPerRequest: 48000,
   maxSpecialistRunsPerRequest: 3,
   maxToolCallsPerRequest: 8,
+  maxTotalModelCallsPerIvyRequest: 16,
+  maxTotalOutputTokensPerIvyRequest: 21600,
+  maxTotalToolCallsPerIvyRequest: 20,
   maxExecutionMsPerRequest: 120000,
   maxModelCallMs: 45000
 });
