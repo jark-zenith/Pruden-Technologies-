@@ -149,7 +149,12 @@ app.post("/api/ivy/chat", async (req, res) => {
       });
       return { role: message.role, content };
     });
-    if (messages[0]?.role !== "user") return res.status(400).json({ error: "Conversation must start with a user message." });
+    // UI history can begin with an assistant greeting or a previous tool acknowledgement.
+    // Anthropic requires the submitted conversation to begin with a user message, so
+    // discard only the leading assistant messages and preserve the user-led conversation.
+    const firstUserMessageIndex = messages.findIndex((message) => message.role === "user");
+    if (firstUserMessageIndex < 0) return res.status(400).json({ error: "Conversation must contain at least one user message." });
+    if (firstUserMessageIndex > 0) messages = messages.slice(firstUserMessageIndex);
     const aggregateMessageCharacters = messages.reduce((total, message) => total + (typeof message.content === "string" ? message.content.length : message.content.reduce((sum, part) => sum + (part.type === "text" ? part.text.length : 0), 0)), 0);
     if (aggregateMessageCharacters > IVY_RUNTIME_BUDGET.maxInputCharactersPerRequest) {
       return res.status(400).json({ error: `Conversation exceeds the ${IVY_RUNTIME_BUDGET.maxInputCharactersPerRequest}-character per-request budget. Shorten the conversation and retry.` });
