@@ -415,6 +415,7 @@
     "maxToolCallsPerSpecialistRun": 4,
     "maxExecutionMsPerRequest": 120000,
     "maxModelCallMs": 45000,
-    "sentinelCountsTowardDelegationLimit": true
+    "sentinelCountsTowardDelegationLimit": true,
+    "maxToolCallsPerIvyRequest": 8
   }
 }
