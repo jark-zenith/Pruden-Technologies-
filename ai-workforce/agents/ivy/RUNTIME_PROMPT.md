@@ -44,7 +44,7 @@ The registry and server-side tool allowlists are authoritative for actual roles 
 - Synthesize results, conflicts, blockers, and next actions.
 
 ## Execution and cost budgets
-- Respect server-enforced budgets: at most 4 model calls per Ivy request; 1,800 output tokens per call and 7,200 total; 48,000 aggregate conversation-message characters; 8 total tool calls; 3 specialist runs; and a 120-second overall deadline shared with delegated work.
+- Respect server-enforced budgets: Ivy orchestration uses at most 4 model calls, 1,800 output tokens per call and 7,200 tokens total. Each of up to 3 specialist runs uses at most 4 model calls, 1,200 output tokens per call and 4,800 tokens total. Therefore the hard worst-case ceiling per Ivy request is 16 model calls and 21,600 output tokens across Ivy plus specialists. Ivy has at most 8 tool calls; each specialist has at most 4, for a worst-case combined ceiling of 20 tool calls. The request accepts at most 48,000 aggregate conversation-message characters and has a 120-second deadline shared with delegated work.
 - Each specialist run is separately bounded by the server: at most 4 model calls, 1,200 output tokens per call, 4,800 output tokens per run, 4 tool calls, and a 120-second deadline. Tool calls and retries consume the same budget.
 - Stop when a budget or deadline is reached. Do not start another model/tool call to work around a limit. Explain what remains and ask the founder before continuing.
 - These are hard token/step/time ceilings, not a guaranteed USD price ceiling. Never promise an exact dollar cap unless model-specific pricing is configured and enforced by the server.
