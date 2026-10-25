@@ -12,6 +12,7 @@ const buttonStyle = { padding: "9px 13px", borderRadius: 10, border: "1px solid 
 
 export default function BusinessModules({ active, user }: { active: ModuleName; user: User }) {
   const [rows, setRows] = useState<Row[]>([]);
+  const [goals, setGoals] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -35,7 +36,17 @@ export default function BusinessModules({ active, user }: { active: ModuleName; 
   const load = useCallback(async () => {
     setBusy(true); setError(""); setNotice("");
     try {
-      if (active === "Reports & Settings") {
+      if (active === "Finance") {
+        const [ledger, savings] = await Promise.all([
+          supa().from("pruden_financial_records").select("*").eq("owner_id", uid).order("occurred_on", { ascending: false }).limit(200),
+          supa().from("pruden_savings_goals").select("*").eq("owner_id", uid).neq("status", "archived").order("created_at", { ascending: false }).limit(100)
+        ]);
+        if (ledger.error) throw ledger.error;
+        if (savings.error) throw savings.error;
+        setRows(ledger.data || []);
+        setGoals(savings.data || []);
+      } else if (active === "Reports & Settings") {
+        setGoals([]);
         const [customers, ledger, products, approvals] = await Promise.all([
           supa().from("pruden_customers").select("id,status").eq("owner_id",uid),
           supa().from("pruden_financial_records").select("kind,amount,currency").eq("owner_id",uid),
@@ -46,7 +57,8 @@ export default function BusinessModules({ active, user }: { active: ModuleName; 
         const ledgerRows = ledger.data || [];
         setRows([{report:"customers",count:(customers.data||[]).length},{report:"income",amount:ledgerRows.filter((r:any)=>r.kind==="income").reduce((s:number,r:any)=>s+Number(r.amount||0),0)},{report:"expenses",amount:ledgerRows.filter((r:any)=>r.kind==="expense").reduce((s:number,r:any)=>s+Number(r.amount||0),0)},{report:"products",count:(products.data||[]).length},{report:"pending approvals",count:(approvals.data||[]).filter((r:any)=>r.status==="pending").length}]);
       } else {
-        let query = supa().from(config.table).select("*").order(active==="Security & Audit" ? "created_at" : active==="Finance" ? "occurred_on" : "created_at",{ascending:false}).limit(200);
+        setGoals([]);
+        let query = supa().from(config.table).select("*").order("created_at",{ascending:false}).limit(200);
         if (active !== "Security & Audit") query = query.eq("owner_id",uid);
         const {data,error:queryError}=await query;
         if(queryError) throw queryError;
@@ -94,6 +106,26 @@ export default function BusinessModules({ active, user }: { active: ModuleName; 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><h2 style={{display:"flex",alignItems:"center",gap:9,fontSize:18}}><Icon size={18}/>{config.title}</h2>{config.fields.length>0&&<button style={buttonStyle} onClick={startCreate}><Plus size={14}/> New record</button>}</div>
       {error&&<p role="alert" style={{color:"#fb7185",padding:10,border:"1px solid #fb718544",borderRadius:10}}><CircleAlert size={14}/> {error}</p>}
       {notice&&<p role="status" style={{color:"#34d399"}}><Check size={14}/> {notice}</p>}
+      {active==="Finance" && <section aria-label="Savings goals" style={{marginTop:18}}>
+        <h3 style={{fontSize:15,marginBottom:10}}>Capital & savings goals</h3>
+        {goals.length===0 ? <p style={{opacity:.75}}>No savings goals saved yet. Ask Ivy to create one, or configure a goal through Ivy's Finance tools.</p> :
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:10}}>
+            {goals.map(goal => {
+              const capital = Number(goal.mpesa_amount||0) + Number(goal.cash_amount||0);
+              const target = Number(goal.target_amount||0);
+              const remaining = Math.max(0,target-capital);
+              const progress = target>0 ? Math.min(100,capital/target*100) : 0;
+              return <article key={goal.id} style={{padding:15,border:"1px solid var(--border, #334155)",borderRadius:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"start"}}><strong>{goal.name}</strong><small>{goal.status}</small></div>
+                <h3 style={{fontSize:22,margin:"10px 0 4px"}}>{money(capital)} <small style={{fontSize:12,fontWeight:400,opacity:.75}}>of {money(target)}</small></h3>
+                <div role="progressbar" aria-label={goal.name+" progress"} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)} style={{height:7,borderRadius:99,background:"var(--border, #334155)",overflow:"hidden"}}><div style={{width:progress+"%",height:"100%",background:"#38bdf8",borderRadius:99}}/></div>
+                <p style={{margin:"8px 0",fontSize:12,opacity:.85}}>M-PESA: {money(Number(goal.mpesa_amount||0))} · Cash: {money(Number(goal.cash_amount||0))}</p>
+                <p style={{margin:0,fontSize:12,opacity:.85}}>Remaining: {money(remaining)} · {progress.toFixed(2)}% complete</p>
+                {goal.description&&<p style={{fontSize:12,opacity:.75}}>{goal.description}</p>}
+              </article>;
+            })}
+          </div>}
+      </section>}
       {active==="Reports & Settings" ? <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12,marginTop:16}}>{rows.map(r=><article key={r.report} style={{padding:16,border:"1px solid var(--border, #334155)",borderRadius:12}}><small style={{textTransform:"uppercase",letterSpacing:1}}>{r.report}</small><h2 style={{fontSize:24,margin:"8px 0"}}>{r.amount!==undefined?money(r.amount):r.count}</h2>{r.report==="income"||r.report==="expenses"?<small>From saved KES ledger records only</small>:null}</article>)}</div>
       : active==="Approvals" ? <div style={{display:"grid",gap:10,marginTop:14}}>{filtered.map(r=><article key={r.id} style={{padding:14,border:"1px solid var(--border, #334155)",borderRadius:12}}><strong>{r.summary}</strong><p>{r.action_type} · Risk: {r.risk_level} · Status: {r.status}</p><small>Decision records intent only. Secure executor: not configured.</small>{r.status==="pending"&&<div style={{display:"flex",gap:8,marginTop:10}}><button style={buttonStyle} disabled={busy} onClick={()=>void decide(r,"approved")}>Approve decision</button><button style={buttonStyle} disabled={busy} onClick={()=>void decide(r,"rejected")}>Reject</button></div>}</article>)}</div>
       : active==="Security & Audit" ? <div style={{display:"grid",gap:8,marginTop:14}}>{filtered.map(r=><article key={r.id} style={{padding:12,borderBottom:"1px solid var(--border, #334155)"}}><strong>{r.action}</strong><p>{r.entity_type} {r.entity_id?("· "+r.entity_id):""} · {r.outcome}</p><small>{new Date(r.created_at).toLocaleString()} · {r.actor_id===uid?"You":"Recorded actor"}</small></article>)}</div>
