@@ -1,37 +1,79 @@
-# PRUDEN TECHNOLOGIES
+# PRUDEN Command — PTMS
 
-**Build. Learn. Invent. Evolve.**
+**Build. Learn. Invent. Evolve.**  
+A private, owner-scoped management workspace for PRUDEN Technologies, with Ivy as the AI operations assistant.
 
-PRUDEN TECHNOLOGIES is the proposed umbrella brand for a Kenya-first, globally ambitious technology venture focused on practical software services, AI systems, automation, and eventually owned technology products.
+> **Truth in status:** repository code and migration files document implementation, not proof that production environment variables, database migrations, provider keys, or live deployments are configured. Verify those in the target environment before describing a capability as live.
 
-This repository is the working source of truth for the company's technical and operational blueprint. It is a planning baseline, not proof that every proposed business, product, capability, registration, or integration is already live.
+## What is in this repository
 
-## Start here
+- **PRUDEN Command dashboard:** React + TypeScript + Vite frontend, served by an Express application.
+- **Private workspace access:** server-side master-secret gate with an HTTP-only, Secure, SameSite session cookie and request throttling.
+- **Ivy assistant:** server-side Anthropic API integration; provider credentials remain on the server.
+- **Workspace operations:** owner-scoped Supabase operations for projects, tasks, approvals, and customers.
+- **Business modules:** Finance ledger, Customers & CRM, Products & Services, Knowledge Base, Security & Audit, Approvals, and reports.
+- **AI Workforce:** registered specialist directory and bounded text delegation.
+- **Supporting integrations:** optional GitHub, Gmail, media, research, and persistent-memory modules, each subject to its own configuration and permissions.
+- **Android wrapper:** Capacitor configuration and an APK workflow.
 
-- [Master Tech & Business Blueprint](./TECH_BLUEPRINT.md) — requirements for company setup, service delivery, legal/finance, technology architecture, AI agents, security, product lifecycle, infrastructure, metrics, and a 30/60/90-day roadmap.
+## Ivy Finance operations
 
-## Guiding principles
+Ivy's Finance tools operate on persisted Supabase records using the signed-in user's access token and row-level security. The supported operation set includes:
 
-- Start with customer value and reliable paid services.
-- Build one dependable system at a time.
-- Keep costs low until demand proves the need to scale.
-- Treat security, privacy, legal obligations, and IP ownership as core requirements.
-- Use AI agents with limited permissions, audit trails, and human approval for consequential actions.
-- Label ideas, prototypes, beta products, and verified live services accurately.
-- Earn advanced engineering capabilities through expertise, funding, testing, and safety—not branding alone.
+- Read and filter ledger entries; fetch a specific record.
+- Create and update income/expense entries; delete a specific entry only after explicit instruction and confirmation.
+- Calculate income, expense, and net totals from saved ledger rows.
+- Create, list, update, and archive savings goals with separate M-PESA and cash allocations.
+- Calculate goal capital total, remaining amount, and progress without counting capital as income.
+- Record actions in the audit trail when the audit table and permissions are available.
 
-## Proposed brand architecture
+Finance ledger records use `pruden_financial_records`. Savings goals and their capital allocations use `pruden_savings_goals`; they are intentionally separate from the income/expense ledger. Owner isolation is enforced with authenticated Supabase access and RLS. No service-role key is sent to the browser or model.
 
-- **PRUDEN TECHNOLOGIES:** umbrella business and shared operations.
-- **JARK AI TECH INDUSTRIES:** proposed AI/software division.
-- **PRUDEN STUDIOS:** proposed creative-services division.
+**Initial capital target to configure through Ivy after the migration is applied:** goal “Google Play Store Developer Account”; currency KES; M-PESA KSh 700; cash KSh 200; total allocated capital KSh 900; target KSh 3,500; remaining KSh 2,600; progress 25.71%. Before creating, Ivy must inspect existing goals and update an equivalent one rather than duplicate it. These amounts are capital allocations, not new income.
 
-Final brand, trading-name, and legal-entity status must be confirmed by the founder and checked before official claims.
+## Technology
 
-## Current status
+- React 18, TypeScript, Vite
+- Node.js + Express
+- Supabase Auth and Postgres with row-level security
+- Anthropic Messages API for Ivy
+- Capacitor for Android packaging
 
-**Planning / blueprint stage.** Do not assume a production application, live integration, legal registration, or customer-facing service exists unless independently verified.
+## Local development
 
-## First milestone
+Requirements: Node.js 20+ and npm.
 
-Translate the blueprint into a practical operating system—starting with a clear service offer, customer discovery, secure project management, tasks, decisions, risk tracking, and a human approval queue. Add integrations only after they are connected, tested, and documented.
+```bash
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Review `.env.example` and configure only the environment values required by the chosen workflow. Never commit real credentials. For the server-backed workspace, configure the private server environment, including a strong `COMMAND_ACCESS_SECRET` (at least 24 characters), Supabase URL and anon key, and the Anthropic API key if Ivy chat is required. A configured key is not proof of a successful provider request.
+
+Useful commands:
+
+```bash
+npm run typecheck
+npm run build
+npm start
+```
+
+The repository currently defines `dev`, `build`, `typecheck`, `start`, and `android:sync` scripts.
+
+## Database setup
+
+Apply the SQL migrations in `supabase/migrations` to the intended Supabase project in chronological order. The Ivy Finance savings-goal migration is additive and does not convert or rewrite existing ledger rows. Verify RLS policies and test with a normal authenticated user before production use.
+
+## Security and operational notes
+
+- Do not place Supabase service-role keys, Anthropic keys, GitHub tokens, or OAuth secrets in frontend variables or source control.
+- User-owned records must be queried and mutated under the authenticated owner ID; RLS is an additional boundary, not a substitute for server-side validation.
+- Treat AI output and database content as untrusted. Use allowlisted tools, validate inputs, and preserve unrelated fields on partial updates.
+- Financial deletes are destructive. Ivy must have explicit user authorization and a precise record target before deleting.
+- The audit trail is best-effort unless its write result is checked and the database permissions are configured. A successful business write must not be falsely reported as audited if audit insertion fails.
+- Verify the live health endpoint, private unlock flow, Supabase access, Ivy provider request, and production build independently.
+
+## Project status
+
+This README describes the repository's code and intended setup. It does not claim that all integrations are configured, the new Finance migration has been applied to production, or a deployed app has passed live read/write tests. Those states must be confirmed in the target environment.
