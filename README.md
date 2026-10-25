@@ -56,11 +56,10 @@ Useful commands:
 ```bash
 npm run typecheck
 npm run build
-npm test
 npm start
 ```
 
-Check `package.json` for the scripts currently available; do not assume a script exists if it is not defined.
+The repository currently defines `dev`, `build`, `typecheck`, `start`, and `android:sync` scripts.
 
 ## Database setup
 
