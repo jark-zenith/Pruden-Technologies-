@@ -58,7 +58,7 @@ export default function BusinessModules({ active, user }: { active: ModuleName; 
         setRows([{report:"customers",count:(customers.data||[]).length},{report:"income",amount:ledgerRows.filter((r:any)=>r.kind==="income").reduce((s:number,r:any)=>s+Number(r.amount||0),0)},{report:"expenses",amount:ledgerRows.filter((r:any)=>r.kind==="expense").reduce((s:number,r:any)=>s+Number(r.amount||0),0)},{report:"products",count:(products.data||[]).length},{report:"pending approvals",count:(approvals.data||[]).filter((r:any)=>r.status==="pending").length}]);
       } else {
         setGoals([]);
-        let query = supa().from(config.table).select("*").order(active==="Security & Audit" ? "created_at" : active==="Finance" ? "occurred_on" : "created_at",{ascending:false}).limit(200);
+        let query = supa().from(config.table).select("*").order("created_at",{ascending:false}).limit(200);
         if (active !== "Security & Audit") query = query.eq("owner_id",uid);
         const {data,error:queryError}=await query;
         if(queryError) throw queryError;
