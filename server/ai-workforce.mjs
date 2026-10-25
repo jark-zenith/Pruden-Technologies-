@@ -149,7 +149,20 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
 function sharedContext() { return sharedThread.slice(-MAX_SHARED_MESSAGES).map(m => `[${m.role}] ${m.name}: ${m.content}`).join("\n"); }
 
 export function getAIWorkforceDirectory() {
-  const annotate = agent => ({ ...agent, toolAccess: [...availableGitHubToolNames(agent.id)] });
+  const annotate = agent => {
+    const githubTools = [...availableGitHubToolNames(agent.id)];
+    const researchAccess = RESEARCH_AGENTS.has(agent.id);
+    const toolAccess = [...new Set([...githubTools, ...(researchAccess ? researchTools.map(tool => tool.name) : [])])];
+    return {
+      ...agent,
+      toolAccess,
+      toolReadiness: {
+        liveWebSearch: researchAccess ? (process.env.TAVILY_API_KEY ? "configured_pending_live_test" : "blocked_missing_TAVILY_API_KEY") : "not_assigned",
+        publicPageInspection: researchAccess ? (process.env.TAVILY_API_KEY ? "assigned; subject to public-page access limits" : "assigned_but_search_key_missing") : "not_assigned",
+        github: githubTools.length ? "available_with_server_permissions" : (allowedGitHubToolNames(agent.id).size ? "blocked_missing_or_disabled_GITHUB_TOKEN" : "not_assigned")
+      }
+    };
+  };
   return { ivy: annotate(registry.ivy), departments: registry.departments.map(({ id, name, lead, independent, agents }) => ({ id, name, lead, independent: Boolean(independent), agents: agents.map(annotate) })), controls: registry.globalControls };
 }
 export async function runAIWorkforceAgent(agentId, task, options = {}) {
