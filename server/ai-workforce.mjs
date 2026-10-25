@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { callGeminiText, getModelProviderStatus } from "./model-providers.mjs";
 import { researchTools, executeResearchTool, getResearchStatus } from "./research-web.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -85,12 +86,27 @@ function promptFor(agent) {
 }
 async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200, allowedToolNames = new Set(), agentId = "group", parentDeadlineAt = null) {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw Object.assign(new Error("Claude is not configured on the server. Add ANTHROPIC_API_KEY in the host's private environment settings."), { statusCode: 503 });
   const messages = [{ role: "user", content: task }];
   const tools = [
     ...(RESEARCH_AGENTS.has(agentId) ? researchTools : []),
     ...(process.env.GITHUB_TOKEN ? ivyGitHubTools.filter(tool => allowedToolNames.has(tool.name)) : [])
   ];
+  const textProvider = (process.env.WORKFORCE_TEXT_PROVIDER || "auto").toLowerCase();
+  const canUseGeminiText = Boolean(process.env.GEMINI_API_KEY) && tools.length === 0;
+  if ((textProvider === "gemini" || (!key && textProvider === "auto")) && canUseGeminiText) {
+    const result = await callGeminiText({ system, task, maxOutputTokens: Math.min(maxTokens, SPECIALIST_RUNTIME_BUDGET.maxOutputTokensPerCall), model: process.env.GEMINI_MODEL || "gemini-flash-latest" });
+    return { output: result.output, usage: result.usage, toolCalls: 0, provider: "gemini" };
+  }
+  if (!key) {
+    if (canUseGeminiText && textProvider !== "anthropic") {
+      const result = await callGeminiText({ system, task, maxOutputTokens: Math.min(maxTokens, SPECIALIST_RUNTIME_BUDGET.maxOutputTokensPerCall), model: process.env.GEMINI_MODEL || "gemini-flash-latest" });
+      return { output: result.output, usage: result.usage, toolCalls: 0, provider: "gemini" };
+    }
+    throw Object.assign(new Error(tools.length ? "Anthropic is required for this tool-enabled run. Add ANTHROPIC_API_KEY; Gemini text-only fallback is not used when tools are required." : "No compatible model provider is configured. Add ANTHROPIC_API_KEY or GEMINI_API_KEY in the host's private environment settings."), { statusCode: 503 });
+  }
+  if (textProvider === "gemini" && tools.length) {
+    // Keep tool-enabled runs on Anthropic until Gemini tool-call execution is implemented and tested.
+  }
   let lastData = null;
   let toolCalls = 0;
   const budget = agentId === "group" ? GROUP_RUNTIME_BUDGET : SPECIALIST_RUNTIME_BUDGET;
@@ -176,7 +192,7 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
   return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
 }
 export function registerAIWorkforceRoutes(app) {
-  app.get("/api/workforce/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", agentCount: allAgents.length, toolsEnabled: Boolean(process.env.GITHUB_TOKEN), safeExternalToolsEnabled: Boolean(process.env.GITHUB_TOKEN), externalActionsEnabled: false, github: githubCapabilityStatus(), writeActions: githubCapabilityStatus().writeToolsEnabled ? "enabled-for-write-allowlisted-repositories; feature-branch-and-PR-only" : "disabled-until-PRUDEN_GITHUB_WRITE_REPOS-is-configured", sharedContext: "process-memory", persistentHistory: false, research: getResearchStatus() }));
+  app.get("/api/workforce/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY), provider: process.env.ANTHROPIC_API_KEY ? "anthropic" : (process.env.GEMINI_API_KEY ? "gemini-text-fallback" : "unconfigured"), model: process.env.ANTHROPIC_API_KEY ? (process.env.ANTHROPIC_MODEL || "claude-sonnet-5") : (process.env.GEMINI_MODEL || "gemini-flash-latest"), modelProviders: getModelProviderStatus(), agentCount: allAgents.length, toolsEnabled: Boolean(process.env.GITHUB_TOKEN), safeExternalToolsEnabled: Boolean(process.env.GITHUB_TOKEN), externalActionsEnabled: false, github: githubCapabilityStatus(), writeActions: githubCapabilityStatus().writeToolsEnabled ? "enabled-for-write-allowlisted-repositories; feature-branch-and-PR-only" : "disabled-until-PRUDEN_GITHUB_WRITE_REPOS-is-configured", sharedContext: "process-memory", persistentHistory: false, research: getResearchStatus() }));
   app.get("/api/workforce/agents", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(getAIWorkforceDirectory()); });
   app.get("/api/workforce/group-context", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false }); });
   app.post("/api/workforce/run", async (req, res) => {
