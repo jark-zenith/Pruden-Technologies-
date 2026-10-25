@@ -1,0 +1,28 @@
+name: Ivy Finance Ledger Checks
+
+on:
+  push:
+    branches: ["feat/**"]
+  pull_request:
+    branches: ["feat/ptms-crm-finance-functional-modules"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install
+      - name: Typecheck and production build
+        run: npm run build
+      - name: Backend infrastructure smoke test
+        run: node scripts/smoke-test.mjs
