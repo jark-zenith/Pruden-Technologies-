@@ -5,6 +5,9 @@ const modules = [
   { name: "list_tasks", description: "Read the founder's tasks. Optional status filter.", input_schema: { type: "object", properties: { status: { type: "string", enum: ["planned","in_progress","blocked","completed","cancelled"] } }, required: [] } },
   { name: "list_approvals", description: "Read the founder's approval queue and statuses.", input_schema: { type: "object", properties: { status: { type: "string", enum: ["pending","approved","rejected","cancelled","executed"] } }, required: [] } },
   { name: "list_customers", description: "Read the founder's CRM customer and lead records. Never expose unnecessary personal details.", input_schema: { type: "object", properties: { status: { type: "string", enum: ["lead","active","inactive","archived"] } }, required: [] } },
+  { name: "list_financial_records", description: "Read the signed-in founder's finance log, including capital, income/revenue and expenses. Use for finance questions and never treat entries as verified bank transactions.", input_schema: { type: "object", properties: { kind: { type: "string", enum: ["capital","income","expense"] }, from_date: { type: "string" }, to_date: { type: "string" }, limit: { type: "integer", minimum: 1, maximum: 100 } }, required: [] } },
+  { name: "get_finance_summary", description: "Calculate totals for the signed-in founder's recorded capital, income/revenue and expenses over an optional date range. Results are based only on records in this workspace, not bank reconciliation.", input_schema: { type: "object", properties: { from_date: { type: "string" }, to_date: { type: "string" } }, required: [] } },
+  { name: "create_financial_record", description: "Record a capital contribution, income/revenue, or expense in the signed-in founder's finance log. Only create when the founder explicitly asks. This logs a record only; it does not send or verify money. Confirm amount, kind, category and date are known; never invent financial details.", input_schema: { type: "object", properties: { kind: { type: "string", enum: ["capital","income","expense"] }, amount: { type: "number", exclusiveMinimum: 0 }, currency: { type: "string", enum: ["KES"] }, category: { type: "string" }, description: { type: "string" }, occurred_on: { type: "string", description: "YYYY-MM-DD" }, external_reference: { type: ["string","null"] } }, required: ["kind","amount","category"] } },
   { name: "create_project", description: "Create a project in the founder's workspace. Only do this when the founder asks or clearly authorizes creating it.", input_schema: { type: "object", properties: { name: { type: "string" }, description: { type: "string" }, status: { type: "string", enum: ["planned","active","blocked","completed","archived"] }, priority: { type: "string", enum: ["low","medium","high","critical"] }, due_date: { type: ["string","null"] } }, required: ["name"] } },
   { name: "create_task", description: "Create a task in the founder's workspace. Only do this when asked or clearly authorized. project_id must be an existing project ID or null.", input_schema: { type: "object", properties: { title: { type: "string" }, description: { type: "string" }, project_id: { type: ["string","null"] }, status: { type: "string", enum: ["planned","in_progress","blocked","completed","cancelled"] }, priority: { type: "string", enum: ["low","medium","high","critical"] }, assigned_to: { type: "string" }, due_date: { type: ["string","null"] } }, required: ["title"] } },
   { name: "update_task_status", description: "Change a task status for the founder. Use a task ID obtained from list_tasks; never guess IDs.", input_schema: { type: "object", properties: { id: { type: "string" }, status: { type: "string", enum: ["planned","in_progress","blocked","completed","cancelled"] } }, required: ["id","status"] } },
@@ -67,6 +70,49 @@ export async function executeIvyOperation(name, input, accessToken) {
   if (name === "list_tasks") return await list("pruden_tasks", input.status);
   if (name === "list_approvals") return await list("pruden_approvals", input.status);
   if (name === "list_customers") return await list("pruden_customers", input.status);
+  const financeDate = (value, label) => {
+    if (value === undefined || value === null || value === "") return null;
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)) || new Date(value + "T00:00:00Z").toISOString().slice(0, 10) !== value) throw new Error(label + " must use a valid YYYY-MM-DD date.");
+    return value;
+  };
+  const financeQuery = async (filters = {}) => {
+    const fromDate = financeDate(filters.from_date, "Start date");
+    const toDate = financeDate(filters.to_date, "End date");
+    if (fromDate && toDate && fromDate > toDate) throw new Error("Start date must not be after end date.");
+    let query = client.from("pruden_financial_records").select("id,kind,amount,currency,category,description,occurred_on,source,external_reference,created_at,updated_at").eq("owner_id", ownerId).order("occurred_on", { ascending: false }).limit(Math.min(100, Math.max(1, Number(filters.limit) || 100)));
+    if (filters.kind) {
+      if (!["capital","income","expense"].includes(filters.kind)) throw new Error("Unsupported finance record type.");
+      query = query.eq("kind", filters.kind);
+    }
+    if (fromDate) query = query.gte("occurred_on", fromDate);
+    if (toDate) query = query.lte("occurred_on", toDate);
+    const { data, error } = await query;
+    if (error) throw new Error("Finance records could not be read: " + error.message);
+    return data || [];
+  };
+  if (name === "list_financial_records") return await financeQuery(input);
+  if (name === "get_finance_summary") {
+    const records = await financeQuery({ ...input, limit: 100 });
+    const totals = { capital: 0, income: 0, expense: 0, currency: "KES", records_count: records.length };
+    for (const record of records) totals[record.kind] += Number(record.amount);
+    totals.net_operating = Number((totals.income - totals.expense).toFixed(2));
+    return { period: { from_date: financeDate(input.from_date, "Start date"), to_date: financeDate(input.to_date, "End date") }, totals, note: "Based on up to 100 most recent matching workspace records; not bank-verified or double-entry reconciled." };
+  }
+  if (name === "create_financial_record") {
+    const kind = requireEnum(input.kind, ["capital","income","expense"]);
+    const amount = Number(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > 999999999999.99) throw new Error("Amount must be a positive number within the supported limit.");
+    const currency = input.currency === undefined ? "KES" : requireEnum(input.currency, ["KES"]);
+    const category = cleanString(input.category, 100);
+    if (!category) throw new Error("Finance category is required.");
+    const occurredOn = financeDate(input.occurred_on, "Transaction date") || new Date().toISOString().slice(0, 10);
+    const description = cleanString(input.description, 2000);
+    const externalReference = cleanString(input.external_reference, 200) || null;
+    const row = { owner_id: ownerId, kind, amount: Number(amount.toFixed(2)), currency, category, description, occurred_on: occurredOn, source: "manual", external_reference: externalReference };
+    const { data, error } = await client.from("pruden_financial_records").insert(row).select("id,kind,amount,currency,category,description,occurred_on,source,external_reference,created_at").single();
+    if (error) throw new Error("Finance record creation failed: " + error.message);
+    return { created: data, note: "Finance log entry saved. This does not move money, verify a payment, or reconcile bank records.", audit: await audit("finance.record_created", "financial_record", data.id, { kind, amount: data.amount, currency, category, occurred_on: occurredOn }) };
+  }
   if (name === "create_project") {
     const row = { owner_id: ownerId, name: cleanString(input.name, 120), description: cleanString(input.description, 4000), status: requireEnum(input.status, [...allowedStatuses.pruden_projects], "planned"), priority: requireEnum(input.priority, ["low","medium","high","critical"], "medium"), due_date: validDate(input.due_date) };
     if (!row.name) throw new Error("Project name is required.");
