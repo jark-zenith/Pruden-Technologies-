@@ -173,6 +173,18 @@ export const githubProjects: GitHubProject[] = [
     "deploymentServices": []
   },
   {
+    "name": "Deon-SI",
+    "repoUrl": "https://github.com/jark-zenith/Deon-SI",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": null,
+    "deploymentName": null,
+    "deploymentType": null,
+    "deploymentBranch": null,
+    "deploymentServices": []
+  },
+  {
     "name": "F.R.I.D.A.Y-",
     "repoUrl": "https://github.com/jark-zenith/F.R.I.D.A.Y-",
     "visibility": "public",
