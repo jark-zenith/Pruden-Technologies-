@@ -37,7 +37,7 @@ create table if not exists public.pruden_initiatives (
   estimated_budget_kes numeric(12,2) check (estimated_budget_kes is null or estimated_budget_kes >= 0),
   approved_budget_kes numeric(12,2) check (approved_budget_kes is null or approved_budget_kes >= 0),
   success_criteria text not null default '',
-  linked_project_id uuid,
+  linked_project_id uuid references public.pruden_projects(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (owner_id, idea_id)
@@ -81,6 +81,10 @@ create policy pruden_initiatives_insert_own on public.pruden_initiatives
       select 1 from public.pruden_ideas i
       where i.id = pruden_initiatives.idea_id and i.owner_id = (select auth.uid())
     )
+    and (pruden_initiatives.linked_project_id is null or exists (
+      select 1 from public.pruden_projects p
+      where p.id = pruden_initiatives.linked_project_id and p.owner_id = (select auth.uid())
+    ))
   );
 drop policy if exists pruden_initiatives_update_own on public.pruden_initiatives;
 create policy pruden_initiatives_update_own on public.pruden_initiatives
@@ -90,6 +94,10 @@ create policy pruden_initiatives_update_own on public.pruden_initiatives
       select 1 from public.pruden_ideas i
       where i.id = pruden_initiatives.idea_id and i.owner_id = (select auth.uid())
     )
+    and (pruden_initiatives.linked_project_id is null or exists (
+      select 1 from public.pruden_projects p
+      where p.id = pruden_initiatives.linked_project_id and p.owner_id = (select auth.uid())
+    ))
   );
 drop policy if exists pruden_initiatives_delete_own on public.pruden_initiatives;
 create policy pruden_initiatives_delete_own on public.pruden_initiatives
@@ -122,11 +130,11 @@ create policy pruden_initiative_finance_links_insert_own on public.pruden_initia
     owner_id = (select auth.uid())
     and exists (
       select 1 from public.pruden_initiatives i
-      where i.id = initiative_id and i.owner_id = (select auth.uid())
+      where i.id = pruden_initiative_finance_links.initiative_id and i.owner_id = (select auth.uid())
     )
     and exists (
       select 1 from public.pruden_financial_records f
-      where f.id = financial_record_id and f.owner_id = (select auth.uid()) and f.kind = 'expense'
+      where f.id = pruden_initiative_finance_links.financial_record_id and f.owner_id = (select auth.uid()) and f.kind = 'expense'
     )
   );
 drop policy if exists pruden_initiative_finance_links_delete_own on public.pruden_initiative_finance_links;
