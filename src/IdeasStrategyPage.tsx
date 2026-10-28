@@ -265,6 +265,45 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
     finally { setSaving(false); }
   }
 
+  async function linkExistingProject(initiative: Initiative, projectId: string) {
+    if (!projectId) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const { error: updateError } = await db().from("pruden_initiatives").update({ linked_project_id: projectId, updated_at: new Date().toISOString() }).eq("id", initiative.id).eq("owner_id", user.id);
+      if (updateError) throw updateError;
+      const auditSaved = await writeAudit("initiative.project_linked", "initiative", initiative.id, { project_id: projectId, existing_project: true });
+      auditNotice("Existing project linked to the initiative.", auditSaved); setRefreshKey(v => v + 1);
+    } catch (e) { setError(e instanceof Error ? e.message : "Existing project could not be linked."); }
+    finally { setSaving(false); }
+  }
+
+  async function linkExpense(initiative: Initiative, financialRecordId: string) {
+    if (!financialRecordId) return;
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const { data: linked, error: linkError } = await db().from("pruden_initiative_finance_links").insert({
+        owner_id: user.id, initiative_id: initiative.id, financial_record_id: financialRecordId
+      }).select("id").single();
+      if (linkError) throw linkError;
+      const auditSaved = await writeAudit("initiative.expense_linked", "initiative", initiative.id, { financial_record_id: financialRecordId, finance_link_id: linked.id });
+      auditNotice("Existing Finance expense linked. The original ledger record was not changed.", auditSaved);
+      setSelectedExpenseByInitiative(current => ({ ...current, [initiative.id]: "" }));
+      setRefreshKey(v => v + 1);
+    } catch (e) { setError(e instanceof Error ? e.message : "Finance expense could not be linked. It may already be assigned to another initiative."); }
+    finally { setSaving(false); }
+  }
+
+  async function unlinkExpense(initiative: Initiative, link: FinanceLink) {
+    setSaving(true); setError(""); setNotice("");
+    try {
+      const { error: deleteError } = await db().from("pruden_initiative_finance_links").delete().eq("id", link.id).eq("owner_id", user.id);
+      if (deleteError) throw deleteError;
+      const auditSaved = await writeAudit("initiative.expense_unlinked", "initiative", initiative.id, { financial_record_id: link.financial_record_id });
+      auditNotice("Finance link removed. The original ledger record was retained.", auditSaved); setRefreshKey(v => v + 1);
+    } catch (e) { setError(e instanceof Error ? e.message : "Finance link could not be removed."); }
+    finally { setSaving(false); }
+  }
+
   async function createFirstTask(initiative: Initiative) {
     setSaving(true); setError(""); setNotice("");
     try {
