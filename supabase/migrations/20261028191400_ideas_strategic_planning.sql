@@ -97,3 +97,40 @@ create policy pruden_initiatives_delete_own on public.pruden_initiatives
 
 grant select, insert, update, delete on public.pruden_ideas to authenticated;
 grant select, insert, update, delete on public.pruden_initiatives to authenticated;
+
+-- Explicit links to existing Finance expense rows; never duplicate expenses into the initiative ledger.
+create table if not exists public.pruden_initiative_finance_links (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  initiative_id uuid not null references public.pruden_initiatives(id) on delete cascade,
+  financial_record_id uuid not null references public.pruden_financial_records(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (financial_record_id)
+);
+
+create index if not exists pruden_initiative_finance_links_owner_idx
+  on public.pruden_initiative_finance_links (owner_id, initiative_id);
+
+alter table public.pruden_initiative_finance_links enable row level security;
+
+drop policy if exists pruden_initiative_finance_links_select_own on public.pruden_initiative_finance_links;
+create policy pruden_initiative_finance_links_select_own on public.pruden_initiative_finance_links
+  for select to authenticated using (owner_id = (select auth.uid()));
+drop policy if exists pruden_initiative_finance_links_insert_own on public.pruden_initiative_finance_links;
+create policy pruden_initiative_finance_links_insert_own on public.pruden_initiative_finance_links
+  for insert to authenticated with check (
+    owner_id = (select auth.uid())
+    and exists (
+      select 1 from public.pruden_initiatives i
+      where i.id = initiative_id and i.owner_id = (select auth.uid())
+    )
+    and exists (
+      select 1 from public.pruden_financial_records f
+      where f.id = financial_record_id and f.owner_id = (select auth.uid()) and f.kind = 'expense'
+    )
+  );
+drop policy if exists pruden_initiative_finance_links_delete_own on public.pruden_initiative_finance_links;
+create policy pruden_initiative_finance_links_delete_own on public.pruden_initiative_finance_links
+  for delete to authenticated using (owner_id = (select auth.uid()));
+
+grant select, insert, delete on public.pruden_initiative_finance_links to authenticated;
