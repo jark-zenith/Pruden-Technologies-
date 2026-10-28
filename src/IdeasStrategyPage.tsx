@@ -113,6 +113,20 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const db = () => requireSupabase();
 
+  async function writeAudit(action: string, entityType: string, entityId: string, details: Record<string, unknown> = {}) {
+    try {
+      const { error: auditError } = await db().from("pruden_audit_events").insert({
+        owner_id: user.id, actor_id: user.id, action, entity_type: entityType, entity_id: String(entityId), details
+      });
+      return !auditError;
+    } catch {
+      return false;
+    }
+  }
+  function auditNotice(message: string, auditSaved: boolean) {
+    setNotice(auditSaved ? message : message + " The record was saved, but its audit event could not be recorded; check audit-table permissions.");
+  }
+
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
@@ -146,15 +160,16 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
       if (!title || title.length > 160) throw new Error("Give the idea a title between 1 and 160 characters.");
       const estimate = form.estimated_cost_kes.trim() ? Number(form.estimated_cost_kes) : null;
       if (estimate !== null && (!Number.isFinite(estimate) || estimate < 0)) throw new Error("Estimated cost must be zero or greater.");
-      const { error: insertError } = await db().from("pruden_ideas").insert({
+      const { data: insertedIdea, error: insertError } = await db().from("pruden_ideas").insert({
         owner_id: user.id, title, description: form.description.trim(), source: "manual", category: form.category,
         priority: form.priority, time_horizon: form.time_horizon, expected_value: form.expected_value.trim(),
         estimated_cost_kes: estimate, evidence: "", risks: form.risks.trim(), strategic_fit: form.strategic_fit,
         review_status: "new", decision_status: "pending", implementation_status: "not_planned",
         target_date: form.target_date || null
-      });
+      }).select("id").single();
       if (insertError) throw insertError;
-      setForm(blankForm); setShowForm(false); setNotice("Idea saved to your workspace."); setRefreshKey(v => v + 1);
+      const auditSaved = await writeAudit("idea.created", "idea", insertedIdea.id, { source: "manual", priority: form.priority, time_horizon: form.time_horizon });
+      setForm(blankForm); setShowForm(false); auditNotice("Idea saved to your workspace.", auditSaved); setRefreshKey(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Idea could not be saved."); }
     finally { setSaving(false); }
   }
@@ -191,7 +206,7 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
       const risks = extract("RISKS");
       const expected = extract("EXPECTED VALUE");
       const success = extract("SUCCESS CRITERIA");
-      const { error: insertError } = await db().from("pruden_ideas").insert({
+      const { data: insertedIdea, error: insertError } = await db().from("pruden_ideas").insert({
         owner_id: user.id, title, description: reply, source: "ivy",
         category: allowedCategories.includes(categoryCandidate) ? categoryCandidate : "operations",
         priority: (["P0","P1","P2","P3"].includes(priorityCandidate) ? priorityCandidate : "P2"),
@@ -200,9 +215,10 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
         risks: [risks, success ? "Success criteria: " + success : ""].filter(Boolean).join("\n"),
         strategic_fit: "innovation", review_status: "under_review", decision_status: "pending",
         implementation_status: "not_planned", target_date: null
-      });
+      }).select("id").single();
       if (insertError) throw insertError;
-      setNotice("Ivy's proposal was saved as a draft. It has not been approved or implemented."); setRefreshKey(v => v + 1);
+      const auditSaved = await writeAudit("idea.proposed", "idea", insertedIdea.id, { source: "ivy", priority: priorityCandidate, time_horizon: horizonCandidate });
+      auditNotice("Ivy's proposal was saved as a draft. It has not been approved or implemented.", auditSaved); setRefreshKey(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Ivy proposal failed."); }
     finally { setGenerating(false); }
   }
@@ -221,7 +237,8 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
       }
       const { error: updateError } = await db().from("pruden_ideas").update({ decision_status: decision, review_status: "reviewed", implementation_status: decision === "approved" ? "planned" : idea.implementation_status, updated_at: new Date().toISOString() }).eq("id", idea.id).eq("owner_id", user.id);
       if (updateError) throw updateError;
-      setNotice(decision === "approved" ? "Idea approved and added to the initiatives roadmap. No spending or deployment was triggered." : decision === "rejected" ? "Idea rejected." : "Idea deferred for later review.");
+      const auditSaved = await writeAudit("idea.decision_recorded", "idea", idea.id, { decision, priority: idea.priority, time_horizon: idea.time_horizon });
+      auditNotice(decision === "approved" ? "Idea approved and added to the initiatives roadmap. No spending or deployment was triggered." : decision === "rejected" ? "Idea rejected." : "Idea deferred for later review.", auditSaved);
       setRefreshKey(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Decision could not be saved."); }
     finally { setSaving(false); }
@@ -234,7 +251,8 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
       const created = await createProject(user, { name: initiative.title.slice(0, 120), description: initiative.objective || "", status: "planned", priority: idea ? taskPriority[idea.priority] : "medium", due_date: initiative.target_date });
       const { error: updateError } = await db().from("pruden_initiatives").update({ linked_project_id: created.id, updated_at: new Date().toISOString() }).eq("id", initiative.id).eq("owner_id", user.id);
       if (updateError) throw updateError;
-      setNotice("Project created and linked to the initiative."); setRefreshKey(v => v + 1);
+      const auditSaved = await writeAudit("initiative.project_linked", "initiative", initiative.id, { project_id: created.id });
+      auditNotice("Project created and linked to the initiative.", auditSaved); setRefreshKey(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Project could not be created or linked. Check Projects and audit permissions."); }
     finally { setSaving(false); }
   }
@@ -257,7 +275,8 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
       const ideaStatus = status === "cancelled" ? "not_planned" : status;
       const { error: ideaError } = await db().from("pruden_ideas").update({ implementation_status: ideaStatus, updated_at: new Date().toISOString() }).eq("id", initiative.idea_id).eq("owner_id", user.id);
       if (ideaError) throw ideaError;
-      setNotice("Initiative status updated."); setRefreshKey(v => v + 1);
+      const auditSaved = await writeAudit("initiative.status_changed", "initiative", initiative.id, { status });
+      auditNotice("Initiative status updated.", auditSaved); setRefreshKey(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Initiative status could not be updated."); }
     finally { setSaving(false); }
   }
