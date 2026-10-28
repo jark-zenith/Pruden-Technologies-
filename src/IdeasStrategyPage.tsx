@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { ArrowRight, BrainCircuit, CalendarClock, Check, CircleAlert, Clock3, FolderKanban, Lightbulb, Plus, RefreshCw, ShieldCheck, Sparkles, Target, X } from "lucide-react";
 import { createProject, createTask, listProjects, type Project } from "./lib/operations";
@@ -38,7 +38,7 @@ const fieldStyle = { width: "100%", minWidth: 0, padding: "10px 12px", border: "
 const buttonStyle = { display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "9px 12px", border: "1px solid var(--border, #2b3a50)", borderRadius: 9, background: "var(--surface, #101827)", color: "inherit", cursor: "pointer", font: "inherit", fontSize: 12 } as const;
 const labelStyle = { display: "grid", gap: 6, fontSize: 12, color: "var(--muted, #8291a9)" } as const;
 
-function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "neutral" | "red" | "amber" | "blue" | "green" | "purple" }) {
+function Pill({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "red" | "amber" | "blue" | "green" | "purple" }) {
   const tones = {
     neutral: { bg: "#64748b20", fg: "var(--muted, #94a3b8)" },
     red: { bg: "#ef444420", fg: "#f87171" }, amber: { bg: "#f59e0b20", fg: "#fbbf24" },
