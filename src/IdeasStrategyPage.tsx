@@ -402,11 +402,34 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
         <div style={{ display: "grid", gap: 10 }}>{initiatives.map(initiative => {
           const linkedProject = projects.find(project => project.id === initiative.linked_project_id);
           const idea = ideas.find(item => item.id === initiative.idea_id);
+          const initiativeLinks = financeLinks.filter(link => link.initiative_id === initiative.id);
+          const linkedExpenseIds = initiativeLinks.map(link => link.financial_record_id);
+          const actualSpend = expenses.filter(expense => linkedExpenseIds.includes(expense.id)).reduce((total, expense) => total + Number(expense.amount), 0);
+          const unlinkedExpenses = expenses.filter(expense => !financeLinks.some(link => link.financial_record_id === expense.id));
           return <article key={initiative.id} style={{ border: "1px solid var(--border, #2b3a50)", borderRadius: 12, padding: 14, display: "grid", gap: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}><div><h3 style={{ margin: "0 0 6px", fontSize: 15 }}>{initiative.title}</h3><p style={{ margin: 0, color: "var(--muted, #8291a9)", fontSize: 12 }}>{initiative.objective}</p></div><Pill tone={initiative.status === "completed" ? "green" : initiative.status === "blocked" ? "red" : "blue"}>{initiative.status.replace(/_/g," ")}</Pill></div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", color: "var(--muted, #8291a9)", fontSize: 11 }}><span>Estimated: {money(initiative.estimated_budget_kes)}</span><span>· Approved: {money(initiative.approved_budget_kes)}</span><span>· Target: {initiative.target_date || "Not set"}</span></div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", color: "var(--muted, #8291a9)", fontSize: 11 }}><span>Estimated: {money(initiative.estimated_budget_kes)}</span><span>· Approved budget: {money(initiative.approved_budget_kes)}</span><span>· Target: {initiative.target_date || "Not set"}</span></div>
+            <div style={{ padding: 11, borderRadius: 9, background: "var(--surface-secondary, #111827)", border: "1px solid var(--border, #2b3a50)", display: "grid", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8, fontSize: 12 }}><strong>Finance · actual linked spend</strong><strong>{money(actualSpend)}</strong></div>
+              <div style={{ color: "var(--muted, #8291a9)", fontSize: 11 }}>{initiative.approved_budget_kes == null ? "No approved budget recorded. Estimated costs are not spending authorization." : "Remaining against approved budget: " + money(Number(initiative.approved_budget_kes) - actualSpend)}</div>
+              {initiativeLinks.map(link => {
+                const expense = expenses.find(item => item.id === link.financial_record_id);
+                if (!expense) return null;
+                return <div key={link.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 11, flexWrap: "wrap" }}>
+                  <span>{expense.occurred_on} · {expense.category} · {expense.description || "Expense"} · {money(Number(expense.amount))}</span>
+                  <button style={buttonStyle} disabled={saving} onClick={() => void unlinkExpense(initiative, link)}>Unlink</button>
+                </div>;
+              })}
+              {unlinkedExpenses.length > 0 && <div style={{ display: "flex", alignItems: "end", gap: 8, flexWrap: "wrap" }}>
+                <label style={{ ...labelStyle, flex: "1 1 220px" }}>Link existing expense<select style={fieldStyle} value={selectedExpenseByInitiative[initiative.id] || ""} onChange={e => setSelectedExpenseByInitiative(current => ({ ...current, [initiative.id]: e.target.value }))}><option value="">Choose a recorded expense…</option>{unlinkedExpenses.map(expense => <option key={expense.id} value={expense.id}>{expense.occurred_on} · {expense.category} · {money(Number(expense.amount))}</option>)}</select></label>
+                <button style={buttonStyle} disabled={saving || !selectedExpenseByInitiative[initiative.id]} onClick={() => void linkExpense(initiative, selectedExpenseByInitiative[initiative.id])}>Link expense</button>
+              </div>}
+            </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              {linkedProject ? <Pill tone="green"><FolderKanban size={12} /> Linked: {linkedProject.name}</Pill> : <button style={buttonStyle} disabled={saving} onClick={() => void createProjectFor(initiative)}><FolderKanban size={14} /> Create & link project</button>}
+              {linkedProject ? <Pill tone="green"><FolderKanban size={12} /> Linked: {linkedProject.name}</Pill> : <>
+                {projects.length > 0 && <label style={{ ...labelStyle, flex: "1 1 220px" }}>Link existing project<select style={fieldStyle} value="" onChange={e => void linkExistingProject(initiative, e.target.value)} disabled={saving}><option value="">Choose a project…</option>{projects.map(project => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>}
+                <button style={buttonStyle} disabled={saving} onClick={() => void createProjectFor(initiative)}><FolderKanban size={14} /> Create & link project</button>
+              </>}
               <button style={buttonStyle} disabled={saving} onClick={() => void createFirstTask(initiative)}><Plus size={14} /> Create planning task</button>
               {initiative.status !== "in_progress" && initiative.status !== "completed" && <button style={buttonStyle} disabled={saving} onClick={() => void updateInitiativeStatus(initiative, "in_progress")}>Start</button>}
               {initiative.status !== "completed" && <button style={buttonStyle} disabled={saving} onClick={() => void updateInitiativeStatus(initiative, "completed")}><Check size={14} /> Mark complete</button>}
