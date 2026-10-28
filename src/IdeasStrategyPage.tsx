@@ -17,6 +17,8 @@ type Initiative = {
   approved_budget_kes: number | null; success_criteria: string; linked_project_id: string | null;
   created_at: string; updated_at: string;
 };
+type FinanceExpense = { id: string; kind: "income" | "expense"; amount: number; category: string; description: string; occurred_on: string };
+type FinanceLink = { id: string; owner_id: string; initiative_id: string; financial_record_id: string; created_at: string };
 type IdeaForm = {
   title: string; description: string; category: string; priority: Priority; time_horizon: string;
   expected_value: string; estimated_cost_kes: string; risks: string; strategic_fit: string; target_date: string;
@@ -100,6 +102,9 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [expenses, setExpenses] = useState<FinanceExpense[]>([]);
+  const [financeLinks, setFinanceLinks] = useState<FinanceLink[]>([]);
+  const [selectedExpenseByInitiative, setSelectedExpenseByInitiative] = useState<Record<string, string>>({});
   const [form, setForm] = useState<IdeaForm>(blankForm);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
@@ -130,16 +135,22 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const [ideaResult, initiativeResult, projectRows] = await Promise.all([
+      const [ideaResult, initiativeResult, projectRows, expenseResult, financeLinkResult] = await Promise.all([
         db().from("pruden_ideas").select("*").eq("owner_id", user.id).order("updated_at", { ascending: false }).limit(300),
         db().from("pruden_initiatives").select("*").eq("owner_id", user.id).order("updated_at", { ascending: false }).limit(200),
-        listProjects(user)
+        listProjects(user),
+        db().from("pruden_financial_records").select("id,kind,amount,category,description,occurred_on").eq("owner_id", user.id).eq("kind", "expense").order("occurred_on", { ascending: false }).limit(300),
+        db().from("pruden_initiative_finance_links").select("id,owner_id,initiative_id,financial_record_id,created_at").eq("owner_id", user.id)
       ]);
       if (ideaResult.error) throw ideaResult.error;
       if (initiativeResult.error) throw initiativeResult.error;
+      if (expenseResult.error) throw expenseResult.error;
+      if (financeLinkResult.error) throw financeLinkResult.error;
       setIdeas((ideaResult.data || []) as Idea[]);
       setInitiatives((initiativeResult.data || []) as Initiative[]);
       setProjects(projectRows);
+      setExpenses((expenseResult.data || []) as FinanceExpense[]);
+      setFinanceLinks((financeLinkResult.data || []) as FinanceLink[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ideas could not be loaded. Check that the database migration is applied and RLS is configured.");
     } finally { setLoading(false); }
