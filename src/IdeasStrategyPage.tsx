@@ -211,8 +211,6 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
   async function decideIdea(idea: Idea, decision: "approved" | "rejected" | "deferred") {
     setSaving(true); setError(""); setNotice("");
     try {
-      const { error: updateError } = await db().from("pruden_ideas").update({ decision_status: decision, review_status: "reviewed", implementation_status: decision === "approved" ? "planned" : idea.implementation_status, updated_at: new Date().toISOString() }).eq("id", idea.id).eq("owner_id", user.id);
-      if (updateError) throw updateError;
       if (decision === "approved" && !initiatives.some(item => item.idea_id === idea.id)) {
         const { error: initiativeError } = await db().from("pruden_initiatives").insert({
           owner_id: user.id, idea_id: idea.id, title: idea.title, objective: idea.description,
@@ -222,6 +220,8 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
         });
         if (initiativeError) throw initiativeError;
       }
+      const { error: updateError } = await db().from("pruden_ideas").update({ decision_status: decision, review_status: "reviewed", implementation_status: decision === "approved" ? "planned" : idea.implementation_status, updated_at: new Date().toISOString() }).eq("id", idea.id).eq("owner_id", user.id);
+      if (updateError) throw updateError;
       setNotice(decision === "approved" ? "Idea approved and added to the initiatives roadmap. No spending or deployment was triggered." : decision === "rejected" ? "Idea rejected." : "Idea deferred for later review.");
       setRefreshKey(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Decision could not be saved."); }
@@ -255,10 +255,9 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
     try {
       const { error: updateError } = await db().from("pruden_initiatives").update({ status, updated_at: new Date().toISOString() }).eq("id", initiative.id).eq("owner_id", user.id);
       if (updateError) throw updateError;
-      if (status === "completed") {
-        const { error: ideaError } = await db().from("pruden_ideas").update({ implementation_status: "completed", updated_at: new Date().toISOString() }).eq("id", initiative.idea_id).eq("owner_id", user.id);
-        if (ideaError) throw ideaError;
-      }
+      const ideaStatus = status === "cancelled" ? "not_planned" : status;
+      const { error: ideaError } = await db().from("pruden_ideas").update({ implementation_status: ideaStatus, updated_at: new Date().toISOString() }).eq("id", initiative.idea_id).eq("owner_id", user.id);
+      if (ideaError) throw ideaError;
       setNotice("Initiative status updated."); setRefreshKey(v => v + 1);
     } catch (e) { setError(e instanceof Error ? e.message : "Initiative status could not be updated."); }
     finally { setSaving(false); }
