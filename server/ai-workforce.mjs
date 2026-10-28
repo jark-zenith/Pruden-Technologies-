@@ -93,15 +93,17 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
   ];
   const textProvider = (process.env.WORKFORCE_TEXT_PROVIDER || "auto").toLowerCase();
   const canUseGeminiText = Boolean(process.env.GEMINI_API_KEY) && tools.length === 0;
-  if ((textProvider === "gemini" || (!key && textProvider === "auto")) && canUseGeminiText) {
-    const result = await callGeminiText({ system, task, maxOutputTokens: Math.min(maxTokens, SPECIALIST_RUNTIME_BUDGET.maxOutputTokensPerCall), model: process.env.GEMINI_MODEL || "gemini-flash-latest" });
-    return { output: result.output, usage: result.usage, toolCalls: 0, provider: "gemini" };
-  }
-  if (!key) {
-    if (canUseGeminiText && textProvider !== "anthropic") {
+  if ((textProvider === "gemini" || textProvider === "auto") && canUseGeminiText) {
+    try {
       const result = await callGeminiText({ system, task, maxOutputTokens: Math.min(maxTokens, SPECIALIST_RUNTIME_BUDGET.maxOutputTokensPerCall), model: process.env.GEMINI_MODEL || "gemini-flash-latest" });
       return { output: result.output, usage: result.usage, toolCalls: 0, provider: "gemini" };
+    } catch (error) {
+      console.warn(JSON.stringify({ event: "workforce_gemini_text_failed", agentId, fallback: Boolean(key && textProvider === "auto"), status: Number(error?.statusCode) || 502, at: new Date().toISOString() }));
+      if (!key || textProvider === "gemini") throw error;
+      // In auto mode, retain availability by falling back to Anthropic if Gemini is misconfigured or quota-limited.
     }
+  }
+  if (!key) {
     throw Object.assign(new Error(tools.length ? "Anthropic is required for this tool-enabled run. Add ANTHROPIC_API_KEY; Gemini text-only fallback is not used when tools are required." : "No compatible model provider is configured. Add ANTHROPIC_API_KEY or GEMINI_API_KEY in the host's private environment settings."), { statusCode: 503 });
   }
   if (textProvider === "gemini" && tools.length) {

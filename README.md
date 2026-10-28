@@ -74,6 +74,23 @@ Apply the SQL migrations in `supabase/migrations` to the intended Supabase proje
 - The audit trail is best-effort unless its write result is checked and the database permissions are configured. A successful business write must not be falsely reported as audited if audit insertion fails.
 - Verify the live health endpoint, private unlock flow, Supabase access, Ivy provider request, and production build independently.
 
+
+## Ideas & Strategic Planning
+
+The Ideas & Strategic Planning module adds owner-scoped idea capture and an initiative roadmap without replacing existing project, task, Finance, approval, or AI Workforce records.
+
+- Manual ideas and Ivy-generated proposals are stored separately by source and are not automatically approved.
+- Priorities are P0 (critical), P1 (high), P2 (normal), and P3 (low); time horizons are immediate, short-term, mid-term, and long-term.
+- Approving an idea creates an initiative record. Project creation and planning-task creation are explicit user actions.
+- Estimated costs and proposed budgets are planning metadata, not Finance ledger entries or proof of available funds.
+- Apply `supabase/migrations/20261028191400_ideas_strategic_planning.sql` to the intended Supabase project before using the module. Verify authenticated-owner RLS policies in the target environment.
+
+## Gemini provider
+
+`server/model-providers.mjs` supports Gemini text generation through `GEMINI_API_KEY`. The workforce can use Gemini for text-only tasks when provider selection permits; tool-enabled runs remain on Anthropic until Gemini tool-call execution is implemented and tested. Ivy's normal tool-enabled chat remains on Anthropic; the Ideas module uses a bounded text-only Ivy proposal endpoint that prefers Gemini when configured.
+
+In the private PTMS workspace, **AI Workforce → Test Gemini** sends a minimal live request and reports only success/failure, model, and latency. It never returns or logs the API key. A configured environment variable alone does not prove the key is valid, the model is available, or quota remains. Configure `GEMINI_API_KEY` in the private runtime environment and optionally `GEMINI_MODEL` / `WORKFORCE_TEXT_PROVIDER`; never place credentials in frontend variables or source control.
+
 ## Project status
 
 This README describes the repository's code and intended setup. It does not claim that all integrations are configured, the new Finance migration has been applied to production, or a deployed app has passed live read/write tests. Those states must be confirmed in the target environment.

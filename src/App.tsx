@@ -7,6 +7,7 @@ import WebsiteInboxPage from "./WebsiteInboxPage";
 import IvyAssistant, { IvySettingsPanel } from "./IvyAssistant";
 import IvyMediaDesk from "./IvyMediaDesk";
 import BusinessModules from "./BusinessModules";
+import IdeasStrategyPage, { IdeasDashboardWidget } from "./IdeasStrategyPage";
 import type { User } from "@supabase/supabase-js";
 import { listProjects, createProject, listTasks, createTask, updateTaskStatus, listApprovals } from "./lib/operations";
 import { githubProjects } from "./githubProjects";
@@ -22,13 +23,14 @@ import {
 type ModuleKey =
   | "Overview" | "Projects" | "Tasks" | "Website Inbox" | "AI Workforce" | "Approvals"
   | "Customers & CRM" | "Finance" | "Products & Services" | "Infrastructure" | "Social Media Monitoring"
-  | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub";
+  | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub" | "Ideas & Strategy";
 
 type NavItem = { label: ModuleKey; icon: LucideIcon; group: string; badge?: string };
 
 const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, group: "WORKSPACE" },
   { label: "Projects", icon: FolderKanban, group: "WORKSPACE" },
+  { label: "Ideas & Strategy", icon: Sparkles, group: "WORKSPACE", badge: "NEW" },
   { label: "Tasks", icon: ListTodo, group: "WORKSPACE" },
   { label: "Website Inbox", icon: Mail, group: "WORKSPACE", badge: "NEW" },
   { label: "AI Workforce", icon: Bot, group: "INTELLIGENCE" },
@@ -50,6 +52,7 @@ type ApprovalView = { id: string; title: string; detail: string; risk: string; s
 
 const descriptions: Record<ModuleKey, string> = {
   "Overview": "Your operating picture, priorities and decisions in one place.",
+  "Ideas & Strategy": "Capture opportunities, prioritize delivery, and turn approved ideas into initiatives.",
   "Projects": "Track outcomes, owners, milestones, budgets and delivery health.",
   "Tasks": "Turn priorities into owned work with acceptance criteria and evidence.",
   "Website Inbox": "Review applications, contact requests and feedback from your live websites.",
@@ -291,6 +294,8 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
 
               <LiveProjectShowcase />
 
+              <IdeasDashboardWidget user={user} onOpen={() => chooseModule("Ideas & Strategy")} />
+
               <section className="metric-grid" aria-label="Workspace overview metrics">
                 <article className="metric-card"><div className="metric-top"><span>Active projects</span><span className="metric-icon blue"><FolderKanban size={17} /></span></div><div className="metric-value">{String(projects.filter((p) => p.status === "active").length).padStart(2, "0")} <small>live</small></div><div className="metric-foot"><span className="metric-note"><Activity size={13} /> Supabase records</span><span className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
                 <article className="metric-card"><div className="metric-top"><span>Open tasks</span><span className="metric-icon cyan"><ListTodo size={17} /></span></div><div className="metric-value">{String(localTasks.filter((t) => !["Completed", "Cancelled"].includes(t.state)).length).padStart(2, "0")} <small>live</small></div><div className="metric-foot"><span className="metric-note">Persisted task records</span><span className="mini-bars cyan-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
@@ -356,6 +361,7 @@ function ModulePage({ active, user, onCreateTask, localTasks, projects, approval
     {active === "Projects" ? <div className="panel module-panel"><SectionHeading eyebrow="PORTFOLIO" title="Project register" right={<span className="neutral-tag">Supabase records</span>} />{projects.map((project) => <div className="module-record" key={project.id}><span className={`project-symbol ${project.tone}`}><FolderKanban size={17} /></span><div className="record-main"><strong>{project.name}</strong><p>{project.tag} · {project.owner}</p><div className="progress-track"><span className={project.tone} style={{ width: `${project.progress}%` }} /></div></div><span className="status-pill"><StatusDot tone={project.tone} />{project.status}</span></div>)}</div>
     : active === "Tasks" ? <div className="panel module-panel"><SectionHeading eyebrow="DELIVERY" title="Task register" right={<span className="neutral-tag">{localTasks.length} saved records</span>} /><div className="module-controls"><label className="table-search"><Search size={15} /><input value={localSearch} onChange={(event) => setLocalSearch(event.target.value)} placeholder="Filter tasks..." /></label><div className="segmented">{["All", "Planned", "In progress"].map((name) => <button className={tab === name ? "selected" : ""} key={name} onClick={() => setTab(name)}>{name}</button>)}</div></div>{localTasks.filter((task) => (tab === "All" || task.state === tab) && task.title.toLowerCase().includes(localSearch.toLowerCase())).map((task) => <div className="task-record" key={task.title}><span className="task-check"><Check size={13} /></span><div className="record-main"><strong>{task.title}</strong><p>{task.project} · {task.owner}</p></div><span className={`priority-tag ${task.priority.toLowerCase()}`}>{task.priority}</span><span className="task-state">{task.state}</span><button className="text-button" onClick={() => onToggleTask(task)}>{task.state === "Completed" ? "Reopen" : "Complete"}</button></div>)}</div>
     : active === "Approvals" ? <div className="panel module-panel"><SectionHeading eyebrow="HUMAN CONTROL" title="Approval register" right={<span className="neutral-tag">Human approval required</span>} />{approvals.map((approval) => <div className="module-record" key={approval.id}><span className="approval-symbol"><ShieldCheck size={16} /></span><div className="record-main"><strong>{approval.title}</strong><p>{approval.detail}</p></div><span className="approval-tag">{approval.risk}</span><span className="status-pill">{approval.status}</span></div>)}<div className="approval-footer"><LockKeyhole size={14} /> Approvals are records of intent until a secure executor is implemented.</div></div>
+    : active === "Ideas & Strategy" ? <IdeasStrategyPage user={user} />
     : active === "AI Workforce" ? <AIWorkforcePage />
     : active === "Reports & Settings" ? <IvySettingsPanel />
      : <div className="module-cards"><article className="panel module-placeholder"><span className="large-module-icon"><Icon size={23} /></span><p className="eyebrow">MODULE FOUNDATION</p><h2>{active}</h2><p>{descriptions[active]}</p><div className="placeholder-status"><StatusDot tone="amber" /> Awaiting backend implementation</div></article><article className="panel module-checklist"><SectionHeading eyebrow="IMPLEMENTATION CHECKLIST" title="What comes next" /><div className="checklist-row"><span>01</span><div><strong>Define data and access rules</strong><p>Specify record ownership, visibility and permitted actions.</p></div></div><div className="checklist-row"><span>02</span><div><strong>Implement server API</strong><p>Validate inputs and enforce role permissions on every request.</p></div></div><div className="checklist-row"><span>03</span><div><strong>Connect and verify</strong><p>Test failure cases before displaying a connected status.</p></div></div></article></div>}

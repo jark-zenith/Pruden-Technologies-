@@ -10,7 +10,7 @@ type Agent = {
 };
 type Department = { id: string; name: string; lead: string; independent?: boolean; agents: Agent[] };
 type Registry = { ivy: Agent; departments: Department[]; controls?: { autonomy?: string; toolsEnabled?: boolean; externalActionsEnabled?: boolean } };
-type WorkforceStatus = { configured: boolean; provider: string; model: string; agentCount: number; toolsEnabled: boolean; safeExternalToolsEnabled?: boolean; externalActionsEnabled: boolean; github?: { status: string; approvedRepositories?: string[] }; writeActions?: string };
+type WorkforceStatus = { configured: boolean; provider: string; model: string; agentCount: number; toolsEnabled: boolean; safeExternalToolsEnabled?: boolean; externalActionsEnabled: boolean; github?: { status: string; approvedRepositories?: string[] }; writeActions?: string; modelProviders?: { gemini?: { configured: boolean; model: string; supportsWorkforceTools: boolean; mode: string }; anthropic?: { configured: boolean; model: string; supportsWorkforceTools: boolean } } };
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const defaultColor = "#66aaff";
@@ -25,6 +25,7 @@ export default function AIWorkforcePage() {
   const [error, setError] = useState("");
   const [loadingRegistry, setLoadingRegistry] = useState(true);
   const [running, setRunning] = useState(false);
+  const [geminiTest, setGeminiTest] = useState<{ state: "idle" | "testing" | "success" | "failed"; message: string }>({ state: "idle", message: "" });
 
   useEffect(() => {
     let alive = true;
@@ -38,6 +39,18 @@ export default function AIWorkforcePage() {
       .finally(() => { if (alive) setLoadingRegistry(false); });
     return () => { alive = false; };
   }, []);
+
+  async function testGeminiProvider() {
+    setGeminiTest({ state: "testing", message: "Sending a small live test request to Gemini…" });
+    try {
+      const response = await fetch("/api/workforce/provider-test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.success) throw new Error(data.error || data.message || "Gemini test did not pass.");
+      setGeminiTest({ state: "success", message: "Live Gemini request succeeded · " + data.model + " · " + data.latencyMs + " ms" });
+    } catch (e) {
+      setGeminiTest({ state: "failed", message: e instanceof Error ? e.message : "Gemini test failed." });
+    }
+  }
 
   const agents = useMemo(() => registry ? [
     { ...registry.ivy, department: "Executive Office" },
@@ -79,9 +92,10 @@ export default function AIWorkforcePage() {
   return <section className="module-page workforce-page">
     <div className="module-title-row">
       <div><p className="eyebrow">INTELLIGENCE / WORKFORCE</p><h1>AI Workforce</h1><p className="welcome-subtitle">Your AI departments, under Founder authority.</p></div>
-      <span className={status?.configured ? "workforce-status online" : "workforce-status offline"}><span />{status?.configured ? "Claude configured" : "Claude not configured"}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><span className={status?.configured ? "workforce-status online" : "workforce-status offline"}><span />{status?.modelProviders?.gemini?.configured ? "Gemini key configured" : status?.configured ? "Anthropic configured" : "No model key configured"}</span><button className="secondary-button" onClick={() => void testGeminiProvider()} disabled={geminiTest.state === "testing"}><Sparkles size={14} />{geminiTest.state === "testing" ? "Testing Gemini…" : "Test Gemini"}</button></div>
     </div>
-    <div className="workforce-notice"><ShieldCheck size={17} /><div><strong>Safe tool access · write actions still gated</strong><p>When GitHub is configured on the private server, agents can inspect allowlisted repositories, branches, commits, files, issues and pull requests. Repository writes, outbound messages, spending and deployments remain disabled until approval controls are implemented.</p></div></div>
+    <div className="workforce-notice"><ShieldCheck size={17} /><div><strong>Safe tool access · write actions still gated</strong><p>Tool-enabled agent runs continue to use the provider that supports their tools. Gemini is currently text-only; tool-enabled tasks stay on Anthropic until Gemini tool calling is implemented and tested.</p></div></div>
+    {geminiTest.state !== "idle" && <div role={geminiTest.state === "failed" ? "alert" : "status"} style={{ margin: "0 0 14px", padding: 12, borderRadius: 10, border: "1px solid " + (geminiTest.state === "success" ? "#10b98155" : geminiTest.state === "failed" ? "#ef444455" : "var(--border, #2b3a50)"), color: geminiTest.state === "success" ? "#34d399" : geminiTest.state === "failed" ? "#f87171" : "inherit", fontSize: 12 }}>{geminiTest.message}</div>}
     <div className="workforce-metrics">
       <article className="metric-card"><div className="metric-top"><span>AI identities</span><span className="metric-icon violet"><Bot size={17} /></span></div><div className="metric-value">{status?.agentCount ?? (registry ? agents.length : "—")} <small>registered</small></div></article>
       <article className="metric-card"><div className="metric-top"><span>Departments</span><span className="metric-icon blue"><Activity size={17} /></span></div><div className="metric-value">{registry?.departments.length ?? "—"} <small>operational groups</small></div></article>
