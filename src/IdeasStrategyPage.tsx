@@ -188,7 +188,6 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
       const horizonCandidate = extract("HORIZON").toLowerCase().replace(/[^a-z_]/g, "");
       const costRaw = extract("ESTIMATED COST KES").replace(/,/g, "");
       const cost = /^\\d+(?:\\.\\d+)?$/.test(costRaw) ? Number(costRaw) : null;
-      const description = extract("DESCRIPTION") || reply;
       const risks = extract("RISKS");
       const expected = extract("EXPECTED VALUE");
       const success = extract("SUCCESS CRITERIA");
