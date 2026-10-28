@@ -79,7 +79,7 @@ create policy pruden_initiatives_insert_own on public.pruden_initiatives
     owner_id = (select auth.uid())
     and exists (
       select 1 from public.pruden_ideas i
-      where i.id = idea_id and i.owner_id = (select auth.uid())
+      where i.id = pruden_initiatives.idea_id and i.owner_id = (select auth.uid())
     )
   );
 drop policy if exists pruden_initiatives_update_own on public.pruden_initiatives;
@@ -88,7 +88,7 @@ create policy pruden_initiatives_update_own on public.pruden_initiatives
     owner_id = (select auth.uid())
     and exists (
       select 1 from public.pruden_ideas i
-      where i.id = idea_id and i.owner_id = (select auth.uid())
+      where i.id = pruden_initiatives.idea_id and i.owner_id = (select auth.uid())
     )
   );
 drop policy if exists pruden_initiatives_delete_own on public.pruden_initiatives;
