@@ -75,15 +75,11 @@ export default function AIWorkforcePage() {
     setRunning(true);
     setError("");
     try {
-      const conversation = nextHistory.map((item) => (item.role === "user" ? "FOUNDER" : selectedAgent.name.toUpperCase()) + ": " + item.content).join("
-
-");
+      const conversation = nextHistory.map((item) => (item.role === "user" ? "FOUNDER" : selectedAgent.name.toUpperCase()) + ": " + item.content).join("\n\n");
       const response = await fetch("/api/workforce/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: selectedAgent.id, task: "Continue this text conversation in your assigned role. Follow your registered personality, responsibilities, and restrictions. Previous conversation:
-
-" + conversation })
+        body: JSON.stringify({ agentId: selectedAgent.id, task: "Continue this text conversation in your assigned role. Follow your registered personality, responsibilities, and restrictions. Previous conversation:\n\n" + conversation })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Agent request failed.");
