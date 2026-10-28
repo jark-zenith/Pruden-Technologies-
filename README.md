@@ -83,6 +83,7 @@ The Ideas & Strategic Planning module adds owner-scoped idea capture and an init
 - Priorities are P0 (critical), P1 (high), P2 (normal), and P3 (low); time horizons are immediate, short-term, mid-term, and long-term.
 - Approving an idea creates an initiative record. Project creation and planning-task creation are explicit user actions.
 - Estimated costs and proposed budgets are planning metadata, not Finance ledger entries or proof of available funds.
+- Initiative Finance panels can link existing owner-scoped expense records for actual-spend reporting; they never copy or rewrite ledger entries.
 - Apply `supabase/migrations/20261028192135_ideas_strategic_planning.sql` to the intended Supabase project before using the module. Verify authenticated-owner RLS policies in the target environment.
 
 ## Gemini provider
