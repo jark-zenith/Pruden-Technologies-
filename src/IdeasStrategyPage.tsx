@@ -172,13 +172,13 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
         "Do not invent current balances, incidents, users, or production failures. Mark unknowns explicitly. A recommendation is not an approval.",
         "Known context: PTMS has project/task management, Finance, CRM, Approvals, and an AI Workforce. Current user asks for an integrated Ideas & Strategic Planning module."
       ].join("\n");
-      const response = await fetch("/api/ivy/chat", {
+      const response = await fetch("/api/ivy/idea", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: [{ role: "user", content: prompt }], accessToken: sessionData.session.access_token, context: { activeModule: "Ideas & Strategy", workspace: { projects: projects.map(p => ({ name: p.name, status: p.status })), tasks: [], approvals: [], repositories: [], backendStatus: "connected" } } })
+        body: JSON.stringify({ task: prompt, accessToken: sessionData.session.access_token, workspace: { projects: projects.map(p => ({ name: p.name, status: p.status })) } })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Ivy could not generate a proposal. Check the configured provider and server logs.");
-      const reply = String(data.reply || "").trim();
+      const reply = String(data.output || data.reply || "").trim();
       if (!reply) throw new Error("Ivy returned an empty proposal.");
       const extract = (label: string) => new RegExp("^" + label + ":\\s*(.*)$", "im").exec(reply)?.[1]?.trim() || "";
       const title = extract("TITLE").replace(/^["']|["']$/g, "").slice(0, 160) || "Ivy strategic proposal";
