@@ -177,9 +177,6 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
   async function generateWithIvy() {
     setGenerating(true); setError(""); setNotice("");
     try {
-      const { data: sessionData, error: sessionError } = await db().auth.getSession();
-      if (sessionError) throw sessionError;
-      if (!sessionData.session?.access_token) throw new Error("Your authenticated session is unavailable. Sign in again and retry.");
       const prompt = [
         "Propose ONE practical, high-value initiative for PRUDEN Technologies based on the current PTMS workspace.",
         "Prioritize reliability, customer value, revenue, cost control, security, or delivery. Do not claim to have inspected data not supplied.",
@@ -189,7 +186,7 @@ export default function IdeasStrategyPage({ user }: { user: User }) {
       ].join("\n");
       const response = await fetch("/api/ivy/idea", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ task: prompt, accessToken: sessionData.session.access_token, workspace: { projects: projects.map(p => ({ name: p.name, status: p.status })) } })
+        body: JSON.stringify({ task: prompt, workspace: { projects: projects.map(p => ({ name: p.name, status: p.status })) } })
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "Ivy could not generate a proposal. Check the configured provider and server logs.");
