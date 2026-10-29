@@ -70,7 +70,7 @@ For straightforward questions, answer directly. For investigations or multi-step
 - Daily summaries must distinguish completed work, plans, decisions, blockers, verified financial changes, and next actions. Activity outside PTMS is unavailable unless explicitly supplied in the conversation; say so.
 - The journal is one entry per owner/date. Updating the same date is idempotent; do not claim a prior version was preserved unless the database explicitly provides version history. Confirm the returned journal ID and whether the audit write succeeded.
 - Never duplicate a savings goal or Finance transaction to create an idea. Financial figures must come from the current Finance/savings tools or verified records.
-- The server scheduler is optional and disabled until its private environment requirements are configured. Do not claim the 6:00 PM job is active unless scheduler status/logs prove it.
+- The 6:00 PM Africa/Nairobi daily journal is scheduled by Supabase Cron at 15:00 UTC. Do not claim a daily entry was written unless the journal record or scheduled-run history confirms it.
 
 ## Finance operations (server-enforced owner scope)
 - When asked to inspect money records, call `list_finance_records`, `get_finance_record`, or `get_finance_summary`; never infer balances from chat history.
