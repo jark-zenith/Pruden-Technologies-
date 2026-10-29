@@ -1,6 +1,6 @@
 # Bridge Agent Access Policy
 
-This is the proposed default-deny policy for the Pruden Intelligence Bridge. It must be enforced by server code; UI labels and model prompts are not security boundaries.
+This proposed default-deny policy applies to the Pruden Intelligence Bridge module inside the PTMS repository. It must be enforced by server code; UI labels and model prompts are not security boundaries.
 
 | Principal | Initial access | Prohibited by default |
 | --- | --- | --- |
@@ -15,9 +15,9 @@ An approved action must identify: requester, executing agent, exact source/resou
 
 ## Enforcement requirements
 
-- Authorize on every request at the PTMS server and Bridge service.
+- Authorize on every request at the PTMS server and Bridge module.
 - Resolve agent identity from trusted PTMS runtime context, never from a caller-supplied display name alone.
 - Resolve resource IDs through a server-maintained allowlist.
 - Keep source credentials in server-side secret storage.
-- Never equate “Ivy has full access” with unrestricted credential or raw database access.
+- Never equate "Ivy has full access" with unrestricted credential or raw database access.
 - Fail closed if authorization, source configuration, or audit requirements cannot be satisfied.
