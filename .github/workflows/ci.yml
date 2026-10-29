@@ -25,6 +25,8 @@ jobs:
         run: npm run build
       - name: Agent tool permission tests
         run: node --test server/ai-workforce.test.mjs
+      - name: Project Intelligence Bridge policy tests
+        run: node --test server/project-intelligence-bridge.test.mjs
       - name: Atlas web research tool tests
         run: node --test server/research-web.test.mjs
       - name: Backend infrastructure smoke test
