@@ -86,6 +86,30 @@ The Ideas & Strategic Planning module adds owner-scoped idea capture and an init
 - Initiative Finance panels can link existing owner-scoped expense records for actual-spend reporting; they never copy or rewrite ledger entries.
 - Apply `supabase/migrations/20261028192135_ideas_strategic_planning.sql` to the intended Supabase project before using the module. Verify authenticated-owner RLS policies in the target environment.
 
+## Ideas Register and Ivy Daily Journal
+
+The Ideas Register extends the existing `pruden_ideas` table and seeds these 2026 items idempotently by title when the authenticated founder opens the Daily Journal:
+- College/personal development: V.E.T.I Technology and Innovation Club.
+- Community/networking: Claude Community Kenya participation and connecting with Billy.
+- Savings/long-term goals: a reference idea linked to the existing Google Play developer savings goal. It does not create another savings goal or duplicate Finance transactions.
+- Potential income: Kitengela photography, explicitly conditional on a camera loan being confirmed.
+
+Seeded ideas are planning records, not proof of completed outreach, approved college plans, confirmed camera access, or realized income. Review the existing Finance/savings records for current verified amounts.
+
+The **Daily Journal** module stores one entry per owner/date in `pruden_daily_journal`, with `Africa/Nairobi` as its timezone. It supports searching, reviewing/editing entries, and building a draft from PTMS audit events, task updates, and project updates. Ivy's `ivy_journal_activity_today`, `ivy_journal_list`, and `ivy_journal_save` tools use the signed-in user's access token and owner-scoped RLS. Ivy must only report evidence returned by those tools and confirm the returned journal ID. The activity source does not include external conversations or offline work.
+
+Apply `supabase/migrations/20261029120000_ideas_register_daily_journal.sql` after the existing migrations. It adds journal and scheduler-run tables with owner-scoped RLS; it does not rewrite existing idea, savings, or Finance records.
+
+### 6:00 PM Africa/Nairobi scheduled journal
+
+An optional in-process scheduler is included in the PTMS server. It checks for 18:00 in `Africa/Nairobi`, creates a factual summary from available audit/task/project/Finance records, records success/failure in `pruden_daily_journal_runs`, and skips the scheduled entry if a manual/Ivy entry already exists for that date. It never invents off-system activity.
+
+Enable the scheduler only in the private server environment by setting:
+- `SUPABASE_SERVICE_ROLE_KEY` (or the supported private `SUPABASE_SECRET_KEY`) — server-only Supabase privileged credential. Never add it to frontend variables, the repository, or chat.
+- `IVY_JOURNAL_OWNER_ID` — the founder's Supabase Auth user UUID.
+
+The scheduler logs that it is disabled when these settings are absent. These settings are not enabled by this code change and must be configured privately. Because the scheduler runs inside the web-service process, it is not a hard real-time guarantee if the service sleeps, restarts, or is unavailable at 6:00 PM. For stronger scheduling guarantees, use an always-on service or an external managed scheduler calling a separately authenticated job endpoint. Check the run history and server logs before claiming a scheduled entry was written.
+
 ## Gemini provider
 
 `server/model-providers.mjs` supports Gemini text generation through `GEMINI_API_KEY`. The workforce can use Gemini for text-only tasks when provider selection permits; tool-enabled runs remain on Anthropic until Gemini tool-call execution is implemented and tested. Ivy's normal tool-enabled chat remains on Anthropic; the Ideas module uses a bounded text-only Ivy proposal endpoint that prefers Gemini when configured.
