@@ -98,7 +98,7 @@ Seeded ideas are planning records, not proof of completed outreach, approved col
 
 The **Daily Journal** module stores one entry per owner/date in `pruden_daily_journal`, with `Africa/Nairobi` as its timezone. It supports searching, reviewing/editing entries, and building a draft from PTMS audit events, task updates, and project updates. Ivy's `ivy_journal_activity_today`, `ivy_journal_list`, and `ivy_journal_save` tools use the signed-in user's access token and owner-scoped RLS. Ivy must only report evidence returned by those tools and confirm the returned journal ID. The activity source does not include external conversations or offline work.
 
-Apply `supabase/migrations/20261029120000_ideas_register_daily_journal.sql` after the existing migrations. It adds journal and scheduler-run tables with owner-scoped RLS; it does not rewrite existing idea, savings, or Finance records.
+Apply `supabase/migrations/20261029112824_ideas_register_daily_journal.sql` after the existing migrations. It adds journal and scheduler-run tables with owner-scoped RLS; it does not rewrite existing idea, savings, or Finance records.
 
 ### 6:00 PM Africa/Nairobi scheduled journal
 
