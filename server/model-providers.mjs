@@ -31,7 +31,7 @@ export async function callGeminiText({ system, task, maxOutputTokens = 1200, mod
       event: "gemini_upstream_request_error",
       model,
       errorName: error instanceof Error ? error.name : "UnknownError",
-      errorMessage: (error instanceof Error ? error.message : "Unknown request error").slice(0, 240),
+      errorMessage: (error instanceof Error ? error.message : "Unknown request error").replaceAll(key, "[REDACTED]").slice(0, 240),
       timedOut: error?.name === "TimeoutError" || error?.name === "AbortError",
       at: new Date().toISOString()
     }));
@@ -45,7 +45,7 @@ export async function callGeminiText({ system, task, maxOutputTokens = 1200, mod
       model,
       httpStatus: response.status,
       providerStatus: typeof providerError.status === "string" ? providerError.status : null,
-      providerMessage: typeof providerError.message === "string" ? providerError.message.slice(0, 300) : null,
+      providerMessage: typeof providerError.message === "string" ? providerError.message.replaceAll(key, "[REDACTED]").slice(0, 300) : null,
       at: new Date().toISOString()
     }));
     const statusCode = response.status === 429 ? 429 : response.status === 401 || response.status === 403 ? 503 : 502;
