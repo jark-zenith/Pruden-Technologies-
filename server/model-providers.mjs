@@ -9,6 +9,7 @@ export function getModelProviderStatus() {
 }
 
 export async function callGeminiText({ system, task, maxOutputTokens = 1200, model = process.env.GEMINI_MODEL || "gemini-flash-latest" }) {
+  const startedAt = Date.now();
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw Object.assign(new Error("Gemini is not configured. Add GEMINI_API_KEY in the host's private environment settings."), { statusCode: 503 });
   const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`;
@@ -30,7 +31,7 @@ export async function callGeminiText({ system, task, maxOutputTokens = 1200, mod
       event: "gemini_upstream_request_error",
       model,
       errorName: error instanceof Error ? error.name : "UnknownError",
-      errorMessage: (error instanceof Error ? error.message : "Unknown request error").slice(0, 240),
+      errorMessage: (error instanceof Error ? error.message : "Unknown request error").replaceAll(key, "[REDACTED]").slice(0, 240),
       timedOut: error?.name === "TimeoutError" || error?.name === "AbortError",
       at: new Date().toISOString()
     }));
@@ -44,7 +45,7 @@ export async function callGeminiText({ system, task, maxOutputTokens = 1200, mod
       model,
       httpStatus: response.status,
       providerStatus: typeof providerError.status === "string" ? providerError.status : null,
-      providerMessage: typeof providerError.message === "string" ? providerError.message.slice(0, 300) : null,
+      providerMessage: typeof providerError.message === "string" ? providerError.message.replaceAll(key, "[REDACTED]").slice(0, 300) : null,
       at: new Date().toISOString()
     }));
     const statusCode = response.status === 429 ? 429 : response.status === 401 || response.status === 403 ? 503 : 502;
@@ -56,6 +57,10 @@ export async function callGeminiText({ system, task, maxOutputTokens = 1200, mod
     throw Object.assign(new Error(message), { statusCode });
   }
   const output = (data.candidates || []).flatMap(candidate => candidate.content?.parts || []).map(part => part.text || "").join("\n").trim();
-  if (!output) throw Object.assign(new Error("Gemini returned no text output; the response may have been blocked or empty."), { statusCode: 502 });
+  if (!output) {
+    console.warn(JSON.stringify({ event: "gemini_empty_output", model, latencyMs: Date.now() - startedAt, finishReason: data?.candidates?.[0]?.finishReason || null, at: new Date().toISOString() }));
+    throw Object.assign(new Error("Gemini returned no text output; the response may have been blocked or empty."), { statusCode: 502 });
+  }
+  console.log(JSON.stringify({ event: "gemini_request_succeeded", model, latencyMs: Date.now() - startedAt, promptTokens: Number(data?.usageMetadata?.promptTokenCount || 0), outputTokens: Number(data?.usageMetadata?.candidatesTokenCount || 0), at: new Date().toISOString() }));
   return { output: output.slice(0, 20000), usage: data.usageMetadata || null, model };
 }

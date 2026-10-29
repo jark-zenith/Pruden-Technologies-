@@ -120,14 +120,25 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     const remainingMs = absoluteDeadline - Date.now();
     if (remainingMs <= 0) { budgetStopReason = "The execution deadline was reached."; break; }
     const callMaxTokens = Math.min(maxTokens, budget.maxOutputTokensPerCall, budget.maxOutputTokensPerRequest - outputTokens);
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", max_tokens: callMaxTokens, system, messages, ...(tools.length && iteration < budget.maxModelCallsPerRequest - 1 ? { tools } : {}) }),
-      signal: AbortSignal.timeout(Math.min(budget.maxModelCallMs, remainingMs))
-    });
+    const providerStartedAt = Date.now();
+    let response;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", max_tokens: callMaxTokens, system, messages, ...(tools.length && iteration < budget.maxModelCallsPerRequest - 1 ? { tools } : {}) }),
+        signal: AbortSignal.timeout(Math.min(budget.maxModelCallMs, remainingMs))
+      });
+    } catch (error) {
+      console.error(JSON.stringify({ event: "anthropic_request_error", agentId, model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", errorName: error instanceof Error ? error.name : "UnknownError", errorMessage: (error instanceof Error ? error.message : "Unknown request error").replaceAll(key, "[REDACTED]").slice(0, 200), timedOut: error?.name === "TimeoutError" || error?.name === "AbortError", latencyMs: Date.now() - providerStartedAt, at: new Date().toISOString() }));
+      throw Object.assign(new Error("Anthropic request failed before a valid response was received. Check provider network/timeout logs."), { statusCode: 502 });
+    }
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw Object.assign(new Error(response.status === 401 ? "Claude rejected the configured API key. Check the host secret." : response.status === 429 ? "Claude rate limit or account quota reached. Try again later." : "Claude could not complete the request. Check server logs and model access."), { statusCode: 502 });
+    if (!response.ok) {
+      console.error(JSON.stringify({ event: "anthropic_upstream_http_error", agentId, model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", httpStatus: response.status, providerType: typeof data?.error?.type === "string" ? data.error.type : null, providerMessage: typeof data?.error?.message === "string" ? data.error.message.replaceAll(key, "[REDACTED]").slice(0, 240) : null, latencyMs: Date.now() - providerStartedAt, at: new Date().toISOString() }));
+      throw Object.assign(new Error(response.status === 401 ? "Claude rejected the configured API key. Check the host secret." : response.status === 429 ? "Claude rate limit or account quota reached. Try again later." : "Claude could not complete the request. Check server logs and model access."), { statusCode: response.status === 429 ? 429 : response.status === 401 || response.status === 403 ? 503 : 502 });
+    }
+    console.log(JSON.stringify({ event: "anthropic_request_succeeded", agentId, model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", latencyMs: Date.now() - providerStartedAt, inputTokens: Number(data?.usage?.input_tokens || 0), outputTokens: Number(data?.usage?.output_tokens || 0), at: new Date().toISOString() }));
     lastData = data;
     outputTokens += Number(data?.usage?.output_tokens || 0);
     const calls = (data.content || []).filter(p => p.type === "tool_use");
