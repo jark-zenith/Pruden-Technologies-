@@ -186,6 +186,6 @@ export default function IdeasJournalPage({ user }: { user: User }) {
         {entry.next_actions && <p style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 12 }}><strong>Next:</strong> {entry.next_actions}</p>}
       </article>)}</div>}
     </div>
-    <p className="welcome-subtitle" style={{ marginTop: 12 }}>Automatic 6:00 PM scheduling requires the server-side scheduler and its private configuration to be enabled. This page does not pretend a browser timer is reliable when the browser is closed.</p>
+    <p className="welcome-subtitle" style={{ marginTop: 12 }}>Supabase Cron is scheduled for 6:00 PM Africa/Nairobi. It records a factual summary from available PTMS records and skips the date if a manual or Ivy entry already exists. Check the scheduled-run history for success or failure.</p>
   </section>;
 }
