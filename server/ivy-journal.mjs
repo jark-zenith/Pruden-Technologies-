@@ -65,7 +65,28 @@ export async function executeIvyJournalTool(name, input, accessToken) {
     const date = validateDate(input.journal_date);
     const summary = clean(input.summary, maxLengths.summary);
     if (!summary) throw new Error("A non-empty daily summary is required.");
-    const row = { owner_id: ownerId, journal_date: date, timezone: "Africa/Nairobi", source: "ivy", updated_at: new Date().toISOString() };
+    const { data: existing, error: existingError } = await client.from("pruden_daily_journal").select("*").eq("owner_id", ownerId).eq("journal_date", date).maybeSingle();
+    if (existingError) throw new Error("Journal revision read failed: " + existingError.message);
+    const previousActivity = Array.isArray(existing?.source_activity)
+      ? existing.source_activity
+      : existing?.source_activity
+        ? [{ kind: "system_activity_snapshot", captured_at: existing.updated_at, value: existing.source_activity }]
+        : [];
+    const snapshot = existing ? {
+      kind: "revision", revised_at: new Date().toISOString(), revised_by: "ivy",
+      prior_entry: {
+        journal_date: existing.journal_date, timezone: existing.timezone, summary: existing.summary,
+        completed_work: existing.completed_work, idea_updates: existing.idea_updates,
+        decisions_lessons: existing.decisions_lessons, financial_notes: existing.financial_notes,
+        blockers: existing.blockers, next_actions: existing.next_actions, source: existing.source,
+        updated_at: existing.updated_at
+      }
+    } : null;
+    const row = {
+      owner_id: ownerId, journal_date: date, timezone: "Africa/Nairobi", source: "ivy",
+      source_activity: [...previousActivity, ...(snapshot ? [snapshot] : [])].slice(-60),
+      updated_at: new Date().toISOString()
+    };
     for (const field of fields) row[field] = clean(input[field], maxLengths[field]);
     const { data, error } = await client.from("pruden_daily_journal").upsert(row, { onConflict: "owner_id,journal_date" }).select("*").single();
     if (error) throw new Error("Journal save failed: " + error.message);
