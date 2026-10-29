@@ -142,7 +142,6 @@ export default function IdeasJournalPage({ user }: { user: User }) {
         : existing?.source_activity
           ? [{ kind: "system_activity_snapshot", captured_at: existing.updated_at, value: existing.source_activity }]
           : [];
-      const revisions = getRevisions(previousActivity);
       const snapshot = existing ? {
         kind: "revision", revised_at: new Date().toISOString(), revised_by: source,
         prior_entry: {
