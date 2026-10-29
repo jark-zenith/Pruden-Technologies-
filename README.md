@@ -102,13 +102,11 @@ Apply `supabase/migrations/20261029112824_ideas_register_daily_journal.sql` afte
 
 ### 6:00 PM Africa/Nairobi scheduled journal
 
-An optional in-process scheduler is included in the PTMS server. It checks for 18:00 in `Africa/Nairobi`, creates a factual summary from available audit/task/project/Finance records, records success/failure in `pruden_daily_journal_runs`, and skips the scheduled entry if a manual/Ivy entry already exists for that date. It never invents off-system activity.
+Supabase Cron (`pg_cron`) runs the journal function daily at **15:00 UTC, which is 6:00 PM in Kenya**. Kenya does not observe daylight-saving time. The job is stored in the database and does not depend on the Render web service staying awake or the browser being open.
 
-Enable the scheduler only in the private server environment by setting:
-- `SUPABASE_SERVICE_ROLE_KEY` (or the supported private `SUPABASE_SECRET_KEY`) — server-only Supabase privileged credential. Never add it to frontend variables, the repository, or chat.
-- `IVY_JOURNAL_OWNER_ID` — the founder's Supabase Auth user UUID.
+Apply `supabase/migrations/20261029113025_ivy_daily_journal_cron.sql` after the daily-journal migration. The migration installs `pg_cron`, creates a restricted function in the non-exposed `private` schema, and schedules `private.run_ivy_daily_journal_summary()`. The function only processes owners with an existing, non-archived Google Play developer savings goal, does not hard-code user IDs or secrets, and skips a date if a manual/Ivy journal entry already exists. It records the outcome in `pruden_daily_journal_runs`. The summary is factual and database-derived; it does not include external conversations or offline work.
 
-The scheduler logs that it is disabled when these settings are absent. These settings are not enabled by this code change and must be configured privately. Because the scheduler runs inside the web-service process, it is not a hard real-time guarantee if the service sleeps, restarts, or is unavailable at 6:00 PM. For stronger scheduling guarantees, use an always-on service or an external managed scheduler calling a separately authenticated job endpoint. Check the run history and server logs before claiming a scheduled entry was written.
+Verify the job in `cron.job` and inspect `cron.job_run_details` plus `pruden_daily_journal_runs` for execution outcomes. The schedule is configured in the database; the first automatic entry will be created at the next scheduled run if the owner has not already recorded that date.
 
 ## Gemini provider
 
