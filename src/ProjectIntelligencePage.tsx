@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Activity, ArrowDownToLine, Bot, CircleDashed, GitBranch, LockKeyhole, Server, ShieldCheck, Database, AlertTriangle } from "lucide-react";
 
-type Source = { name: string; detail: string; icon: typeof GitBranch; status: string; note: string };
-
 const sourceDefinitions = [
   { id: "github", name: "GitHub", detail: "Repositories, commits, pull requests, issues", icon: GitBranch },
   { id: "render", name: "Render", detail: "Services, deployment metadata, service status", icon: Server },
