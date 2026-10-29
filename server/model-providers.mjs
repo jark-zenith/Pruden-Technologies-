@@ -12,18 +12,41 @@ export async function callGeminiText({ system, task, maxOutputTokens = 1200, mod
   const key = process.env.GEMINI_API_KEY;
   if (!key) throw Object.assign(new Error("Gemini is not configured. Add GEMINI_API_KEY in the host's private environment settings."), { statusCode: 503 });
   const url = `${GEMINI_API_BASE}/${encodeURIComponent(model)}:generateContent`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ role: "user", parts: [{ text: task }] }],
-      generationConfig: { maxOutputTokens }
-    }),
-    signal: AbortSignal.timeout(45000)
-  });
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: "user", parts: [{ text: task }] }],
+        generationConfig: { maxOutputTokens }
+      }),
+      signal: AbortSignal.timeout(45000)
+    });
+  } catch (error) {
+    // Log only provider metadata and the error class/message; never log the API key or request body.
+    console.error(JSON.stringify({
+      event: "gemini_upstream_request_error",
+      model,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage: (error instanceof Error ? error.message : "Unknown request error").slice(0, 240),
+      timedOut: error?.name === "TimeoutError" || error?.name === "AbortError",
+      at: new Date().toISOString()
+    }));
+    throw Object.assign(new Error("Gemini request failed before a valid response was received. Check network/timeout diagnostics in server logs."), { statusCode: 502 });
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    const providerError = data?.error || {};
+    console.error(JSON.stringify({
+      event: "gemini_upstream_http_error",
+      model,
+      httpStatus: response.status,
+      providerStatus: typeof providerError.status === "string" ? providerError.status : null,
+      providerMessage: typeof providerError.message === "string" ? providerError.message.slice(0, 300) : null,
+      at: new Date().toISOString()
+    }));
     const statusCode = response.status === 429 ? 429 : response.status === 401 || response.status === 403 ? 503 : 502;
     const message = response.status === 429
       ? "Gemini quota/rate limit reached. Check Google AI Studio quota or try another configured provider."
