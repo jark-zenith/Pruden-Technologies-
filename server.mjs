@@ -12,7 +12,7 @@ import { ivyCapabilityStatus, ivyCapabilityTool } from "./server/ivy-capabilitie
 import { ivyMemoryTools, executeIvyMemory, getIvyMemoryContext } from "./server/ivy-memory.mjs";
 import { IVY_RUNTIME_BUDGET } from "./server/ivy-runtime-policy.mjs";
 import { callGeminiText, getModelProviderStatus } from "./server/model-providers.mjs";
-import { ivyJournalTools, executeIvyJournalTool, startIvyJournalScheduler } from "./server/ivy-journal.mjs";
+import { ivyJournalTools, executeIvyJournalTool } from "./server/ivy-journal.mjs";
 
 const app = express();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -389,7 +389,4 @@ app.get("*", async (req, res) => {
   try { res.type("html").send(await readFile(path.join(dist, "index.html"), "utf8")); }
   catch { res.status(503).send("PRUDEN Command is building. Try again shortly."); }
 });
-app.listen(port, "0.0.0.0", () => {
-  console.log("PRUDEN Command listening; master-secret gate " + (secret.length >= 24 ? "configured" : "NOT CONFIGURED") + ".");
-  startIvyJournalScheduler();
-});
+app.listen(port, "0.0.0.0", () => console.log("PRUDEN Command listening; master-secret gate " + (secret.length >= 24 ? "configured" : "NOT CONFIGURED") + "."));
