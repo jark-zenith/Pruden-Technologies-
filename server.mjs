@@ -177,7 +177,7 @@ app.post("/api/ivy/idea", async (req, res) => {
     });
     const data = await upstream.json().catch(() => ({}));
     if (!upstream.ok) {
-      console.error(JSON.stringify({ event: "anthropic_ivy_idea_http_error", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", httpStatus: upstream.status, providerType: typeof data?.error?.type === "string" ? data.error.type : null, providerMessage: typeof data?.error?.message === "string" ? data.error.message.slice(0, 240) : null, latencyMs: Date.now() - started, at: new Date().toISOString() }));
+      console.error(JSON.stringify({ event: "anthropic_ivy_idea_http_error", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", httpStatus: upstream.status, providerType: typeof data?.error?.type === "string" ? data.error.type : null, providerMessage: typeof data?.error?.message === "string" ? data.error.message.replaceAll(key, "[REDACTED]").slice(0, 240) : null, latencyMs: Date.now() - started, at: new Date().toISOString() }));
       return res.status(upstream.status === 429 ? 429 : 502).json({ error: upstream.status === 401 ? "Anthropic rejected the configured key." : upstream.status === 429 ? "Anthropic rate or account quota limit reached." : "Anthropic could not generate the idea." });
     }
     const output = (data.content || []).filter(block => block.type === "text").map(block => block.text).join("\n").trim();
@@ -188,7 +188,7 @@ app.post("/api/ivy/idea", async (req, res) => {
     console.log(JSON.stringify({ event: "anthropic_ivy_idea_succeeded", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", latencyMs: Date.now() - started, inputTokens: Number(data?.usage?.input_tokens || 0), outputTokens: Number(data?.usage?.output_tokens || 0), at: new Date().toISOString() }));
     return res.json({ output, provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", latencyMs: Date.now() - started });
   } catch (error) {
-    console.error(JSON.stringify({ event: "anthropic_ivy_idea_request_error", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", errorName: error instanceof Error ? error.name : "UnknownError", errorMessage: (error instanceof Error ? error.message : "Unknown request error").slice(0, 200), timedOut: error?.name === "TimeoutError" || error?.name === "AbortError", latencyMs: Date.now() - started, at: new Date().toISOString() }));
+    console.error(JSON.stringify({ event: "anthropic_ivy_idea_request_error", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", errorName: error instanceof Error ? error.name : "UnknownError", errorMessage: (error instanceof Error ? error.message : "Unknown request error").replaceAll(key, "[REDACTED]").slice(0, 200), timedOut: error?.name === "TimeoutError" || error?.name === "AbortError", latencyMs: Date.now() - started, at: new Date().toISOString() }));
     return res.status(502).json({ error: "Ivy could not reach the configured text provider." });
   }
 });
