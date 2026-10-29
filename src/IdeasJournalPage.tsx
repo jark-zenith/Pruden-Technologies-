@@ -6,7 +6,7 @@ import { requireSupabase } from "./lib/supabase";
 type JournalEntry = {
   id: string; owner_id: string; journal_date: string; timezone: string; summary: string;
   completed_work: string; idea_updates: string; decisions_lessons: string; financial_notes: string;
-  blockers: string; next_actions: string; source_activity: unknown[]; source: "manual" | "ivy" | "scheduled";
+  blockers: string; next_actions: string; source_activity: unknown; source: "manual" | "ivy" | "scheduled";
   created_at: string; updated_at: string;
 };
 type Draft = Omit<JournalEntry, "id" | "owner_id" | "created_at" | "updated_at" | "source_activity" | "source">;
@@ -15,6 +15,17 @@ const field = { width: "100%", minWidth: 0, padding: "10px 12px", border: "1px s
 const label = { display: "grid", gap: 6, fontSize: 12, color: "var(--muted, #8291a9)" } as const;
 const blank = (date = todayNairobi()): Draft => ({ journal_date: date, timezone: "Africa/Nairobi", summary: "", completed_work: "", idea_updates: "", decisions_lessons: "", financial_notes: "", blockers: "", next_actions: "" });
 const titleCase = (value: string) => value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+type JournalRevision = { kind: "revision"; revised_at: string; revised_by: string; prior_entry: Partial<JournalEntry> };
+function getRevisions(activity: unknown): JournalRevision[] {
+  if (!Array.isArray(activity)) return [];
+  return activity.filter((item): item is JournalRevision =>
+    !!item && typeof item === "object" &&
+    (item as JournalRevision).kind === "revision" &&
+    typeof (item as JournalRevision).revised_at === "string" &&
+    !!(item as JournalRevision).prior_entry
+  ).slice(-30);
+}
 
 const starterIdeas = [
   { title: "V.E.T.I Technology and Innovation Club", category: "college_personal", priority: "P1", description: "Ongoing college initiative. Build a founding team of 3–4 and propose AI/software development, technology talks and meetups, practical websites/products, cybersecurity, and networking. Track lecturer, department secretary, and principal approval; keep approval status unconfirmed until recorded." },
@@ -124,12 +135,30 @@ export default function IdeasJournalPage({ user }: { user: User }) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Choose a valid journal date.");
       if (!draft.summary.trim()) throw new Error("Add a short summary before saving.");
       const db = requireSupabase();
+      const { data: existing, error: existingError } = await db.from("pruden_daily_journal").select("*").eq("owner_id", user.id).eq("journal_date", date).maybeSingle();
+      if (existingError) throw existingError;
+      const previousActivity = Array.isArray(existing?.source_activity)
+        ? existing.source_activity
+        : existing?.source_activity
+          ? [{ kind: "system_activity_snapshot", captured_at: existing.updated_at, value: existing.source_activity }]
+          : [];
+      const snapshot = existing ? {
+        kind: "revision", revised_at: new Date().toISOString(), revised_by: source,
+        prior_entry: {
+          journal_date: existing.journal_date, timezone: existing.timezone, summary: existing.summary,
+          completed_work: existing.completed_work, idea_updates: existing.idea_updates,
+          decisions_lessons: existing.decisions_lessons, financial_notes: existing.financial_notes,
+          blockers: existing.blockers, next_actions: existing.next_actions, source: existing.source,
+          updated_at: existing.updated_at
+        }
+      } : null;
+      const sourceActivity = [...previousActivity, ...(snapshot ? [snapshot] : [])].slice(-60);
       const { data, error: writeError } = await db.from("pruden_daily_journal").upsert({
         owner_id: user.id, journal_date: date, timezone: "Africa/Nairobi",
         summary: draft.summary.trim().slice(0, 5000), completed_work: draft.completed_work.trim().slice(0, 10000),
         idea_updates: draft.idea_updates.trim().slice(0, 5000), decisions_lessons: draft.decisions_lessons.trim().slice(0, 5000),
         financial_notes: draft.financial_notes.trim().slice(0, 3000), blockers: draft.blockers.trim().slice(0, 3000),
-        next_actions: draft.next_actions.trim().slice(0, 5000), source_activity: [], source,
+        next_actions: draft.next_actions.trim().slice(0, 5000), source_activity: sourceActivity, source,
         updated_at: new Date().toISOString()
       }, { onConflict: "owner_id,journal_date" }).select("*").single();
       if (writeError) throw writeError;
@@ -146,7 +175,7 @@ export default function IdeasJournalPage({ user }: { user: User }) {
   function editEntry(entry: JournalEntry) {
     setDraft({ journal_date: entry.journal_date, timezone: entry.timezone, summary: entry.summary, completed_work: entry.completed_work, idea_updates: entry.idea_updates, decisions_lessons: entry.decisions_lessons, financial_notes: entry.financial_notes, blockers: entry.blockers, next_actions: entry.next_actions });
     setSource(entry.source === "scheduled" ? "ivy" : entry.source);
-    setNotice("Loaded the saved entry for review. Saving updates the existing date entry; the prior text is not retained as a separate version.");
+    setNotice("Loaded the saved entry for review. Saving keeps a snapshot of the previous version in the entry history.");
   }
 
   return <section className="module-page">
@@ -181,6 +210,7 @@ export default function IdeasJournalPage({ user }: { user: User }) {
       {loading ? <p className="welcome-subtitle">Loading journal…</p> : filtered.length === 0 ? <p className="welcome-subtitle">No saved daily entries yet. Create one above.</p> : <div style={{ display: "grid", gap: 10, marginTop: 12 }}>{filtered.map((entry) => <article key={entry.id} style={{ border: "1px solid var(--border, #2b3a50)", borderRadius: 12, padding: 14, display: "grid", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}><div><h3 style={{ margin: 0, fontSize: 15 }}>{entry.journal_date}</h3><small style={{ color: "var(--muted, #8291a9)" }}>Africa/Nairobi · {titleCase(entry.source)} · Updated {new Date(entry.updated_at).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })}</small></div><button className="secondary-button" onClick={() => editEntry(entry)}>Review / edit</button></div>
         <p style={{ margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.6 }}>{entry.summary}</p>
+        {getRevisions(entry.source_activity).length > 0 && <details style={{ borderTop: "1px solid var(--border, #2b3a50)", paddingTop: 8 }}><summary style={{ cursor: "pointer", fontSize: 12 }}>Previous versions ({getRevisions(entry.source_activity).length})</summary><div style={{ display: "grid", gap: 10, marginTop: 10 }}>{getRevisions(entry.source_activity).slice().reverse().map((revision, index) => <div key={revision.revised_at + index} style={{ padding: 10, borderRadius: 8, background: "var(--surface, #101827)" }}><small style={{ color: "var(--muted, #8291a9)" }}>Saved {new Date(revision.revised_at).toLocaleString("en-KE", { timeZone: "Africa/Nairobi" })} · editor: {revision.revised_by}</small><p style={{ margin: "6px 0", whiteSpace: "pre-wrap" }}><strong>Previous summary:</strong> {revision.prior_entry.summary || "(empty)"}</p>{revision.prior_entry.completed_work && <p style={{ margin: "4px 0", whiteSpace: "pre-wrap", fontSize: 12 }}><strong>Work:</strong> {revision.prior_entry.completed_work}</p>}{revision.prior_entry.idea_updates && <p style={{ margin: "4px 0", whiteSpace: "pre-wrap", fontSize: 12 }}><strong>Ideas:</strong> {revision.prior_entry.idea_updates}</p>}{revision.prior_entry.decisions_lessons && <p style={{ margin: "4px 0", whiteSpace: "pre-wrap", fontSize: 12 }}><strong>Decisions:</strong> {revision.prior_entry.decisions_lessons}</p>}</div>)}</div></details>}
         {entry.completed_work && <p style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 12 }}><strong>Work:</strong> {entry.completed_work}</p>}
         {entry.blockers && <p style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 12 }}><strong>Blockers:</strong> {entry.blockers}</p>}
         {entry.next_actions && <p style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 12 }}><strong>Next:</strong> {entry.next_actions}</p>}
