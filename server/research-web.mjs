@@ -134,7 +134,7 @@ async function searchWeb(input) {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     });
   } catch (error) {
-    console.error(JSON.stringify({ event: "tavily_request_error", errorName: error instanceof Error ? error.name : "UnknownError", errorMessage: (error instanceof Error ? error.message : "Unknown request error").slice(0, 200), timedOut: error?.name === "TimeoutError" || error?.name === "AbortError", latencyMs: Date.now() - providerStartedAt, at: new Date().toISOString() }));
+    console.error(JSON.stringify({ event: "tavily_request_error", errorName: error instanceof Error ? error.name : "UnknownError", errorMessage: (error instanceof Error ? error.message : "Unknown request error").replaceAll(key, "[REDACTED]").slice(0, 200), timedOut: error?.name === "TimeoutError" || error?.name === "AbortError", latencyMs: Date.now() - providerStartedAt, at: new Date().toISOString() }));
     throw new Error("Tavily request failed before a valid response was received. Check provider network/timeout logs.");
   }
   if (!response.ok) {
