@@ -124,13 +124,21 @@ async function searchWeb(input) {
     const country = input.country.trim();
     body.country = countries[country.toUpperCase()] || country.slice(0, 80);
   }
-  const response = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "content-type": "application/json", Accept: "application/json" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-  });
+  const providerStartedAt = Date.now();
+  let response;
+  try {
+    response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "content-type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+  } catch (error) {
+    console.error(JSON.stringify({ event: "tavily_request_error", errorName: error instanceof Error ? error.name : "UnknownError", errorMessage: (error instanceof Error ? error.message : "Unknown request error").slice(0, 200), timedOut: error?.name === "TimeoutError" || error?.name === "AbortError", latencyMs: Date.now() - providerStartedAt, at: new Date().toISOString() }));
+    throw new Error("Tavily request failed before a valid response was received. Check provider network/timeout logs.");
+  }
   if (!response.ok) {
+    console.error(JSON.stringify({ event: "tavily_upstream_http_error", httpStatus: response.status, latencyMs: Date.now() - providerStartedAt, at: new Date().toISOString() }));
     if (response.status === 401 || response.status === 403) throw new Error("Tavily rejected the configured API key or account access.");
     if (response.status === 429) throw new Error("Tavily rate limit or search-credit quota reached.");
     throw new Error("Tavily web search failed with status " + response.status + ".");
@@ -144,6 +152,7 @@ async function searchWeb(input) {
     score: Number.isFinite(item.score) ? item.score : null
   })).filter(item => item.title && /^https:\/\//i.test(item.url));
   tavilyLastSuccessAt = new Date().toISOString();
+  console.log(JSON.stringify({ event: "tavily_search_succeeded", latencyMs: Date.now() - providerStartedAt, resultCount: results.length, at: tavilyLastSuccessAt }));
   return {
     provider: "Tavily",
     query,
