@@ -8,6 +8,7 @@ import IvyAssistant, { IvySettingsPanel } from "./IvyAssistant";
 import IvyMediaDesk from "./IvyMediaDesk";
 import BusinessModules from "./BusinessModules";
 import IdeasStrategyPage, { IdeasDashboardWidget } from "./IdeasStrategyPage";
+import IdeasJournalPage from "./IdeasJournalPage";
 import type { User } from "@supabase/supabase-js";
 import { listProjects, createProject, listTasks, createTask, updateTaskStatus, listApprovals } from "./lib/operations";
 import { githubProjects } from "./githubProjects";
@@ -23,7 +24,7 @@ import {
 type ModuleKey =
   | "Overview" | "Projects" | "Tasks" | "Website Inbox" | "AI Workforce" | "Approvals"
   | "Customers & CRM" | "Finance" | "Products & Services" | "Infrastructure" | "Social Media Monitoring"
-  | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub" | "Ideas & Strategy";
+  | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub" | "Ideas & Strategy" | "Daily Journal";
 
 type NavItem = { label: ModuleKey; icon: LucideIcon; group: string; badge?: string };
 
@@ -31,6 +32,7 @@ const navItems: NavItem[] = [
   { label: "Overview", icon: LayoutDashboard, group: "WORKSPACE" },
   { label: "Projects", icon: FolderKanban, group: "WORKSPACE" },
   { label: "Ideas & Strategy", icon: Sparkles, group: "WORKSPACE", badge: "NEW" },
+  { label: "Daily Journal", icon: FileText, group: "WORKSPACE", badge: "NEW" },
   { label: "Tasks", icon: ListTodo, group: "WORKSPACE" },
   { label: "Website Inbox", icon: Mail, group: "WORKSPACE", badge: "NEW" },
   { label: "AI Workforce", icon: Bot, group: "INTELLIGENCE" },
@@ -53,6 +55,7 @@ type ApprovalView = { id: string; title: string; detail: string; risk: string; s
 const descriptions: Record<ModuleKey, string> = {
   "Overview": "Your operating picture, priorities and decisions in one place.",
   "Ideas & Strategy": "Capture opportunities, prioritize delivery, and turn approved ideas into initiatives.",
+  "Daily Journal": "Record daily progress, track personal and income ideas, and review Ivy’s activity summaries.",
   "Projects": "Track outcomes, owners, milestones, budgets and delivery health.",
   "Tasks": "Turn priorities into owned work with acceptance criteria and evidence.",
   "Website Inbox": "Review applications, contact requests and feedback from your live websites.",
@@ -362,6 +365,7 @@ function ModulePage({ active, user, onCreateTask, localTasks, projects, approval
     : active === "Tasks" ? <div className="panel module-panel"><SectionHeading eyebrow="DELIVERY" title="Task register" right={<span className="neutral-tag">{localTasks.length} saved records</span>} /><div className="module-controls"><label className="table-search"><Search size={15} /><input value={localSearch} onChange={(event) => setLocalSearch(event.target.value)} placeholder="Filter tasks..." /></label><div className="segmented">{["All", "Planned", "In progress"].map((name) => <button className={tab === name ? "selected" : ""} key={name} onClick={() => setTab(name)}>{name}</button>)}</div></div>{localTasks.filter((task) => (tab === "All" || task.state === tab) && task.title.toLowerCase().includes(localSearch.toLowerCase())).map((task) => <div className="task-record" key={task.title}><span className="task-check"><Check size={13} /></span><div className="record-main"><strong>{task.title}</strong><p>{task.project} · {task.owner}</p></div><span className={`priority-tag ${task.priority.toLowerCase()}`}>{task.priority}</span><span className="task-state">{task.state}</span><button className="text-button" onClick={() => onToggleTask(task)}>{task.state === "Completed" ? "Reopen" : "Complete"}</button></div>)}</div>
     : active === "Approvals" ? <div className="panel module-panel"><SectionHeading eyebrow="HUMAN CONTROL" title="Approval register" right={<span className="neutral-tag">Human approval required</span>} />{approvals.map((approval) => <div className="module-record" key={approval.id}><span className="approval-symbol"><ShieldCheck size={16} /></span><div className="record-main"><strong>{approval.title}</strong><p>{approval.detail}</p></div><span className="approval-tag">{approval.risk}</span><span className="status-pill">{approval.status}</span></div>)}<div className="approval-footer"><LockKeyhole size={14} /> Approvals are records of intent until a secure executor is implemented.</div></div>
     : active === "Ideas & Strategy" ? <IdeasStrategyPage user={user} />
+    : active === "Daily Journal" ? <IdeasJournalPage user={user} />
     : active === "AI Workforce" ? <AIWorkforcePage />
     : active === "Reports & Settings" ? <IvySettingsPanel />
      : <div className="module-cards"><article className="panel module-placeholder"><span className="large-module-icon"><Icon size={23} /></span><p className="eyebrow">MODULE FOUNDATION</p><h2>{active}</h2><p>{descriptions[active]}</p><div className="placeholder-status"><StatusDot tone="amber" /> Awaiting backend implementation</div></article><article className="panel module-checklist"><SectionHeading eyebrow="IMPLEMENTATION CHECKLIST" title="What comes next" /><div className="checklist-row"><span>01</span><div><strong>Define data and access rules</strong><p>Specify record ownership, visibility and permitted actions.</p></div></div><div className="checklist-row"><span>02</span><div><strong>Implement server API</strong><p>Validate inputs and enforce role permissions on every request.</p></div></div><div className="checklist-row"><span>03</span><div><strong>Connect and verify</strong><p>Test failure cases before displaying a connected status.</p></div></div></article></div>}
