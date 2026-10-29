@@ -1,4 +1,4 @@
-import { Activity, ArrowDownToLine, Bot, CheckCircle2, CircleDashed, GitBranch, LockKeyhole, Server, ShieldCheck, Database, AlertTriangle } from "lucide-react";
+import { Activity, ArrowDownToLine, Bot, CircleDashed, GitBranch, LockKeyhole, Server, ShieldCheck, Database, AlertTriangle } from "lucide-react";
 
 type Source = { name: string; detail: string; icon: typeof GitBranch; status: string; note: string };
 
