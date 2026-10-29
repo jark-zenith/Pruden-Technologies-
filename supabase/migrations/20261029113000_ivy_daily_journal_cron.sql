@@ -56,26 +56,26 @@ begin
     end if;
 
     select count(*),
-           pg_catalog.coalesce(pg_catalog.string_agg(a.action || ' (' || a.entity_type || ')', E'\n' order by a.created_at), '')
+           coalesce(pg_catalog.string_agg(a.action || ' (' || a.entity_type || ')', E'\n' order by a.created_at), '')
       into v_audit_count, v_audit
     from public.pruden_audit_events a
     where a.owner_id = v_owner_id and a.created_at >= v_start and a.created_at < v_end;
 
     select count(*),
-           pg_catalog.coalesce(pg_catalog.string_agg(t.title || ' — ' || t.status, E'\n' order by t.updated_at), ''),
-           pg_catalog.coalesce(pg_catalog.string_agg(t.title, E'\n' order by t.updated_at) filter (where t.status = 'completed'), '')
+           coalesce(pg_catalog.string_agg(t.title || ' — ' || t.status, E'\n' order by t.updated_at), ''),
+           coalesce(pg_catalog.string_agg(t.title, E'\n' order by t.updated_at) filter (where t.status = 'completed'), '')
       into v_task_count, v_tasks, v_completed
     from public.pruden_tasks t
     where t.owner_id = v_owner_id and t.updated_at >= v_start and t.updated_at < v_end;
 
     select count(*),
-           pg_catalog.coalesce(pg_catalog.string_agg(p.name || ' — ' || p.status, E'\n' order by p.updated_at), '')
+           coalesce(pg_catalog.string_agg(p.name || ' — ' || p.status, E'\n' order by p.updated_at), '')
       into v_project_count, v_projects
     from public.pruden_projects p
     where p.owner_id = v_owner_id and p.updated_at >= v_start and p.updated_at < v_end;
 
     select count(*),
-           pg_catalog.coalesce(pg_catalog.string_agg(f.occurred_on::text || ' · ' || f.kind || ' · KES ' || f.amount::text || ' · ' || f.category || case when f.description = '' then '' else ' · ' || f.description end, E'\n' order by f.occurred_on), '')
+           coalesce(pg_catalog.string_agg(f.occurred_on::text || ' · ' || f.kind || ' · KES ' || f.amount::text || ' · ' || f.category || case when f.description = '' then '' else ' · ' || f.description end, E'\n' order by f.occurred_on), '')
       into v_finance_count, v_finance
     from public.pruden_financial_records f
     where f.owner_id = v_owner_id and f.occurred_on = v_date;
@@ -98,7 +98,7 @@ begin
        case when v_finance <> '' then v_finance
             else 'No Finance ledger records were found for this date; this does not prove no offline spending occurred.' end,
        '',
-       pg_catalog.coalesce(nullif(v_tasks, ''), 'Review current tasks and record any blockers or next actions.'),
+       coalesce(nullif(v_tasks, ''), 'Review current tasks and record any blockers or next actions.'),
        pg_catalog.jsonb_build_object('audit_count', v_audit_count, 'task_count', v_task_count,
          'project_count', v_project_count, 'finance_count', v_finance_count),
        'scheduled')
