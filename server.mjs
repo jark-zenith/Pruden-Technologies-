@@ -12,6 +12,7 @@ import { ivyCapabilityStatus, ivyCapabilityTool } from "./server/ivy-capabilitie
 import { ivyMemoryTools, executeIvyMemory, getIvyMemoryContext } from "./server/ivy-memory.mjs";
 import { IVY_RUNTIME_BUDGET } from "./server/ivy-runtime-policy.mjs";
 import { callGeminiText, getModelProviderStatus } from "./server/model-providers.mjs";
+import { ivyJournalTools, executeIvyJournalTool, startIvyJournalScheduler } from "./server/ivy-journal.mjs";
 
 const app = express();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -138,6 +139,7 @@ const ivyTools = [
   { name: "workforce_list_agents", description: "Read the authoritative PRUDEN AI workforce directory, reporting lines, responsibilities and restrictions.", input_schema: { type: "object", properties: {}, required: [] } },
   { name: "workforce_run_agent", description: "Delegate one bounded text task to a registered specialist. Include relevant context because there is no persistent shared agent memory. This does not create a persistent task record or perform external actions.", input_schema: { type: "object", properties: { agentId: { type: "string", enum: ["atlas","nova","echo","mira","forge","pixel","stack","vector","sentinel","lumi","motion","relay","vault"] }, task: { type: "string", minLength: 1, maxLength: 12000 } }, required: ["agentId","task"] } },
   ...ivyOperationTools,
+  ...ivyJournalTools,
   ...ivyMemoryTools,
   ...ivyGitHubTools,
   ivyCapabilityTool
@@ -334,6 +336,12 @@ app.post("/api/ivy/chat", async (req, res) => {
           }
         } else if (call.name === "get_capability_status") {
           result = JSON.stringify(ivyCapabilityStatus());
+        } else if (call.name.startsWith("ivy_journal_")) {
+          try {
+            result = JSON.stringify(await executeIvyJournalTool(call.name, call.input || {}, accessToken));
+          } catch (error) {
+            result = "Daily journal operation failed: " + (error instanceof Error ? error.message : "Unknown journal error.");
+          }
         } else if (call.name.startsWith("ivy_memory_")) {
           try {
             result = JSON.stringify(await executeIvyMemory(call.name, call.input || {}, accessToken));
@@ -381,4 +389,7 @@ app.get("*", async (req, res) => {
   try { res.type("html").send(await readFile(path.join(dist, "index.html"), "utf8")); }
   catch { res.status(503).send("PRUDEN Command is building. Try again shortly."); }
 });
-app.listen(port, "0.0.0.0", () => console.log("PRUDEN Command listening; master-secret gate " + (secret.length >= 24 ? "configured" : "NOT CONFIGURED") + "."));
+app.listen(port, "0.0.0.0", () => {
+  console.log("PRUDEN Command listening; master-secret gate " + (secret.length >= 24 ? "configured" : "NOT CONFIGURED") + ".");
+  startIvyJournalScheduler();
+});
