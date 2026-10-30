@@ -70,7 +70,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
     const savedTask = taskFor(agent);
     const activeTaskTitle = runningAgentId === agent.id ? runningTaskTitle : savedTask?.state === "In progress" ? savedTask.title : "";
     if (/\b(print|printing|printer)\b/i.test(activeTaskTitle)) return "print";
-    if (/\b(server|infrastructure|backup|deployment|deploy|logs|monitoring)\\b/i.test(activeTaskTitle)) return "server";
+    if (/\b(server|infrastructure|backup|deployment|deploy|logs|monitoring)\b/i.test(activeTaskTitle)) return "server";
     return agentRoom[agent.id] || "lounge";
   };
   const roomAgents = (roomId: string) => agents.filter((agent) => roomForAgent(agent) === roomId);
