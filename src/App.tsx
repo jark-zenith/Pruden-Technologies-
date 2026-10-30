@@ -4,6 +4,7 @@ import ProjectIntelligencePage from "./ProjectIntelligencePage";
 import InfrastructurePage from "./InfrastructurePage";
 import SocialMonitoringPage from "./SocialMonitoringPage";
 import AIWorkforcePage from "./AIWorkforcePage";
+import HeadquartersPage from "./HeadquartersPage";
 import WebsiteInboxPage from "./WebsiteInboxPage";
 import IvyAssistant, { IvySettingsPanel } from "./IvyAssistant";
 import IvyMediaDesk from "./IvyMediaDesk";
@@ -23,14 +24,15 @@ import {
 } from "lucide-react";
 
 type ModuleKey =
-  | "Overview" | "Projects" | "Tasks" | "Website Inbox" | "AI Workforce" | "Project Intelligence" | "Approvals"
+  | "Home" | "Overview" | "Projects" | "Tasks" | "Website Inbox" | "AI Workforce" | "Project Intelligence" | "Approvals"
   | "Customers & CRM" | "Finance" | "Products & Services" | "Infrastructure" | "Social Media Monitoring"
   | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub" | "Ideas & Strategy" | "Daily Journal";
 
 type NavItem = { label: ModuleKey; icon: LucideIcon; group: string; badge?: string };
 
 const navItems: NavItem[] = [
-  { label: "Overview", icon: LayoutDashboard, group: "WORKSPACE" },
+  { label: "Home", icon: LayoutDashboard, group: "WORKSPACE" },
+  { label: "Overview", icon: Gauge, group: "WORKSPACE" },
   { label: "Projects", icon: FolderKanban, group: "WORKSPACE" },
   { label: "Ideas & Strategy", icon: Sparkles, group: "WORKSPACE", badge: "NEW" },
   { label: "Daily Journal", icon: FileText, group: "WORKSPACE", badge: "NEW" },
@@ -55,6 +57,7 @@ type TaskView = { id: string; title: string; project: string; priority: string; 
 type ApprovalView = { id: string; title: string; detail: string; risk: string; status: string };
 
 const descriptions: Record<ModuleKey, string> = {
+  "Home": "Your live view of the Pruden AI headquarters, registered agents and saved task activity.",
   "Overview": "Your operating picture, priorities and decisions in one place.",
   "Ideas & Strategy": "Capture opportunities, prioritize delivery, and turn approved ideas into initiatives.",
   "Daily Journal": "Record daily progress, track personal and income ideas, and review Ivy’s activity summaries.",
@@ -116,7 +119,7 @@ function LiveProjectShowcase() {
 }
 
 export default function App({ user, onSignOut }: { user: User; onSignOut: () => void }) {
-  const [active, setActive] = useState<ModuleKey>("Overview");
+  const [active, setActive] = useState<ModuleKey>("Home");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
       const saved = window.localStorage.getItem("pruden-command-theme");
@@ -291,7 +294,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
         <div className="content-wrap">
           <div className="prototype-banner"><span><Activity size={14} /> {backendLoading ? "CONNECTING" : backendError ? "BACKEND ISSUE" : "LIVE DATA"}</span><p>{backendError || (backendLoading ? "Loading your workspace from Supabase…" : "Authenticated workspace · Records protected by Supabase Row Level Security")}</p><button onClick={() => chooseModule("Infrastructure")}>View system status <ArrowRight size={13} /></button></div>
 
-          {active === "Project Intelligence" ? <ProjectIntelligencePage /> : active === "GitHub" ? <GitHubProjectsPage /> : active === "Infrastructure" ? <InfrastructurePage /> : active === "Social Media Monitoring" ? <SocialMonitoringPage user={user} /> : active === "Website Inbox" ? <WebsiteInboxPage user={user} /> : active === "Overview" ? (
+          {active === "Home" ? <HeadquartersPage tasks={localTasks} /> : active === "Project Intelligence" ? <ProjectIntelligencePage /> : active === "GitHub" ? <GitHubProjectsPage /> : active === "Infrastructure" ? <InfrastructurePage /> : active === "Social Media Monitoring" ? <SocialMonitoringPage user={user} /> : active === "Website Inbox" ? <WebsiteInboxPage user={user} /> : active === "Overview" ? (
             <>
               <section className="welcome-row">
                 <div><p className="eyebrow"><span className="live-indicator" /> TECHNOLOGY OPERATIONS / 01</p><h1>Welcome back, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
