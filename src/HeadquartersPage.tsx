@@ -143,7 +143,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
         </div>
         <div className="hq-lower-grid">
           <section className="hq-panel hq-command-panel">
-            <div className="hq-panel-heading"><div><span className="hq-kicker">COMMAND CHANNEL</span><h3>Send a task</h3></div><span className="hq-ivy-label"><AgentAvatar agent={agents.find((agent) => agent.id === "ivy") || { name: "Ivy", orbColor: "#53b9ff" }} size="small" /> SELECTED AGENT / DIRECT RUN</span></div>
+            <div className="hq-panel-heading"><div><span className="hq-kicker">COMMAND CHANNEL</span><h3>Send a task</h3></div><span className="hq-ivy-label"><AgentAvatar agent={agents.find((agent) => agent.id === "ivy") || { id: "ivy", name: "Ivy", title: "AI Chief of Staff", orbColor: "#53b9ff" }} size="small" /> SELECTED AGENT / DIRECT RUN</span></div>
             <p>Choose an agent on the floor, then send a task through the existing PTMS workforce endpoint. Selecting Ivy requests her coordination response; automatic multi-agent dispatch is not implemented yet.</p>
             <form className="hq-command-form" onSubmit={runCommand}>
               <label htmlFor="hq-command-input">ASSIGNED TO <strong>{selectedAgent?.name || "Loading roster"}</strong></label>
