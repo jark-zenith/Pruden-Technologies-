@@ -66,8 +66,9 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) || agents[0];
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) || rooms[0];
   const roomAgents = (roomId: string) => agents.filter((agent) => (agentRoom[agent.id] || "lounge") === roomId);
-  const activeTaskCount = agents.filter((agent) => taskFor(agent)?.state === "In progress").length;
-  const queuedTaskCount = agents.filter((agent) => taskFor(agent)?.state === "Planned").length;
+  const registeredOwners = new Set(agents.map((agent) => normalize(agent.name)));
+  const activeTaskCount = tasks.filter((task) => registeredOwners.has(normalize(task.owner)) && task.state === "In progress").length;
+  const queuedTaskCount = tasks.filter((task) => registeredOwners.has(normalize(task.owner)) && task.state === "Planned").length;
   const filteredAgents = agents.filter((agent) => (agent.name + " " + agent.title + " " + agent.department).toLowerCase().includes(filter.toLowerCase()));
 
   function selectAgent(agent: Agent) {
