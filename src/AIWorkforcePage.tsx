@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, Bot, CircleAlert, LoaderCircle, MessageCircle, ShieldCheck, Sparkles, X, Volume2, VolumeX } from "lucide-react";
 import "./workforce.css";
 import AIWorkforceGroupChat from "./AIWorkforceGroupChat";
+import LumiImageStudio from "./LumiImageStudio";
 
 type Agent = {
   id: string; name: string; title: string; reportsTo?: string; responsibilities?: string[];
@@ -172,6 +173,7 @@ export default function AIWorkforcePage() {
         <button className="workforce-chat-close" onClick={() => { setSpeakReplies(v => !v); if (speakReplies) { window.speechSynthesis?.cancel(); setSpeakingMessage(null); } }} aria-label={speakReplies ? "Turn spoken replies off" : "Turn spoken replies on"} title={speakReplies ? "Spoken replies on" : "Spoken replies off"}>{speakReplies ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
         <button className="workforce-chat-close" onClick={() => { window.speechSynthesis?.cancel(); setSpeakingMessage(null); setChatOpen(false); }} aria-label="Close agent chat"><X size={17} /></button>
       </div>
+      {selectedAgent.id === "lumi" && <LumiImageStudio />}
       <div className="workforce-chat-context"><span>{selectedAgent.presentationGender === "female" ? "Female" : "Male"} persona</span><p>{selectedAgent.personality}</p></div>
       <div className="workforce-chat-messages">
         {chatHistory.length === 0 && <div className="workforce-chat-empty"><span className="workforce-chat-empty-orb" style={{ "--orb-color": selectedAgent.orbColor || defaultColor } as CSSProperties}>{selectedAgent.name.slice(0, 1)}</span><strong>You're connected to {selectedAgent.name}</strong><p>Send a message or task. {selectedAgent.name} will respond in their assigned role and personality.</p></div>}
