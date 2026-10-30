@@ -18,7 +18,7 @@ const rooms = [
   { id: "operations", name: "Operations hub", short: "OPERATIONS", icon: Layers3, department: "Operations & Delivery", description: "Project coordination, knowledge and operational handoffs.", kind: "operations" },
   { id: "server", name: "Infrastructure room", short: "SYSTEMS", icon: Cpu, department: "Infrastructure", description: "A visual systems area. No server telemetry is connected yet.", kind: "server" },
   { id: "print", name: "Print & production", short: "PRODUCTION", icon: Printer, department: "Production", description: "Reserved for real production and document workflows when connected.", kind: "print" },
-  { id: "lounge", name: "Standby lounge", short: "STANDBY", icon: Clock3, department: "Standby", description: "Agents with no active or queued PTMS task are shown on standby.", kind: "lounge" },
+  { id: "lounge", name: "Standby lounge", short: "STANDBY", icon: Clock3, department: "Standby", description: "Reserved recovery area. Agents without an active task remain in their registered department and are marked standby.", kind: "lounge" },
 ];
 
 const agentRoom: Record<string, string> = {
@@ -29,8 +29,8 @@ const agentRoom: Record<string, string> = {
 const initials = (name: string) => name.slice(0, 1).toUpperCase();
 const normalize = (value: string) => value.trim().toLowerCase();
 
-function AgentAvatar({ agent, size = "normal", active = false }: { agent: Agent; size?: "small" | "normal" | "large"; active?: boolean }) {
-  return <span className={`hq-avatar ${size} ${active ? "is-active" : ""}`} style={{ "--agent-color": agent.orbColor || "#5b9cff" } as CSSProperties} aria-label={agent.name}>
+function AgentAvatar({ agent, size = "normal", active = false, state = "standby" }: { agent: Agent; size?: "small" | "normal" | "large"; active?: boolean; state?: string }) {
+  return <span className={`hq-avatar ${size} ${active ? "is-active" : ""}`} style={{ "--agent-color": agent.orbColor || "#5b9cff" } as CSSProperties} aria-label={agent.name} data-state={state}>
     <span className="hq-avatar-core">{initials(agent.name)}</span><i />
   </span>;
 }
@@ -115,7 +115,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
 
     <div className="hq-workspace">
       <div className="hq-floor-column">
-        <div className="hq-section-bar"><div><span className="hq-kicker">LIVE FLOOR PLAN</span><h2>Headquarters overview</h2></div><span className="hq-floor-key"><i className="queued" /> Queued <i className="working" /> In progress <i className="standby" /> Standby</span></div>
+        <div className="hq-section-bar"><div><span className="hq-kicker">REGISTERED FLOOR PLAN</span><h2>Headquarters overview</h2></div><span className="hq-floor-key"><i className="queued" /> Queued <i className="working" /> In progress <i className="standby" /> Standby</span></div>
         <div className="hq-floorplan">
           <div className="hq-floor-topline"><span>PRUDEN / OPERATIONS CAMPUS</span><span>FLOOR 01 · VIRTUAL OFFICE</span></div>
           <div className="hq-room-grid">
@@ -131,7 +131,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
                     const task = taskFor(agent);
                     const status = stateFor(agent);
                     return <span key={agent.id} className={`hq-room-agent ${status} ${selectedAgentId === agent.id ? "chosen" : ""}`} onClick={(event) => { event.stopPropagation(); selectAgent(agent); }} title={agent.name + " · " + (task?.title || "No active PTMS task")}>
-                      <AgentAvatar agent={agent} size="small" active={status === "working"} /><small>{agent.name}</small>
+                      <AgentAvatar agent={agent} size="small" active={status === "working"} state={status} /><small>{agent.name}</small>
                     </span>;
                   })}</span>
                 </span>
@@ -139,7 +139,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
               </button>;
             })}
           </div>
-          <div className="hq-floor-bottom"><span><i /> CAMPUS SYSTEMS NOMINAL</span><span>ROOM PLACEMENT = REGISTERED DEPARTMENT</span></div>
+          <div className="hq-floor-bottom"><span><i /> FLOOR VIEW READY</span><span>ROOM PLACEMENT = REGISTERED DEPARTMENT</span></div>
         </div>
         <div className="hq-lower-grid">
           <section className="hq-panel hq-command-panel">
@@ -179,7 +179,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
           <div className="hq-roster-list">{filteredAgents.slice(0, showAllAgents ? 14 : 7).map((agent) => {
             const task = taskFor(agent);
             const state = stateFor(agent);
-            return <button key={agent.id} className={selectedAgentId === agent.id ? "selected" : ""} onClick={() => selectAgent(agent)}><AgentAvatar agent={agent} size="small" active={state === "working"} /><span><strong>{agent.name}</strong><small>{agent.department}</small></span><i className={state} /></button>;
+            return <button key={agent.id} className={selectedAgentId === agent.id ? "selected" : ""} onClick={() => selectAgent(agent)}><AgentAvatar agent={agent} size="small" active={state === "working"} state={state} /><span><strong>{agent.name}</strong><small>{agent.department}</small></span><i className={state} /></button>;
           })}</div>
           {registryError && <p className="hq-error-note">{registryError}</p>}
         </section>
