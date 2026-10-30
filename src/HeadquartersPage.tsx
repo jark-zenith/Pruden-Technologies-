@@ -62,6 +62,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
 
   const taskFor = (agent: Agent) => tasks.find((task) => normalize(task.owner) === normalize(agent.name) && ["In progress", "Planned", "Blocked"].includes(task.state));
   const agentTasks = (agent: Agent) => tasks.filter((task) => normalize(task.owner) === normalize(agent.name));
+  const stateFor = (agent: Agent) => runningAgentId === agent.id ? "working" : taskFor(agent)?.state === "In progress" ? "working" : taskFor(agent)?.state === "Planned" ? "queued" : taskFor(agent)?.state === "Blocked" ? "blocked" : "standby";
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) || agents[0];
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) || rooms[0];
   const roomAgents = (roomId: string) => agents.filter((agent) => (agentRoom[agent.id] || "lounge") === roomId);
@@ -127,7 +128,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
                   {room.kind === "server" ? <span className="hq-rack-row"><i /><i /><i /><i /></span> : room.kind === "print" ? <span className="hq-printer-scene"><i /><i /><i /></span> : <span className="hq-desks"><i /><i /><i /></span>}
                   <span className="hq-room-agents">{members.map((agent) => {
                     const task = taskFor(agent);
-                    const status = runningAgentId === agent.id ? "working" : task?.state === "In progress" ? "working" : task?.state === "Planned" ? "queued" : "standby";
+                    const status = stateFor(agent);
                     return <span key={agent.id} className={`hq-room-agent ${status} ${selectedAgentId === agent.id ? "chosen" : ""}`} onClick={(event) => { event.stopPropagation(); selectAgent(agent); }} title={agent.name + " · " + (task?.title || "No active PTMS task")}>
                       <AgentAvatar agent={agent} size="small" active={status === "working"} /><small>{agent.name}</small>
                     </span>;
@@ -141,8 +142,8 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
         </div>
         <div className="hq-lower-grid">
           <section className="hq-panel hq-command-panel">
-            <div className="hq-panel-heading"><div><span className="hq-kicker">COMMAND CHANNEL</span><h3>Send a task</h3></div><span className="hq-ivy-label"><AgentAvatar agent={agents[0] || { name: "Ivy", orbColor: "#53b9ff" }} size="small" /> IVY / DIRECT RUN</span></div>
-            <p>Choose an agent on the floor, then send a task through the existing PTMS workforce endpoint. This is a real provider request when a compatible key is configured.</p>
+            <div className="hq-panel-heading"><div><span className="hq-kicker">COMMAND CHANNEL</span><h3>Send a task</h3></div><span className="hq-ivy-label"><AgentAvatar agent={agents.find((agent) => agent.id === "ivy") || { name: "Ivy", orbColor: "#53b9ff" }} size="small" /> SELECTED AGENT / DIRECT RUN</span></div>
+            <p>Choose an agent on the floor, then send a task through the existing PTMS workforce endpoint. Selecting Ivy requests her coordination response; automatic multi-agent dispatch is not implemented yet.</p>
             <form className="hq-command-form" onSubmit={runCommand}>
               <label htmlFor="hq-command-input">ASSIGNED TO <strong>{selectedAgent?.name || "Loading roster"}</strong></label>
               <div><input id="hq-command-input" value={command} onChange={(event) => setCommand(event.target.value)} placeholder="Describe the task and expected output…" maxLength={10000} disabled={!selectedAgent || Boolean(runningAgentId)} /><button type="submit" disabled={!selectedAgent || !command.trim() || Boolean(runningAgentId)}>{runningAgentId ? <LoaderCircle size={15} className="hq-spin" /> : <Send size={15} />}<span>Run task</span></button></div>
@@ -162,12 +163,12 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
           <div className="hq-panel-heading"><div><span className="hq-kicker">AGENT INSPECTOR</span><h3>Workforce detail</h3></div><span className="hq-inspector-live">REGISTRY</span></div>
           {selectedAgent ? <>
             <div className="hq-agent-hero"><AgentAvatar agent={selectedAgent} size="large" active={runningAgentId === selectedAgent.id || taskFor(selectedAgent)?.state === "In progress"} /><div><h2>{selectedAgent.name}</h2><p>{selectedAgent.title}</p><small>{selectedAgent.department}</small></div></div>
-            <div className="hq-agent-state"><span className={runningAgentId === selectedAgent.id || taskFor(selectedAgent)?.state === "In progress" ? "working" : taskFor(selectedAgent)?.state === "Planned" ? "queued" : "standby"} />{runningAgentId === selectedAgent.id ? "Provider request executing" : taskFor(selectedAgent)?.state === "In progress" ? "In progress · PTMS task" : taskFor(selectedAgent)?.state === "Planned" ? "Queued · PTMS task" : "Standby · no active task record"}</div>
+            <div className="hq-agent-state"><span className={runningAgentId === selectedAgent.id || taskFor(selectedAgent)?.state === "In progress" ? "working" : taskFor(selectedAgent)?.state === "Planned" ? "queued" : "standby"} />{runningAgentId === selectedAgent.id ? "Provider request executing" : taskFor(selectedAgent)?.state === "In progress" ? "In progress · PTMS task" : taskFor(selectedAgent)?.state === "Planned" ? "Queued · PTMS task" : taskFor(selectedAgent)?.state === "Blocked" ? "Blocked · PTMS task" : "Standby · no active task record"}</div>
             <div className="hq-agent-task"><span>CURRENT PTMS TASK</span><strong>{taskFor(selectedAgent)?.title || "No active task assigned"}</strong><small>{taskFor(selectedAgent)?.project || "Waiting for a saved assignment"}</small></div>
             <div className="hq-agent-facts"><div><span>REPORTS TO</span><strong>{selectedAgent.reportsTo || "Founder"}</strong></div><div><span>ROOM</span><strong>{rooms.find((room) => room.id === (agentRoom[selectedAgent.id] || "lounge"))?.name || "Standby lounge"}</strong></div></div>
             <div className="hq-agent-responsibilities"><span>PRIMARY RESPONSIBILITY</span><p>{selectedAgent.responsibilities?.[0] || "Coordination and reporting"}</p></div>
             <button className="hq-agent-select-action" onClick={() => { setCommand(""); setRunResult(null); document.getElementById("hq-command-input")?.focus(); }}><MessageSquareText size={14} /> Prepare a task for {selectedAgent.name}</button>
-            <div className="hq-agent-history"><span>ASSIGNED TASK HISTORY</span>{agentTasks(selectedAgent).slice(0, 4).map((task) => <div key={task.id}><span className={task.state === "Completed" ? "done" : task.state === "In progress" ? "working" : "queued"} /><p>{task.title}<small>{task.project} · {task.state}</small></p></div>)}{agentTasks(selectedAgent).length === 0 && <small>No saved PTMS tasks assigned to this agent.</small>}</div>
+            <div className="hq-agent-history"><span>ASSIGNED TASK HISTORY</span>{agentTasks(selectedAgent).slice(0, 4).map((task) => <div key={task.id}><span className={task.state === "Completed" ? "done" : task.state === "In progress" ? "working" : task.state === "Blocked" ? "blocked" : "queued"} /><p>{task.title}<small>{task.project} · {task.state}</small></p></div>)}{agentTasks(selectedAgent).length === 0 && <small>No saved PTMS tasks assigned to this agent.</small>}</div>
           </> : <p className="hq-muted">{registryError || "Loading the authoritative workforce registry…"}</p>}
         </section>
 
