@@ -127,6 +127,15 @@ The **Home** navigation entry opens the PTMS AI Headquarters floor view. It read
 
 This is a development-stage control surface. A configured provider is not proof of a successful live request; use the workforce status and run response to verify availability. Do not treat visual presence or animation as evidence of completed work.
 
+
+## Pruden Studios image generation
+
+Lumi, Creative Director & Brand Designer, has a dedicated image-generation capability through the private server-side Google Gemini API. The PTMS AI Workforce chat exposes an Image Studio when Lumi is selected; it supports text-to-image generation, aspect ratios, 1K/2K/4K output selection, preview, and local download. The authenticated endpoint is restricted server-side to the Lumi agent and rate-limited. Generated image data is returned to the current workspace session; PTMS does not publish, print, or automatically persist generated assets.
+
+Configure `GEMINI_API_KEY` in the private Render service environment. Optionally set `GEMINI_IMAGE_MODEL` (default: `gemini-nano-banana-2.1`). The existing `GEMINI_API_KEY` may be reused if its Google AI project has access to the image-generation model and available quota. Anthropic/Claude keys do not provide image generation. Image requests may incur Google AI usage charges; test with 1K output first.
+
+Motion remains responsible for video and motion-production planning only. Video generation is not enabled by this change. Physical printing, publishing, and external production are explicitly outside this integration.
+
 ## Project status
 
 This README describes the repository's code and intended setup. It does not claim that all integrations are configured, the new Finance migration has been applied to production, or a deployed app has passed live read/write tests. Those states must be confirmed in the target environment.
