@@ -17,7 +17,7 @@ const rooms = [
   { id: "studios", name: "Pruden studios", short: "CREATIVE", icon: Sparkles, department: "Pruden Studios", description: "Brand design, creative direction and media production.", kind: "studio" },
   { id: "operations", name: "Operations hub", short: "OPERATIONS", icon: Layers3, department: "Operations & Delivery", description: "Project coordination, knowledge and operational handoffs.", kind: "operations" },
   { id: "server", name: "Infrastructure room", short: "SYSTEMS", icon: Cpu, department: "Infrastructure", description: "A visual systems area. No server telemetry is connected yet.", kind: "server" },
-  { id: "print", name: "Print & production", short: "PRODUCTION", icon: Printer, department: "Production", description: "Reserved for real production and document workflows when connected.", kind: "print" },
+  { id: "print", name: "Print & production", short: "PRODUCTION", icon: Printer, department: "Production", description: "Virtual destination for active print-related tasks. No printer device is connected.", kind: "print" },
   { id: "lounge", name: "Standby lounge", short: "STANDBY", icon: Clock3, department: "Standby", description: "Reserved recovery area. Agents without an active task remain in their registered department and are marked standby.", kind: "lounge" },
 ];
 
