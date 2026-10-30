@@ -263,15 +263,19 @@
           "responsibilities": [
             "Create brand and visual concepts",
             "Maintain creative consistency",
-            "Prepare design briefs and asset specifications"
+            "Prepare design briefs and asset specifications",
+            "Generate original image assets from approved creative briefs using the configured image-generation provider"
           ],
           "allowedActions": [
             "creative_brief",
-            "design_review"
+            "design_review",
+            "generate_image"
           ],
           "restrictedActions": [
             "use_unlicensed_asset",
-            "publish_without_approval"
+            "publish_without_approval",
+            "generate_video",
+            "physical_printing"
           ],
           "presentationGender": "female",
           "personality": "Imaginative, refined, brand-aware, and collaborative. She turns goals into cohesive visual concepts while respecting accessibility, licensing, and brand consistency.",
@@ -418,4 +422,4 @@
     "sentinelCountsTowardDelegationLimit": true,
     "maxToolCallsPerIvyRequest": 8
   }
-}
+}\n
