@@ -63,3 +63,31 @@ export async function generateWorkforceImage({ agentId, prompt, aspectRatio = "1
   console.log(JSON.stringify({ event: "workforce_image_generated", agentId, model, mimeType, latencyMs: Date.now() - startedAt, at: new Date().toISOString() }));
   return { agentId, provider: "google-gemini", model, mimeType, imageData: image.data, latencyMs: Date.now() - startedAt };
 }
+
+const generationAttempts = new Map();
+export function registerImageGenerationRoutes(app) {
+  app.get("/api/workforce/image-status", (_req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(imageGenerationStatus());
+  });
+  app.post("/api/workforce/generate-image", async (req, res) => {
+    const ip = req.ip || req.socket?.remoteAddress || "unknown";
+    const now = Date.now();
+    const recent = (generationAttempts.get(ip) || []).filter(time => now - time < 60_000);
+    if (recent.length >= 5) return res.status(429).json({ error: "Image generation limit reached. Wait one minute before generating another image." });
+    recent.push(now); generationAttempts.set(ip, recent);
+    try {
+      const result = await generateWorkforceImage({
+        agentId: typeof req.body?.agentId === "string" ? req.body.agentId : "",
+        prompt: req.body?.prompt,
+        aspectRatio: req.body?.aspectRatio,
+        imageSize: req.body?.imageSize
+      });
+      res.setHeader("Cache-Control", "no-store");
+      return res.json(result);
+    } catch (error) {
+      console.warn(JSON.stringify({ event: "workforce_image_generation_failed", status: error.statusCode || 502, at: new Date().toISOString() }));
+      return res.status(error.statusCode || 502).json({ error: error.message || "Image generation failed." });
+    }
+  });
+}
