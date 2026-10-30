@@ -69,8 +69,8 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
   const roomForAgent = (agent: Agent) => {
     const savedTask = taskFor(agent);
     const activeTaskTitle = runningAgentId === agent.id ? runningTaskTitle : savedTask?.state === "In progress" ? savedTask.title : "";
-    if (/\\b(print|printing|printer)\\b/i.test(activeTaskTitle)) return "print";
-    if (/\\b(server|infrastructure|backup|deployment|deploy|logs|monitoring)\\b/i.test(activeTaskTitle)) return "server";
+    if (/\b(print|printing|printer)\\b/i.test(activeTaskTitle)) return "print";
+    if (/\b(server|infrastructure|backup|deployment|deploy|logs|monitoring)\\b/i.test(activeTaskTitle)) return "server";
     return agentRoom[agent.id] || "lounge";
   };
   const roomAgents = (roomId: string) => agents.filter((agent) => roomForAgent(agent) === roomId);
@@ -91,6 +91,9 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
     const task = command.trim();
     setRunningAgentId(selectedAgent.id);
     setRunningTaskTitle(task);
+    if (/\b(print|printing|printer)\b/i.test(task)) setSelectedRoomId("print");
+    else if (/\b(server|infrastructure|backup|deployment|deploy|logs|monitoring)\b/i.test(task)) setSelectedRoomId("server");
+    else setSelectedRoomId(agentRoom[selectedAgent.id] || "lounge");
     setRunResult(null);
     try {
       const response = await fetch("/api/workforce/run", {
