@@ -31,7 +31,7 @@ export function registerLumiImageRoutes(app) {
     const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
     const aspectRatio = typeof req.body?.aspectRatio === "string" ? req.body.aspectRatio : "1:1";
     const allowedRatios = new Set(["1:1", "3:2", "2:3", "4:3", "3:4", "5:4", "4:5", "16:9", "9:16", "21:9"]);
-    if (prompt.length < 8 || prompt.length > MAX_PROMPT_LENGTH || /[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]/.test(prompt)) {
+    if (prompt.length < 8 || prompt.length > MAX_PROMPT_LENGTH || /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(prompt)) {
       return res.status(400).json({ error: "Describe the image in 8 to 5,000 characters." });
     }
     if (!allowedRatios.has(aspectRatio)) return res.status(400).json({ error: "Choose a supported image aspect ratio." });
