@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Activity, Bot, CircleAlert, LoaderCircle, MessageCircle, ShieldCheck, Sparkles, X, Volume2, VolumeX } from "lucide-react";
+import { Activity, Bot, CircleAlert, LoaderCircle, MessageCircle, ShieldCheck, Sparkles, X, Volume2, VolumeX, ImagePlus, Download } from "lucide-react";
 import "./workforce.css";
 import AIWorkforceGroupChat from "./AIWorkforceGroupChat";
 
@@ -12,6 +12,7 @@ type Department = { id: string; name: string; lead: string; independent?: boolea
 type Registry = { ivy: Agent; departments: Department[]; controls?: { autonomy?: string; toolsEnabled?: boolean; externalActionsEnabled?: boolean } };
 type WorkforceStatus = { configured: boolean; provider: string; model: string; agentCount: number; toolsEnabled: boolean; safeExternalToolsEnabled?: boolean; externalActionsEnabled: boolean; github?: { status: string; approvedRepositories?: string[] }; writeActions?: string; modelProviders?: { gemini?: { configured: boolean; model: string; supportsWorkforceTools: boolean; mode: string }; anthropic?: { configured: boolean; model: string; supportsWorkforceTools: boolean } } };
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type GeneratedImage = { imageData: string; mimeType: string; model: string; latencyMs: number };
 
 const defaultColor = "#66aaff";
 
@@ -27,6 +28,11 @@ export default function AIWorkforcePage() {
   const [running, setRunning] = useState(false);
   const [speakReplies, setSpeakReplies] = useState(true);
   const [speakingMessage, setSpeakingMessage] = useState<number | null>(null);
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [imageAspectRatio, setImageAspectRatio] = useState("1:1");
+  const [imageGenerating, setImageGenerating] = useState(false);
+  const [imageError, setImageError] = useState("");
+  const [generatedImage, setGeneratedImage] = useState<GeneratedImage | null>(null);
   const [geminiTest, setGeminiTest] = useState<{ state: "idle" | "testing" | "success" | "failed"; message: string }>({ state: "idle", message: "" });
 
   useEffect(() => {
@@ -42,7 +48,7 @@ export default function AIWorkforcePage() {
     return () => { alive = false; };
   }, []);
 
-  async function testGeminiProvider() {
+  async function generateLumiImage() {\n    if (!imagePrompt.trim() || imageGenerating) return;\n    setImageGenerating(true); setImageError(""); setGeneratedImage(null);\n    try {\n      const response = await fetch("/api/workforce/image/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt: imagePrompt.trim(), aspectRatio: imageAspectRatio }) });\n      const data = await response.json().catch(() => ({}));\n      if (!response.ok || !data.success) throw new Error(data.error || "Lumi could not generate the image.");\n      setGeneratedImage({ imageData: data.imageData, mimeType: data.mimeType || "image/png", model: data.model, latencyMs: data.latencyMs });\n    } catch (e) { setImageError(e instanceof Error ? e.message : "Image generation failed."); }\n    finally { setImageGenerating(false); }\n  }\n\n  async function testGeminiProvider() {
     setGeminiTest({ state: "testing", message: "Sending a small live test request to Gemini…" });
     try {
       const response = await fetch("/api/workforce/provider-test", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
@@ -149,7 +155,7 @@ export default function AIWorkforcePage() {
             <div className="workforce-persona"><span>{selectedAgent?.presentationGender === "female" ? "Female presentation" : selectedAgent?.presentationGender === "male" ? "Male presentation" : "AI persona"}</span><p>{selectedAgent?.personality || "Professional, clear, and evidence-led."}</p></div>
             <h3>Responsibilities</h3><ul>{(selectedAgent?.responsibilities || []).map((item) => <li key={item}>{item}</li>)}</ul>
             <div className="workforce-permissions"><div><strong>Allowed task types</strong><p>{(selectedAgent?.allowedActions || []).join(" · ") || "Coordination and reporting"}</p></div><div><strong>Restricted actions</strong><p>{(selectedAgent?.restrictedActions || []).join(" · ") || "No self-granted permissions"}</p></div></div>
-            <button className="primary-button workforce-open-chat" onClick={() => selectedAgent && openAgent(selectedAgent)}><MessageCircle size={15} /> Open text mode with {selectedAgent?.name || "agent"}</button>
+            {selectedAgent?.id === "lumi" && <div style={{ marginTop: 20, padding: 14, border: "1px solid var(--line, #2b3a50)", borderRadius: 12, background: "var(--panel2, #101a2a)" }}>\n              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}><ImagePlus size={17} /><strong>Pruden Studios · Image generation</strong></div>\n              <p style={{ color: "var(--muted)", fontSize: 11, lineHeight: 1.6, margin: "0 0 10px" }}>Lumi can generate original image assets with Google Gemini. Image generation uses the private server key; no key is sent to the browser. Printing and video generation are not included.</p>\n              <textarea aria-label="Describe the image for Lumi" value={imagePrompt} onChange={(event) => setImagePrompt(event.target.value)} placeholder="Describe the photo or design you want Lumi to create…" rows={4} maxLength={5000} style={{ width: "100%", resize: "vertical", border: "1px solid var(--line, #344761)", borderRadius: 9, padding: 11, background: "var(--panel, #0b1423)", color: "var(--text, #eef4ff)", font: "inherit", fontSize: 12 }} />\n              <div style={{ display: "flex", gap: 8, marginTop: 9, alignItems: "center", flexWrap: "wrap" }}>\n                <select aria-label="Image aspect ratio" value={imageAspectRatio} onChange={(event) => setImageAspectRatio(event.target.value)} style={{ padding: "9px 10px", borderRadius: 8, border: "1px solid var(--line, #344761)", background: "var(--panel, #0b1423)", color: "var(--text, #eef4ff)" }}><option value="1:1">Square · 1:1</option><option value="16:9">Landscape · 16:9</option><option value="9:16">Portrait · 9:16</option><option value="4:5">Social portrait · 4:5</option><option value="3:2">Photo · 3:2</option></select>\n                <button className="primary-button" type="button" onClick={() => void generateLumiImage()} disabled={!imagePrompt.trim() || imageGenerating}><ImagePlus size={14} />{imageGenerating ? "Generating…" : "Generate with Lumi"}</button>\n              </div>\n              {imageError && <p role="alert" style={{ color: "#f87171", fontSize: 11, marginTop: 9 }}>{imageError}</p>}\n              {generatedImage && <div style={{ marginTop: 12 }}><img src={"data:" + generatedImage.mimeType + ";base64," + generatedImage.imageData} alt="Image generated by Lumi" style={{ display: "block", width: "100%", borderRadius: 10, border: "1px solid var(--line, #344761)" }} /><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginTop: 8, fontSize: 10, color: "var(--muted)" }}><span>{generatedImage.model} · {(generatedImage.latencyMs / 1000).toFixed(1)}s</span><a href={"data:" + generatedImage.mimeType + ";base64," + generatedImage.imageData} download="lumi-pruden-studios.png" style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "var(--blue, #75b8ff)" }}><Download size={13} /> Save image</a></div></div>}\n            </div>}\n            <button className="primary-button workforce-open-chat" onClick={() => selectedAgent && openAgent(selectedAgent)}><MessageCircle size={15} /> Open text mode with {selectedAgent?.name || "agent"}</button>
           </div>
         </div>
       </div>
