@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Activity, Bot, CircleAlert, LoaderCircle, MessageCircle, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Activity, Bot, CircleAlert, LoaderCircle, MessageCircle, ShieldCheck, Sparkles, X, Volume2, VolumeX } from "lucide-react";
 import "./workforce.css";
 import AIWorkforceGroupChat from "./AIWorkforceGroupChat";
 
@@ -25,6 +25,8 @@ export default function AIWorkforcePage() {
   const [error, setError] = useState("");
   const [loadingRegistry, setLoadingRegistry] = useState(true);
   const [running, setRunning] = useState(false);
+  const [speakReplies, setSpeakReplies] = useState(true);
+  const [speakingMessage, setSpeakingMessage] = useState<number | null>(null);
   const [geminiTest, setGeminiTest] = useState<{ state: "idle" | "testing" | "success" | "failed"; message: string }>({ state: "idle", message: "" });
 
   useEffect(() => {
@@ -66,6 +68,23 @@ export default function AIWorkforcePage() {
     setChatOpen(true);
   }
 
+  function speakAgentReply(text: string, messageIndex?: number) {
+    if (!("speechSynthesis" in window)) { setError("Spoken replies are not supported by this browser."); return; }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.slice(0, 5000));
+    utterance.rate = 1;
+    utterance.pitch = selectedAgent?.presentationGender === "female" ? 1.12 : selectedAgent?.presentationGender === "male" ? 0.92 : 1;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = selectedAgent?.presentationGender === "female"
+      ? voices.find((voice) => /female|samantha|zira|victoria|karen|google uk english female/i.test(voice.name))
+      : voices.find((voice) => /male|daniel|david|alex|google uk english male/i.test(voice.name));
+    if (preferred) utterance.voice = preferred;
+    utterance.onstart = () => setSpeakingMessage(messageIndex ?? -1);
+    utterance.onend = () => setSpeakingMessage(null);
+    utterance.onerror = () => setSpeakingMessage(null);
+    window.speechSynthesis.speak(utterance);
+  }
+
   async function sendMessage() {
     const message = chatInput.trim();
     if (!selectedAgent || !message || running) return;
@@ -83,7 +102,12 @@ export default function AIWorkforcePage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Agent request failed.");
-      setChatHistory((current) => [...current, { role: "assistant", content: String(data.output || "No text response was returned.") }]);
+      const output = String(data.output || "No text response was returned.");
+      setChatHistory((current) => {
+        const next = [...current, { role: "assistant" as const, content: output }];
+        if (speakReplies) window.setTimeout(() => speakAgentReply(output, next.length - 1), 0);
+        return next;
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Agent request failed.");
     } finally { setRunning(false); }
@@ -144,13 +168,14 @@ export default function AIWorkforcePage() {
     {chatOpen && selectedAgent && <div className="workforce-chat-panel" role="dialog" aria-modal="false" aria-label={"Text chat with " + selectedAgent.name}>
       <div className="workforce-chat-header" style={{ "--orb-color": selectedAgent.orbColor || defaultColor } as CSSProperties}>
         <span className="workforce-chat-avatar">{selectedAgent.name.slice(0, 1)}</span>
-        <div><strong>{selectedAgent.name}</strong><small>{selectedAgent.title} · Text mode</small></div>
-        <button className="workforce-chat-close" onClick={() => setChatOpen(false)} aria-label="Close agent text mode"><X size={17} /></button>
+        <div><strong>{selectedAgent.name}</strong><small>{selectedAgent.title} · Text + voice</small></div>
+        <button className="workforce-chat-close" onClick={() => { setSpeakReplies(v => !v); if (speakReplies) { window.speechSynthesis?.cancel(); setSpeakingMessage(null); } }} aria-label={speakReplies ? "Turn spoken replies off" : "Turn spoken replies on"} title={speakReplies ? "Spoken replies on" : "Spoken replies off"}>{speakReplies ? <Volume2 size={16} /> : <VolumeX size={16} />}</button>
+        <button className="workforce-chat-close" onClick={() => { window.speechSynthesis?.cancel(); setSpeakingMessage(null); setChatOpen(false); }} aria-label="Close agent chat"><X size={17} /></button>
       </div>
       <div className="workforce-chat-context"><span>{selectedAgent.presentationGender === "female" ? "Female" : "Male"} persona</span><p>{selectedAgent.personality}</p></div>
       <div className="workforce-chat-messages">
         {chatHistory.length === 0 && <div className="workforce-chat-empty"><span className="workforce-chat-empty-orb" style={{ "--orb-color": selectedAgent.orbColor || defaultColor } as CSSProperties}>{selectedAgent.name.slice(0, 1)}</span><strong>You're connected to {selectedAgent.name}</strong><p>Send a message or task. {selectedAgent.name} will respond in their assigned role and personality.</p></div>}
-        {chatHistory.map((message, index) => <div className={"workforce-chat-message " + message.role} key={index}><span>{message.role === "user" ? "YOU" : selectedAgent.name.toUpperCase()}</span><p>{message.content}</p></div>)}
+        {chatHistory.map((message, index) => <div className={"workforce-chat-message " + message.role} key={index}><span>{message.role === "user" ? "YOU" : selectedAgent.name.toUpperCase()}</span><p>{message.content}</p>{message.role === "assistant" && <button type="button" className="workforce-message-speak" onClick={() => speakAgentReply(message.content, index)} aria-label={"Read " + selectedAgent.name + " reply aloud"} title="Read aloud">{speakingMessage === index ? <VolumeX size={14} /> : <Volume2 size={14} />}<span>{speakingMessage === index ? "Stop" : "Listen"}</span></button>}</div>)}
         {running && <div className="workforce-chat-thinking"><LoaderCircle size={14} className="workforce-spinner" /> {selectedAgent.name} is thinking…</div>}
       </div>
       {error && <div className="workforce-chat-error" role="alert"><CircleAlert size={14} />{error}</div>}
