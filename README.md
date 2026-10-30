@@ -121,8 +121,8 @@ The **Home** navigation entry opens the PTMS AI Headquarters floor view. It read
 - Agent identities, titles, reporting lines, department placement, and accent colors come from the authoritative `ai-workforce/agents.json` registry through the workforce API; the UI does not maintain a second hard-coded roster.
 - Agent task indicators are derived from saved PTMS task records and their assigned owner/status. In-progress, planned, blocked, and standby states are distinguished. The activity list is explicitly labelled as persisted task data, not a live event stream.
 - The command panel calls the existing `POST /api/workforce/run` endpoint for the selected registered agent. A successful response confirms that a provider request returned text; it does not prove external work was completed.
-- Selecting Ivy asks Ivy for a coordination response. Automatic fan-out into specialist sub-runs, persistent run history, agent-to-room telemetry, live movement, server monitoring, and print-device integration are not implemented by this UI.
-- Room placement is a department-based visualization. Server Infrastructure and Print & Production are clearly marked as reserved visual zones until real telemetry/workflows are connected.
+- Selecting Ivy asks Ivy for a coordination response. Automatic fan-out into specialist sub-runs, persistent run history, physical agent telemetry, server monitoring, and print-device integration are not implemented by this UI.
+- Room placement defaults to the registered department. While an agent has an active run or saved in-progress task, print/printer keywords route its avatar to Print & Production; infrastructure/server/backup/deploy/log keywords route it to Server Infrastructure. This is task-category visualization, not verified physical movement or device telemetry.
 - No synthetic task activity is generated. With no assigned task, an agent is shown as on standby.
 
 This is a development-stage control surface. A configured provider is not proof of a successful live request; use the workforce status and run response to verify availability. Do not treat visual presence or animation as evidence of completed work.
