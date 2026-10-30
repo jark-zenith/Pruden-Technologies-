@@ -61,7 +61,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
     ...registry.departments.flatMap((department) => department.agents.map((agent) => ({ ...agent, department: department.name }))),
   ] : [], [registry]);
 
-  const taskFor = (agent: Agent) => tasks.find((task) => normalize(task.owner) === normalize(agent.name) && ["In progress", "Planned", "Blocked"].includes(task.state));
+  const taskFor = (agent: Agent) => tasks.find((task) => normalize(task.owner) === normalize(agent.name) && task.state === "In progress") || tasks.find((task) => normalize(task.owner) === normalize(agent.name) && task.state === "Planned") || tasks.find((task) => normalize(task.owner) === normalize(agent.name) && task.state === "Blocked");
   const agentTasks = (agent: Agent) => tasks.filter((task) => normalize(task.owner) === normalize(agent.name));
   const stateFor = (agent: Agent) => runningAgentId === agent.id ? "working" : taskFor(agent)?.state === "In progress" ? "working" : taskFor(agent)?.state === "Planned" ? "queued" : taskFor(agent)?.state === "Blocked" ? "blocked" : "standby";
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) || agents[0];
@@ -128,7 +128,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
 
     <div className="hq-workspace">
       <div className="hq-floor-column">
-        <div className="hq-section-bar"><div><span className="hq-kicker">REGISTERED FLOOR PLAN</span><h2>Headquarters overview</h2></div><span className="hq-floor-key"><i className="queued" /> Queued <i className="working" /> In progress <i className="standby" /> Standby</span></div>
+        <div className="hq-section-bar"><div><span className="hq-kicker">REGISTERED FLOOR PLAN</span><h2>Headquarters overview</h2></div><span className="hq-floor-key"><i className="queued" /> Queued <i className="working" /> In progress <i className="blocked" /> Blocked <i className="standby" /> Standby</span></div>
         <div className="hq-floorplan">
           <div className="hq-floor-topline"><span>PRUDEN / OPERATIONS CAMPUS</span><span>FLOOR 01 · VIRTUAL OFFICE</span></div>
           <div className="hq-room-grid">
