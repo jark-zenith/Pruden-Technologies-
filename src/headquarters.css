@@ -25,7 +25,7 @@
 .hq-section-bar h2,.hq-panel-heading h3{margin:0;color:#eaf2ff;font-size:14px;letter-spacing:-.2px}
 .hq-floor-key{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:8px;white-space:nowrap}
 .hq-floor-key i,.hq-floor-bottom i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:-5px}
-.hq-floor-key i.queued{background:#e7bd69}.hq-floor-key i.working{background:#47d6a1}.hq-floor-key i.standby{background:#7588a4}
+.hq-floor-key i.queued{background:#e7bd69}.hq-floor-key i.working{background:#47d6a1}.hq-floor-key i.blocked{background:#ef7777}.hq-floor-key i.standby{background:#7588a4}
 .hq-floorplan{border:1px solid #2b4668;border-radius:12px;padding:12px;background:radial-gradient(ellipse at 50% 40%,#18365a 0%,#0b1a2d 62%,#081321 100%);box-shadow:0 12px 35px #06132630;position:relative;overflow:hidden}
 .hq-floorplan:before{content:"";position:absolute;inset:0;background-image:linear-gradient(#a7c8ef08 1px,transparent 1px),linear-gradient(90deg,#a7c8ef08 1px,transparent 1px);background-size:26px 26px;pointer-events:none}
 .hq-floor-topline,.hq-floor-bottom{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;color:#708cad;font:7px 'DM Mono',monospace;letter-spacing:.8px;padding:1px 3px 10px}
