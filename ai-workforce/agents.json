@@ -422,4 +422,4 @@
     "sentinelCountsTowardDelegationLimit": true,
     "maxToolCallsPerIvyRequest": 8
   }
-}\n
+}
