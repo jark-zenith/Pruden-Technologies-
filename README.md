@@ -114,6 +114,19 @@ Verify the job in `cron.job` and inspect `cron.job_run_details` plus `pruden_dai
 
 In the private PTMS workspace, **AI Workforce → Test Gemini** sends a minimal live request and reports only success/failure, model, and latency. It never returns or logs the API key. A configured environment variable alone does not prove the key is valid, the model is available, or quota remains. Configure `GEMINI_API_KEY` in the private runtime environment and optionally `GEMINI_MODEL` / `WORKFORCE_TEXT_PROVIDER`; never place credentials in frontend variables or source control.
 
+## AI Headquarters Home
+
+The **Home** navigation entry opens the PTMS AI Headquarters floor view. It reads the registered agent roster from `GET /api/workforce/agents` and uses the existing authenticated workspace task records loaded through the PTMS operations layer.
+
+- Agent identities, titles, reporting lines, department placement, and accent colors come from the authoritative `ai-workforce/agents.json` registry through the workforce API; the UI does not maintain a second hard-coded roster.
+- Agent task indicators are derived from saved PTMS task records and their assigned owner/status. In-progress, planned, blocked, and standby states are distinguished. The activity list is explicitly labelled as persisted task data, not a live event stream.
+- The command panel calls the existing `POST /api/workforce/run` endpoint for the selected registered agent. A successful response confirms that a provider request returned text; it does not prove external work was completed.
+- Selecting Ivy asks Ivy for a coordination response. Automatic fan-out into specialist sub-runs, persistent run history, agent-to-room telemetry, live movement, server monitoring, and print-device integration are not implemented by this UI.
+- Room placement is a department-based visualization. Server Infrastructure and Print & Production are clearly marked as reserved visual zones until real telemetry/workflows are connected.
+- No synthetic task activity is generated. With no assigned task, an agent is shown as on standby.
+
+This is a development-stage control surface. A configured provider is not proof of a successful live request; use the workforce status and run response to verify availability. Do not treat visual presence or animation as evidence of completed work.
+
 ## Project status
 
 This README describes the repository's code and intended setup. It does not claim that all integrations are configured, the new Finance migration has been applied to production, or a deployed app has passed live read/write tests. Those states must be confirmed in the target environment.
