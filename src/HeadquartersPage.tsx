@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
-import { Activity, ArrowUpRight, Bot, CheckCircle2, ChevronRight, CircleDot, Clock3, Command, Cpu, FileText, Layers3, LoaderCircle, MessageSquareText, Printer, Search, Send, ShieldCheck, Sparkles, Users, X } from "lucide-react";
+import { Activity, CheckCircle2, ChevronRight, CircleDot, Clock3, Command, Cpu, FileText, Layers3, LoaderCircle, MessageSquareText, Printer, Search, Send, ShieldCheck, Sparkles, Users, X } from "lucide-react";
 import "./headquarters.css";
 
 type Task = { id: string; title: string; project: string; priority: string; owner: string; state: string };
@@ -177,7 +177,6 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
           <div className="hq-panel-heading"><div><span className="hq-kicker">DIRECTORY</span><h3>AI identities</h3></div><button className="hq-plain-button" onClick={() => setShowAllAgents((value) => !value)}>{showAllAgents ? "Compact" : "View all"}</button></div>
           <label className="hq-agent-search"><Search size={13} /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Find an agent…" /></label>
           <div className="hq-roster-list">{filteredAgents.slice(0, showAllAgents ? 14 : 7).map((agent) => {
-            const task = taskFor(agent);
             const state = stateFor(agent);
             return <button key={agent.id} className={selectedAgentId === agent.id ? "selected" : ""} onClick={() => selectAgent(agent)}><AgentAvatar agent={agent} size="small" active={state === "working"} state={state} /><span><strong>{agent.name}</strong><small>{agent.department}</small></span><i className={state} /></button>;
           })}</div>
