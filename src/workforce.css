@@ -131,3 +131,9 @@
 .workforce-group-mode button.active{color:#eff8ff;border-color:#78e3c5;background:#78e3c51a}
 .workforce-group-mic{height:36px;width:36px;flex:none;display:grid;place-items:center;border:1px solid #4b8d7d;border-radius:9px;background:#12332d;color:#d8fff2}
 @media(max-width:760px){.workforce-group-launcher{left:10px;bottom:10px;padding:7px}.workforce-group-launcher-copy strong{font-size:10px}.workforce-group-launcher-copy small{display:none}.workforce-group-panel{left:8px;bottom:62px;width:calc(100vw - 16px);height:calc(100vh - 78px)}}
+
+
+/* Individual agent spoken-reply controls */
+.workforce-message-speak{display:inline-flex;align-items:center;gap:5px;margin:2px 0 0 0;padding:5px 8px;border:1px solid #38506d;border-radius:7px;background:#101d2e;color:#a9c9ef;font:inherit;font-size:9px;cursor:pointer}
+.workforce-message-speak:hover{border-color:var(--orb-color,#66aaff);color:#eef6ff}
+.workforce-chat-panel .workforce-chat-header>div{flex:1;min-width:0}
