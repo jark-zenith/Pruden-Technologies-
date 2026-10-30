@@ -42,6 +42,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
   const [selectedRoomId, setSelectedRoomId] = useState("executive");
   const [command, setCommand] = useState("");
   const [runningAgentId, setRunningAgentId] = useState("");
+  const [runningTaskTitle, setRunningTaskTitle] = useState("");
   const [runResult, setRunResult] = useState<RunResult | null>(null);
   const [filter, setFilter] = useState("");
   const [showAllAgents, setShowAllAgents] = useState(false);
@@ -65,7 +66,14 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
   const stateFor = (agent: Agent) => runningAgentId === agent.id ? "working" : taskFor(agent)?.state === "In progress" ? "working" : taskFor(agent)?.state === "Planned" ? "queued" : taskFor(agent)?.state === "Blocked" ? "blocked" : "standby";
   const selectedAgent = agents.find((agent) => agent.id === selectedAgentId) || agents[0];
   const selectedRoom = rooms.find((room) => room.id === selectedRoomId) || rooms[0];
-  const roomAgents = (roomId: string) => agents.filter((agent) => (agentRoom[agent.id] || "lounge") === roomId);
+  const roomForAgent = (agent: Agent) => {
+    const savedTask = taskFor(agent);
+    const activeTaskTitle = runningAgentId === agent.id ? runningTaskTitle : savedTask?.state === "In progress" ? savedTask.title : "";
+    if (/\\b(print|printing|printer)\\b/i.test(activeTaskTitle)) return "print";
+    if (/\\b(server|infrastructure|backup|deployment|deploy|logs|monitoring)\\b/i.test(activeTaskTitle)) return "server";
+    return agentRoom[agent.id] || "lounge";
+  };
+  const roomAgents = (roomId: string) => agents.filter((agent) => roomForAgent(agent) === roomId);
   const registeredOwners = new Set(agents.map((agent) => normalize(agent.name)));
   const activeTaskCount = tasks.filter((task) => registeredOwners.has(normalize(task.owner)) && task.state === "In progress").length;
   const queuedTaskCount = tasks.filter((task) => registeredOwners.has(normalize(task.owner)) && task.state === "Planned").length;
@@ -73,7 +81,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
 
   function selectAgent(agent: Agent) {
     setSelectedAgentId(agent.id);
-    setSelectedRoomId(agentRoom[agent.id] || "lounge");
+    setSelectedRoomId(roomForAgent(agent));
     setRunResult(null);
   }
 
@@ -82,6 +90,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
     if (!selectedAgent || !command.trim() || runningAgentId) return;
     const task = command.trim();
     setRunningAgentId(selectedAgent.id);
+    setRunningTaskTitle(task);
     setRunResult(null);
     try {
       const response = await fetch("/api/workforce/run", {
@@ -95,6 +104,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
       setRunResult({ agent: selectedAgent, output: error instanceof Error ? error.message : "Agent request failed.", state: "error" });
     } finally {
       setRunningAgentId("");
+      setRunningTaskTitle("");
     }
   }
 
@@ -104,7 +114,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
       <div className="hq-heading-mark"><span>PT</span><small>HQ / 01</small></div>
     </header>
 
-    <div className="hq-truth-strip"><span><CircleDot size={13} /> DEVELOPMENT VIEW</span><p>Agent presence comes from the live workforce registry. Task states come from saved PTMS records. No activity is invented.</p><span className="hq-truth-count"><ShieldCheck size={13} /> Evidence-led status</span></div>
+    <div className="hq-truth-strip"><span><CircleDot size={13} /> DEVELOPMENT VIEW</span><p>Agent presence comes from the workforce registry. Task states come from saved PTMS records. Active print/server task titles route the avatar to a matching virtual room; this is not physical telemetry.</p><span className="hq-truth-count"><ShieldCheck size={13} /> Evidence-led status</span></div>
 
     <div className="hq-metrics">
       <article><span>REGISTERED AGENTS</span><strong>{registry ? agents.length.toString().padStart(2, "0") : "—"}</strong><small>Authoritative workforce roster</small></article>
@@ -139,7 +149,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
               </button>;
             })}
           </div>
-          <div className="hq-floor-bottom"><span><i /> FLOOR VIEW READY</span><span>ROOM PLACEMENT = REGISTERED DEPARTMENT</span></div>
+          <div className="hq-floor-bottom"><span><i /> FLOOR VIEW READY</span><span>ROOM PLACEMENT = DEPARTMENT OR TASK ROUTE</span></div>
         </div>
         <div className="hq-lower-grid">
           <section className="hq-panel hq-command-panel">
@@ -166,7 +176,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
             <div className="hq-agent-hero"><AgentAvatar agent={selectedAgent} size="large" active={runningAgentId === selectedAgent.id || taskFor(selectedAgent)?.state === "In progress"} /><div><h2>{selectedAgent.name}</h2><p>{selectedAgent.title}</p><small>{selectedAgent.department}</small></div></div>
             <div className="hq-agent-state"><span className={runningAgentId === selectedAgent.id || taskFor(selectedAgent)?.state === "In progress" ? "working" : taskFor(selectedAgent)?.state === "Planned" ? "queued" : "standby"} />{runningAgentId === selectedAgent.id ? "Provider request executing" : taskFor(selectedAgent)?.state === "In progress" ? "In progress · PTMS task" : taskFor(selectedAgent)?.state === "Planned" ? "Queued · PTMS task" : taskFor(selectedAgent)?.state === "Blocked" ? "Blocked · PTMS task" : "Standby · no active task record"}</div>
             <div className="hq-agent-task"><span>CURRENT PTMS TASK</span><strong>{taskFor(selectedAgent)?.title || "No active task assigned"}</strong><small>{taskFor(selectedAgent)?.project || "Waiting for a saved assignment"}</small></div>
-            <div className="hq-agent-facts"><div><span>REPORTS TO</span><strong>{selectedAgent.reportsTo || "Founder"}</strong></div><div><span>ROOM</span><strong>{rooms.find((room) => room.id === (agentRoom[selectedAgent.id] || "lounge"))?.name || "Standby lounge"}</strong></div></div>
+            <div className="hq-agent-facts"><div><span>REPORTS TO</span><strong>{selectedAgent.reportsTo || "Founder"}</strong></div><div><span>ROOM</span><strong>{rooms.find((room) => room.id === roomForAgent(selectedAgent))?.name || "Standby lounge"}</strong></div></div>
             <div className="hq-agent-responsibilities"><span>PRIMARY RESPONSIBILITY</span><p>{selectedAgent.responsibilities?.[0] || "Coordination and reporting"}</p></div>
             <button className="hq-agent-select-action" onClick={() => { setCommand(""); setRunResult(null); document.getElementById("hq-command-input")?.focus(); }}><MessageSquareText size={14} /> Prepare a task for {selectedAgent.name}</button>
             <div className="hq-agent-history"><span>ASSIGNED TASK HISTORY</span>{agentTasks(selectedAgent).slice(0, 4).map((task) => <div key={task.id}><span className={task.state === "Completed" ? "done" : task.state === "In progress" ? "working" : task.state === "Blocked" ? "blocked" : "queued"} /><p>{task.title}<small>{task.project} · {task.state}</small></p></div>)}{agentTasks(selectedAgent).length === 0 && <small>No saved PTMS tasks assigned to this agent.</small>}</div>
