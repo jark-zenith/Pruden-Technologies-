@@ -94,7 +94,7 @@
 .hq-agent-state{display:flex;align-items:center;gap:7px;margin:11px 0;padding:7px 8px;border:1px solid #2c415d;border-radius:6px;background:#0a192a;color:#9eb4d0;font-size:8px}
 .hq-agent-state>span,.hq-agent-history>div>span,.hq-roster-list button>i{width:6px;height:6px;border-radius:50%;background:#8497ad;flex:none}
 .hq-agent-state>span.working,.hq-agent-history>div>span.working,.hq-roster-list button>i.working{background:#4bd7a1;box-shadow:0 0 8px #4bd7a1}
-.hq-agent-state>span.queued,.hq-agent-history>div>span.queued,.hq-roster-list button>i.queued{background:#e4bd69}
+.hq-agent-state>span.queued,.hq-agent-history>div>span.queued,.hq-roster-list button>i.queued{background:#e4bd69}\n.hq-agent-state>span.blocked,.hq-agent-history>div>span.blocked,.hq-roster-list button>i.blocked{background:#ef7777;box-shadow:0 0 8px #ef777755}
 .hq-agent-task{padding:10px;border:1px solid #2d4665;border-radius:7px;background:#10233a}
 .hq-agent-task span,.hq-agent-facts span,.hq-agent-responsibilities>span,.hq-agent-history>span{display:block;color:#7794b8;font:7px 'DM Mono',monospace;letter-spacing:.8px;margin-bottom:6px}
 .hq-agent-task strong{display:block;color:#e3edf9;font-size:9px;line-height:1.5}
