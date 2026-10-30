@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { registerIvyGmailRoutes } from "./server/ivy-gmail.mjs";
 import { registerIvyMediaRoutes } from "./server/ivy-media.mjs";
 import { registerAIWorkforceRoutes, getAIWorkforceDirectory, runAIWorkforceAgent } from "./server/ai-workforce.mjs";
+import { registerLumiImageRoutes } from "./server/lumi-image-generation.mjs";
 import { ivyOperationTools, executeIvyOperation } from "./server/ivy-operations.mjs";
 import { ivyGitHubTools, executeIvyGitHubTool } from "./server/ivy-github.mjs";
 import { ivyCapabilityStatus, ivyCapabilityTool } from "./server/ivy-capabilities.mjs";
@@ -105,6 +106,7 @@ registerProjectIntelligenceRoutes(app);
 registerIvyGmailRoutes(app);
 registerIvyMediaRoutes(app);
 registerAIWorkforceRoutes(app);
+registerLumiImageRoutes(app);
 app.post("/api/workforce/provider-test", async (req, res) => {
   const ip = req.ip || "unknown";
   const now = Date.now();
