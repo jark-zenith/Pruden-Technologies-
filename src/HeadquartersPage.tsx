@@ -15,7 +15,7 @@ const rooms = [
   { id: "engineering", name: "Engineering lab", short: "ENGINEERING", icon: Cpu, department: "Engineering & AI Systems", description: "Software planning, interfaces, APIs and AI workflow design.", kind: "engineering" },
   { id: "quality", name: "Quality & security", short: "QA / SECURITY", icon: ShieldCheck, department: "Quality Assurance & Security", description: "Independent test planning, risk review and verification.", kind: "quality" },
   { id: "studios", name: "Pruden studios", short: "CREATIVE", icon: Sparkles, department: "Pruden Studios", description: "Brand design, creative direction and media production.", kind: "studio" },
-  { id: "operations", name: "Operations hub", short: "OPERATIONS", icon: Layers3, department: "Operations & Knowledge", description: "Project coordination, knowledge and operational handoffs.", kind: "operations" },
+  { id: "operations", name: "Operations hub", short: "OPERATIONS", icon: Layers3, department: "Operations & Delivery", description: "Project coordination, knowledge and operational handoffs.", kind: "operations" },
   { id: "server", name: "Infrastructure room", short: "SYSTEMS", icon: Cpu, department: "Infrastructure", description: "A visual systems area. No server telemetry is connected yet.", kind: "server" },
   { id: "print", name: "Print & production", short: "PRODUCTION", icon: Printer, department: "Production", description: "Reserved for real production and document workflows when connected.", kind: "print" },
   { id: "lounge", name: "Standby lounge", short: "STANDBY", icon: Clock3, department: "Standby", description: "Agents with no active or queued PTMS task are shown on standby.", kind: "lounge" },
