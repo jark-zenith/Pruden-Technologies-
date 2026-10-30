@@ -177,7 +177,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
           <label className="hq-agent-search"><Search size={13} /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Find an agent…" /></label>
           <div className="hq-roster-list">{filteredAgents.slice(0, showAllAgents ? 14 : 7).map((agent) => {
             const task = taskFor(agent);
-            const state = runningAgentId === agent.id ? "working" : task?.state === "In progress" ? "working" : task?.state === "Planned" ? "queued" : "standby";
+            const state = stateFor(agent);
             return <button key={agent.id} className={selectedAgentId === agent.id ? "selected" : ""} onClick={() => selectAgent(agent)}><AgentAvatar agent={agent} size="small" active={state === "working"} /><span><strong>{agent.name}</strong><small>{agent.department}</small></span><i className={state} /></button>;
           })}</div>
           {registryError && <p className="hq-error-note">{registryError}</p>}
@@ -185,7 +185,7 @@ export default function HeadquartersPage({ tasks }: { tasks: Task[] }) {
 
         <section className="hq-panel hq-activity-panel">
           <div className="hq-panel-heading"><div><span className="hq-kicker">WORKSPACE SIGNALS</span><h3>Recent task activity</h3></div><Activity size={16} /></div>
-          {tasks.slice(0, 5).map((task) => <div className="hq-activity-row" key={task.id}><span className={task.state === "Completed" ? "done" : task.state === "In progress" ? "working" : "queued"}>{task.state === "Completed" ? <CheckCircle2 size={12} /> : <FileText size={12} />}</span><div><strong>{task.title}</strong><small>{task.owner} · {task.project} · {task.state}</small></div></div>)}
+          {tasks.slice(0, 5).map((task) => <div className="hq-activity-row" key={task.id}><span className={task.state === "Completed" ? "done" : task.state === "In progress" ? "working" : task.state === "Blocked" ? "blocked" : "queued"}>{task.state === "Completed" ? <CheckCircle2 size={12} /> : <FileText size={12} />}</span><div><strong>{task.title}</strong><small>{task.owner} · {task.project} · {task.state}</small></div></div>)}
           {tasks.length === 0 && <p className="hq-muted">No saved tasks yet. Task activity will appear here when records exist.</p>}
           <small className="hq-source-note">Source: authenticated PTMS task records · not a live agent event stream</small>
         </section>
