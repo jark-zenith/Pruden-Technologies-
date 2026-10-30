@@ -12,7 +12,7 @@ A private, owner-scoped management workspace for PRUDEN Technologies, with Ivy a
 - **Ivy assistant:** server-side Anthropic API integration; provider credentials remain on the server.
 - **Workspace operations:** owner-scoped Supabase operations for projects, tasks, approvals, and customers.
 - **Business modules:** Finance ledger, Customers & CRM, Products & Services, Knowledge Base, Security & Audit, Approvals, and reports.
-- **AI Workforce:** registered specialist directory and bounded text delegation.
+- **AI Workforce:** registered specialist directory, bounded text delegation, and Lumi's server-side Gemini image-generation workflow.
 - **Supporting integrations:** optional GitHub, Gmail, media, research, and persistent-memory modules, each subject to its own configuration and permissions.
 - **Android wrapper:** Capacitor configuration and an APK workflow.
 
