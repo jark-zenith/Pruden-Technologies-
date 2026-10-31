@@ -5,6 +5,10 @@ on:
     paths:
       - "server/financial-integrations.mjs"
       - "server.mjs"
+      - "server/ivy-operations.mjs"
+      - "ai-workforce/agents/ivy/RUNTIME_PROMPT.md"
+      - "supabase/migrations/**"
+      - "docs/financial-intelligence-setup.md"
       - "src/BusinessModules.tsx"
       - "test/financial-integrations.test.mjs"
       - "package.json"
