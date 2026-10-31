@@ -23,12 +23,14 @@ Set the following on the **backend web service only**. Empty secret values shoul
 | DARAJA_PASSKEY | unset | Yes |
 | DARAJA_CALLBACK_BASE_URL | https://pruden-command-secure.onrender.com/api/daraja | No |
 | DARAJA_CALLBACK_TOKEN | unset | Yes |
+| DARAJA_OWNER_ID | unset | No (UUID) |
 | DARAJA_STK_PUSH_ENABLED | false | No |
 | DARAJA_C2B_ENABLED | false | No |
 | DARAJA_B2C_ENABLED | false | No |
 | DARAJA_B2B_ENABLED | false | No |
 | PTMS_FINANCE_BRIDGE_ENABLED | false | No |
 | PTMS_FINANCE_BRIDGE_SECRET | unset | Yes |
+| PTMS_FINANCE_OWNER_ID | unset | No (UUID) |
 
 ## Safaricom setup later
 1. Create/select the Daraja app in the Safaricom developer portal.
