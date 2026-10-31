@@ -143,7 +143,7 @@ export function registerFinancialIntegrationRoutes(app, env = process.env) {
     if (env.DARAJA_ENV === "production") return res.status(403).json({ success: false, error: "This test endpoint is restricted to the Daraja sandbox." });
     try {
       const result = await requestSandboxToken(env);
-      return res.json({ success: true, environment: "sandbox", ...result, tokenReturnedToClient: false });
+      return res.json({ success: true, environment: "sandbox", expiresIn: result.expiresIn, tokenType: result.tokenType, tokenReturnedToClient: false });
     } catch (error) {
       return res.status(503).json({ success: false, environment: "sandbox", error: error instanceof Error ? error.message : "Sandbox token test failed." });
     }
