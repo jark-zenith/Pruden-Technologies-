@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, Check, Download, Play, RotateCcw, Volume2, X } from "lucide-react";
+import { AudioLines, Check, Download, RotateCcw, Volume2, X } from "lucide-react";
 import { saveStudioAsset, type StudioAsset } from "./lib/studioLibrary";
 
 function encodeWav(buffer: AudioBuffer, start: number, end: number): Blob {
