@@ -110,7 +110,7 @@ async function requestSandboxToken(env) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.access_token) throw new Error("Daraja sandbox token request failed with HTTP " + response.status + ".");
-  return { expiresIn: Number(data.expires_in || 0), tokenType: data.token_type || "Bearer" };
+  return { accessToken: data.access_token, expiresIn: Number(data.expires_in || 0), tokenType: data.token_type || "Bearer" };
 }
 
 async function saveCallbackEvent(env, provider, parsed, rawBody) {
@@ -146,6 +146,57 @@ export function registerFinancialIntegrationRoutes(app, env = process.env) {
       return res.json({ success: true, environment: "sandbox", ...result, tokenReturnedToClient: false });
     } catch (error) {
       return res.status(503).json({ success: false, environment: "sandbox", error: error instanceof Error ? error.message : "Sandbox token test failed." });
+    }
+  });
+
+  app.post("/api/financial/daraja/stk-push", async (req, res) => {
+    if (env.DARAJA_ENV === "production") return res.status(403).json({ success: false, error: "Production STK Push is disabled in this rollout." });
+    if (!safeBoolean(env.DARAJA_ENABLED) || !safeBoolean(env.DARAJA_STK_PUSH_ENABLED)) return res.status(503).json({ success: false, error: "Daraja STK Push is disabled. Enable it only after sandbox configuration and testing." });
+    if (!configured(env.DARAJA_SHORTCODE) || !configured(env.DARAJA_PASSKEY) || !configured(env.DARAJA_CALLBACK_TOKEN) || !configured(env.DARAJA_CALLBACK_BASE_URL)) return res.status(503).json({ success: false, error: "Daraja shortcode, passkey and callback configuration are required." });
+    const body = req.body || {};
+    const phone = String(body.phoneNumber || "").replace(/\D/g, "");
+    const amount = Number(body.amount);
+    const reference = String(body.accountReference || "").trim().replace(/[^A-Za-z0-9_-]/g, "").slice(0, 12);
+    const description = String(body.transactionDesc || "PTMS payment").trim().replace(/[^A-Za-z0-9 ._-]/g, "").slice(0, 13);
+    if (!/^254(?:7|1)\d{8}$/.test(phone)) return res.status(400).json({ success: false, error: "phoneNumber must use the 2547XXXXXXXX or 2541XXXXXXXX format." });
+    if (!Number.isSafeInteger(amount) || amount < 1 || amount > 150000) return res.status(400).json({ success: false, error: "amount must be a whole KES amount between 1 and 150000." });
+    if (!reference) return res.status(400).json({ success: false, error: "A valid accountReference is required." });
+    try {
+      const token = await requestSandboxToken(env);
+      const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Nairobi", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+      const part = (name) => parts.find((item) => item.type === name)?.value || "";
+      const timestamp = part("year") + part("month") + part("day") + part("hour") + part("minute") + part("second");
+      const password = Buffer.from(env.DARAJA_SHORTCODE + env.DARAJA_PASSKEY + timestamp).toString("base64");
+      const callbackBase = env.DARAJA_CALLBACK_BASE_URL.replace(/\/$/, "");
+      const response = await fetch(darajaBaseUrl(env) + "/mpesa/stkpush/v1/processrequest", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token.accessToken, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          BusinessShortCode: env.DARAJA_SHORTCODE,
+          Password: password,
+          Timestamp: timestamp,
+          TransactionType: "CustomerPayBillOnline",
+          Amount: amount,
+          PartyA: phone,
+          PartyB: env.DARAJA_SHORTCODE,
+          PhoneNumber: phone,
+          CallBackURL: callbackBase + "/stk-callback/" + env.DARAJA_CALLBACK_TOKEN,
+          AccountReference: reference,
+          TransactionDesc: description
+        }),
+        signal: AbortSignal.timeout(15000)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || String(result.ResponseCode ?? "") !== "0") return res.status(502).json({ success: false, environment: "sandbox", providerAccepted: false, error: String(result.errorMessage || result.ResponseDescription || "Daraja sandbox rejected the STK request.").slice(0, 240) });
+      return res.status(202).json({
+        success: true, environment: "sandbox", providerAccepted: true,
+        merchantRequestId: result.MerchantRequestID || null,
+        checkoutRequestId: result.CheckoutRequestID || null,
+        customerMessage: result.CustomerMessage || "Sandbox STK request accepted.",
+        note: "Provider acceptance is not proof of payment. Wait for the callback and reconcile the M-Pesa receipt."
+      });
+    } catch (error) {
+      return res.status(502).json({ success: false, environment: "sandbox", providerAccepted: false, error: error instanceof Error ? error.message : "STK Push sandbox request failed." });
     }
   });
 
