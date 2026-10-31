@@ -21,8 +21,11 @@ const groups = [
     ["Mixing & mastering", "PLANNED", "Track mixing, EQ, compression, noise reduction and ducking."]
   ]},
   { id: "motion", title: "Animation & motion graphics", icon: Layers3, items: [
-    ["Keyframes & motion paths", "PLANNED", "Animate position, scale, rotation and opacity."],
-    ["Titles & compositing", "PLANNED", "Animated titles, masks, tracking and layered scenes."]
+    ["Keyframed titles & shape layers", "ACTIVE", "Animate text and vector-style shape layers with position, scale, rotation, opacity and easing."],
+    ["Timeline & motion paths", "ACTIVE", "Scrub and preview timed layer tracks with start/end points and easing interpolation."],
+    ["Composition presets & guides", "ACTIVE", "Landscape, portrait and square canvas formats with safe-area and centre guides."],
+    ["WebM & PNG rendering", "ACTIVE", "Render browser-based motion graphics to WebM and export still frames as PNG."],
+    ["Masks, tracking & 3D scenes", "PLANNED", "Advanced masks, motion tracking, 3D cameras, particle systems and compositing."]
   ]},
   { id: "ai", title: "AI-powered editing", icon: WandSparkles, items: [
     ["Background & object tools", "DISABLED", "Background removal, object cleanup, inpainting and generative fill."],
@@ -35,8 +38,10 @@ const groups = [
     ["Render presets & queue", "PLANNED", "Resolution, frame rate, codecs, quality presets and batch rendering."]
   ]},
   { id: "pro", title: "Professional & advanced", icon: SlidersHorizontal, items: [
-    ["Precision tools", "PLANNED", "Masks, curves, perspective, tracking, scopes and advanced retouching."],
-    ["Production workflow", "PLANNED", "Proxy media, multicam, collaboration, asset relinking and render management."]
+    ["Motion keyframes & easing", "ACTIVE", "Per-layer start/end animation, linear and eased interpolation, opacity and transform controls."],
+    ["Composition & delivery controls", "ACTIVE", "16:9, 9:16 and 1:1 compositions, 24/30/60 fps, safe guides and WebM/PNG output."],
+    ["Colour curves, masks & scopes", "PLANNED", "Curves, selective masks, waveform/vectorscope monitoring, LUT management and precision grading."],
+    ["Tracking, 3D & production pipeline", "PLANNED", "Object tracking, 3D compositing, proxy media, multicam, render queue and project versioning."]
   ]}
 ] as const;
 
