@@ -11,11 +11,12 @@ import IvyMediaDesk from "./IvyMediaDesk";
 import BusinessModules from "./BusinessModules";
 import IdeasStrategyPage, { IdeasDashboardWidget } from "./IdeasStrategyPage";
 import IdeasJournalPage from "./IdeasJournalPage";
+import PrudenStudiosPage from "./PrudenStudiosPage";
 import type { User } from "@supabase/supabase-js";
 import { listProjects, createProject, listTasks, createTask, updateTaskStatus, listApprovals } from "./lib/operations";
 import { githubProjects } from "./githubProjects";
 import {
-  Activity, ArrowRight, ArrowUpRight, Bell, Bot, BriefcaseBusiness, Mail,
+  Activity, ArrowRight, ArrowUpRight, Aperture, Bell, Bot, BriefcaseBusiness, Mail,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Command,
   CreditCard, Database, FileText, FolderKanban, Gauge, GitBranch, LayoutDashboard,
   ListTodo, LockKeyhole, Menu, Plus, Search, Settings2, ShieldCheck,
@@ -26,7 +27,7 @@ import {
 type ModuleKey =
   | "Home" | "Overview" | "Projects" | "Tasks" | "Website Inbox" | "AI Workforce" | "Project Intelligence" | "Approvals"
   | "Customers & CRM" | "Finance" | "Products & Services" | "Infrastructure" | "Social Media Monitoring"
-  | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub" | "Ideas & Strategy" | "Daily Journal";
+  | "Security & Audit" | "Knowledge Base" | "Reports & Settings" | "GitHub" | "Ideas & Strategy" | "Daily Journal" | "Pruden Studios";
 
 type NavItem = { label: ModuleKey; icon: LucideIcon; group: string; badge?: string };
 
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { label: "Customers & CRM", icon: Users, group: "BUSINESS" },
   { label: "Finance", icon: CreditCard, group: "BUSINESS" },
   { label: "Products & Services", icon: BriefcaseBusiness, group: "BUSINESS" },
+  { label: "Pruden Studios", icon: Aperture, group: "BUSINESS", badge: "NEW" },
   { label: "Infrastructure", icon: Database, group: "SYSTEMS" },
   { label: "Security & Audit", icon: LockKeyhole, group: "SYSTEMS" },
   { label: "Knowledge Base", icon: FileText, group: "SYSTEMS" },
@@ -70,6 +72,7 @@ const descriptions: Record<ModuleKey, string> = {
   "Customers & CRM": "Manage leads, customer relationships and delivery hand-offs.",
   "Finance": "Monitor verified financial records, budgets and operating costs.",
   "Products & Services": "Maintain the catalogue, product owners and release status.",
+  "Pruden Studios": "Create, organize and deliver photography, visual designs and video work.",
   "Infrastructure": "Track repositories, environments, providers and service health.",
   "Social Media Monitoring": "Monitor social channels, record performance and prepare AI-assisted growth plans.",
   "Security & Audit": "Review access, audit events, risks and incident readiness.",
@@ -294,7 +297,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
         <div className="content-wrap">
           <div className="prototype-banner"><span><Activity size={14} /> {backendLoading ? "CONNECTING" : backendError ? "BACKEND ISSUE" : "LIVE DATA"}</span><p>{backendError || (backendLoading ? "Loading your workspace from Supabase…" : "Authenticated workspace · Records protected by Supabase Row Level Security")}</p><button onClick={() => chooseModule("Infrastructure")}>View system status <ArrowRight size={13} /></button></div>
 
-          {active === "Home" ? <HeadquartersPage tasks={localTasks} projects={projects} approvals={approvals} onExit={() => chooseModule("Overview")} /> : active === "Project Intelligence" ? <ProjectIntelligencePage /> : active === "GitHub" ? <GitHubProjectsPage /> : active === "Infrastructure" ? <InfrastructurePage /> : active === "Social Media Monitoring" ? <SocialMonitoringPage user={user} /> : active === "Website Inbox" ? <WebsiteInboxPage user={user} /> : active === "Overview" ? (
+          {active === "Home" ? <HeadquartersPage tasks={localTasks} projects={projects} approvals={approvals} onExit={() => chooseModule("Overview")} /> : active === "Pruden Studios" ? <PrudenStudiosPage /> : active === "Project Intelligence" ? <ProjectIntelligencePage /> : active === "GitHub" ? <GitHubProjectsPage /> : active === "Infrastructure" ? <InfrastructurePage /> : active === "Social Media Monitoring" ? <SocialMonitoringPage user={user} /> : active === "Website Inbox" ? <WebsiteInboxPage user={user} /> : active === "Overview" ? (
             <>
               <section className="welcome-row">
                 <div><p className="eyebrow"><span className="live-indicator" /> TECHNOLOGY OPERATIONS / 01</p><h1>Welcome back, <em>Founder.</em></h1><p className="welcome-subtitle">Here’s your current operating picture. Build with clarity, move with intent.</p></div>
@@ -304,6 +307,8 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
               <LiveProjectShowcase />
 
               <IdeasDashboardWidget user={user} onOpen={() => chooseModule("Ideas & Strategy")} />
+
+              <button className="studio-dashboard-shortcut" onClick={() => chooseModule("Pruden Studios")}><span className="studio-shortcut-icon"><Aperture size={22} /></span><span><small>CREATIVE DIVISION / NEW WORKSPACE</small><strong>Pruden Studios</strong><em>Manage photos, posters, edited videos and client-ready exports in one local-first library.</em></span><span className="studio-shortcut-action">Open Studio <ArrowRight size={14} /></span></button>
 
               <section className="metric-grid" aria-label="Workspace overview metrics">
                 <article className="metric-card"><div className="metric-top"><span>Active projects</span><span className="metric-icon blue"><FolderKanban size={17} /></span></div><div className="metric-value">{String(projects.filter((p) => p.status === "active").length).padStart(2, "0")} <small>live</small></div><div className="metric-foot"><span className="metric-note"><Activity size={13} /> Supabase records</span><span className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></span></div></article>
