@@ -135,7 +135,7 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
           <details className="studio-editor-tool-group studio-editor-future"><summary>AI-powered editing <span className="studio-tool-disabled">Disabled</span></summary><p>Background removal, object cleanup, generative fill, upscaling, image variations and semantic selection.</p><small>Disabled until an approved image provider and API configuration are connected.</small></details>
           <div className="studio-editor-footer"><button className="secondary-button" onClick={reset}><RotateCcw size={14} /> Reset</button><button className="primary-button" onClick={() => void save()} disabled={saving}><Check size={14} /> {saving ? "Saving…" : "Save as new export"}</button><button className="secondary-button" onClick={() => { const canvas = canvasRef.current; if (!canvas) return; const anchor = document.createElement("a"); anchor.href = canvas.toDataURL("image/png"); anchor.download = asset.fileName.replace(/\.[^.]+$/, "") + "-edited.png"; anchor.click(); }}><Download size={14} /> Download</button></div>
           {error && <p className="studio-editor-error" role="alert">{error}</p>}
-        </aside>
+        </aside>}
       </div>
     </section>
   </div>;
