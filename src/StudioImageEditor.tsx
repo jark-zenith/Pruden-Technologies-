@@ -216,6 +216,15 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
     });
     syncLayers(next); setCanvasSize({ width: sw, height: sh }); setCropRect(null); setTool("move"); setResizeWidth(0); setResizeHeight(0); setMessage("Crop applied to every visible and hidden layer.");
   }
+  function flipLayers() {
+    const next = layersRef.current.map((layer) => {
+      const transformed = makeCanvas(layer.canvas.width, layer.canvas.height);
+      const ctx = transformed.getContext("2d")!;
+      ctx.translate(transformed.width, 0); ctx.scale(-1, 1); ctx.drawImage(layer.canvas, 0, 0);
+      return { ...layer, canvas: transformed };
+    });
+    syncLayers(next); setFlip(false);
+  }
   function rotate(degrees: number) {
     const oldWidth = canvasSize.width, oldHeight = canvasSize.height;
     const nextWidth = Math.abs(degrees) % 180 === 90 ? oldHeight : oldWidth;
@@ -274,7 +283,7 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
             <button className="secondary-button studio-layer-add" onClick={() => overlayInput.current?.click()}><ImagePlus size={13}/> Add image layer</button><input ref={overlayInput} type="file" accept="image/*" hidden onChange={(event) => { addLayer(event.target.files?.[0]); event.currentTarget.value = ""; }}/>
             {layers.find((item) => item.id === activeLayer) && <><label>Layer opacity <output>{layers.find((item) => item.id === activeLayer)!.opacity}%</output><input type="range" min="0" max="100" value={layers.find((item) => item.id === activeLayer)!.opacity} onChange={(event) => updateLayer(activeLayer, { opacity: Number(event.target.value) })}/><label>Blend mode<select value={layers.find((item) => item.id === activeLayer)!.blend} onChange={(event) => updateLayer(activeLayer, { blend: event.target.value as GlobalCompositeOperation })}><option value="source-over">Normal</option><option value="multiply">Multiply</option><option value="screen">Screen</option><option value="overlay">Overlay</option><option value="darken">Darken</option><option value="lighten">Lighten</option><option value="color-dodge">Color dodge</option><option value="color-burn">Color burn</option><option value="difference">Difference</option></select></label></>}
           </div>
-          <div className="studio-editor-tool-group"><h3><Maximize2 size={14}/> TRANSFORM & OUTPUT</h3><div className="studio-editor-tool-row"><button onClick={() => rotate(-90)}><RotateCcw size={13}/> Rotate left</button><button onClick={() => rotate(90)}><RotateCw size={13}/> Rotate right</button><button onClick={() => setFlip((value) => !value)}><FlipHorizontal size={13}/> Flip</button></div><div className="studio-editor-dimensions"><label>Width px<input type="number" min="1" max="5000" value={resizeWidth || ""} onChange={(event) => setResizeWidth(Math.max(0, Math.min(5000, Number(event.target.value))))}/></label><label>Height px<input type="number" min="1" max="5000" value={resizeHeight || ""} onChange={(event) => setResizeHeight(Math.max(0, Math.min(5000, Number(event.target.value))))}/></label></div></div>
+          <div className="studio-editor-tool-group"><h3><Maximize2 size={14}/> TRANSFORM & OUTPUT</h3><div className="studio-editor-tool-row"><button onClick={() => rotate(-90)}><RotateCcw size={13}/> Rotate left</button><button onClick={() => rotate(90)}><RotateCw size={13}/> Rotate right</button><button onClick={flipLayers}><FlipHorizontal size={13}/> Flip canvas</button></div><div className="studio-editor-dimensions"><label>Width px<input type="number" min="1" max="5000" value={resizeWidth || ""} onChange={(event) => setResizeWidth(Math.max(0, Math.min(5000, Number(event.target.value))))}/></label><label>Height px<input type="number" min="1" max="5000" value={resizeHeight || ""} onChange={(event) => setResizeHeight(Math.max(0, Math.min(5000, Number(event.target.value))))}/></label></div></div>
           <div className="studio-editor-tool-group"><h3><SlidersHorizontal size={14}/> ADJUSTMENTS & RETOUCH</h3>
             <label>Brightness <output>{brightness}%</output><input type="range" min="40" max="180" value={brightness} onChange={(event) => setBrightness(Number(event.target.value))}/></label>
             <label>Contrast <output>{contrast}%</output><input type="range" min="40" max="180" value={contrast} onChange={(event) => setContrast(Number(event.target.value))}/></label>
