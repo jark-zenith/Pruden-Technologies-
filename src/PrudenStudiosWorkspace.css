@@ -76,3 +76,20 @@
 .studio-video-tool-group p,.studio-video-tool-group small{display:block;margin:7px 0 0;color:#8fa5c1;font-size:.61rem;line-height:1.5}
 @media(max-width:900px){.studio-edit-layout{grid-template-columns:1fr}.studio-tool-suite{position:relative;top:auto;max-height:none}.studio-tool-suite-content{max-height:420px}.studio-edit-layout .studio-edit-start{grid-template-columns:repeat(2,minmax(0,1fr))}.studio-editor-layout{grid-template-columns:1fr!important;grid-template-rows:minmax(180px,1fr) auto!important}.studio-editor-tools{max-height:42vh}.studio-video-layout{grid-template-columns:1fr;grid-template-rows:minmax(180px,1fr) auto}.studio-video-inspector{max-height:42vh;border-left:0;border-top:1px solid #263b54}}
 @media(max-width:620px){.studio-edit-layout .studio-edit-start{grid-template-columns:1fr}.studio-tool-suite.closed{width:42px}.studio-editor-sidebar-toggle{right:8px;top:8px}.studio-video-layout{grid-template-rows:minmax(160px,1fr) auto}.studio-video-inspector{max-height:48vh}}
+
+.studio-audio-editor{width:min(900px,100%);max-height:92vh;overflow:auto;border:1px solid #314761;border-radius:15px;background:#0b1421;color:#eaf2ff;box-shadow:0 30px 100px #000b}
+.studio-audio-body{display:flex;flex-direction:column;gap:14px;padding:18px}
+.studio-audio-art{display:flex;align-items:center;flex-direction:column;gap:9px;padding:24px;border:1px solid #263b54;border-radius:10px;background:radial-gradient(circle at 50% 0,#3b84d322,transparent 70%),#09111d;color:#6ea9ed}
+.studio-audio-art strong{max-width:100%;overflow-wrap:anywhere;color:#dcecff;font-size:.8rem}
+.studio-audio-art small{color:#8fa5c1;font-size:.65rem}
+.studio-audio-body>audio{width:100%}
+.studio-audio-range{display:flex;flex-direction:column;gap:12px;padding:13px;border:1px solid #263b54;border-radius:9px;background:#101e30}
+.studio-audio-range>div:first-child{display:flex;gap:18px;flex-wrap:wrap;color:#8fa5c1;font:9px 'DM Mono',monospace}
+.studio-audio-range>div:first-child span{display:flex;gap:5px}.studio-audio-range strong{color:#e1edfb}
+.studio-audio-range>label{display:flex;flex-direction:column;gap:6px;color:#b5c9e2;font-size:.68rem}
+.studio-audio-range input[type=range]{width:100%;accent-color:#65a9f5}
+.studio-audio-range .studio-audio-volume{display:grid;grid-template-columns:auto auto 1fr;align-items:center;gap:8px}
+.studio-audio-range output{color:#83b9ff}
+.studio-audio-actions{display:flex;gap:8px;flex-wrap:wrap}
+.studio-audio-actions button,.studio-audio-actions a{display:flex;align-items:center;gap:6px;text-decoration:none;font-size:.68rem}
+@media(max-width:620px){.studio-audio-body{padding:12px}.studio-audio-actions>*{flex:1;justify-content:center}.studio-audio-range .studio-audio-volume{grid-template-columns:auto auto;}.studio-audio-range .studio-audio-volume input{grid-column:span 2}}
