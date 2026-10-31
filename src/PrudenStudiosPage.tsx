@@ -4,6 +4,7 @@ import { deleteStudioAsset, formatStudioSize, getStudioDirectoryHandle, listStud
 import StudioCreativeTeam from "./StudioCreativeTeam";
 import StudioImageEditor from "./StudioImageEditor";
 import StudioVideoEditor from "./StudioVideoEditor";
+import StudioAudioEditor from "./StudioAudioEditor";
 import StudioToolSuite from "./StudioToolSuite";
 import "./PrudenStudiosPage.css";
 import "./PrudenStudiosWorkspace.css";
@@ -15,6 +16,7 @@ export default function PrudenStudiosPage() {
   const [assets, setAssets] = useState<StudioAsset[]>([]);
   const [editingAsset, setEditingAsset] = useState<StudioAsset | null>(null);
   const [editingVideo, setEditingVideo] = useState<StudioAsset | null>(null);
+  const [editingAudio, setEditingAudio] = useState<StudioAsset | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<StudioCategory>("Photos");
   const [filter, setFilter] = useState("All");
@@ -119,12 +121,13 @@ export default function PrudenStudiosPage() {
   function openAsset(asset: StudioAsset) {
     if (asset.mimeType.startsWith("image/")) setEditingAsset(asset);
     else if (asset.mimeType.startsWith("video/")) setEditingVideo(asset);
+    else if (asset.mimeType.startsWith("audio/")) setEditingAudio(asset);
     else setMessage("This asset is stored in your library. A dedicated editor for this file type is not available yet.");
   }
 
   const totalBytes = assets.reduce((sum, asset) => sum + asset.size, 0);
   const usagePercent = storage.quota ? Math.min(100, Math.round(((storage.usage || 0) / storage.quota) * 100)) : 0;
-  const selected = editingAsset || editingVideo;
+  const selected = editingAsset || editingVideo || editingAudio;
 
   return <section className={"module-page studio-page " + (view === "edit" ? "studio-edit-view" : "")}>
     <nav className="studio-workspace-nav" aria-label="Studio workspace">
@@ -171,7 +174,7 @@ export default function PrudenStudiosPage() {
         <div className="studio-edit-start-card"><Clapperboard size={25} /><strong>Start a video edit</strong><p>Open a video to preview, set in/out points and export a trimmed clip.</p><button className="primary-button" onClick={() => editInput.current?.click()}>Choose video</button></div>
         <div className="studio-edit-start-card"><Layers3 size={25} /><strong>Continue existing work</strong><p>Open a previously imported image or video from your local Studio assets.</p><button className="secondary-button" onClick={() => setView("assets")}>Browse projects & media</button></div>
       </div><StudioToolSuite /></div>}
-      {selected && <div className="studio-active-project"><span className="studio-live-dot" /> PROJECT OPEN <strong>{selected.title}</strong><small>{selected.fileName} · original preserved</small><button className="text-button" onClick={() => { setEditingAsset(null); setEditingVideo(null); }}>Close project</button></div>}
+      {selected && <div className="studio-active-project"><span className="studio-live-dot" /> PROJECT OPEN <strong>{selected.title}</strong><small>{selected.fileName} · original preserved</small><button className="text-button" onClick={() => { setEditingAsset(null); setEditingVideo(null); setEditingAudio(null); }}>Close project</button></div>}
       {!selected && <StudioCreativeTeam selectedAsset={null} />}
       {selected && <StudioCreativeTeam selectedAsset={{ title: selected.title, fileName: selected.fileName, category: selected.category, mimeType: selected.mimeType, size: selected.size }} />}
     </div>}
@@ -188,6 +191,7 @@ export default function PrudenStudiosPage() {
     {message && <div className="studio-alert"><ShieldCheck size={14} /> {message}</div>}
     {editingAsset && <StudioImageEditor asset={editingAsset} onClose={() => setEditingAsset(null)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
     {editingVideo && <StudioVideoEditor asset={editingVideo} onClose={() => setEditingVideo(null)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
+    {editingAudio && <StudioAudioEditor asset={editingAudio} onClose={() => setEditingAudio(null)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
     <footer className="footer-note"><span>PRUDEN STUDIOS <b>·</b> CREATE. CAPTURE. EDIT. DELIVER.</span><span><Aperture size={13} /> Local-first creative workspace</span></footer>
   </section>;
 }
@@ -198,6 +202,6 @@ function AssetCard({ asset, preview, onOpen, onExport, onRemove }: { asset: Stud
   const isAudio = asset.mimeType.startsWith("audio/");
   return <article className="studio-asset-card">
     <div className="studio-asset-preview">{isImage ? <img src={preview || ""} alt={asset.title} /> : isVideo ? <Video size={34} /> : isAudio ? <Music2 size={34} /> : <FileImage size={34} />}</div>
-    <div className="studio-asset-copy"><span>{asset.category.toUpperCase()}</span><strong title={asset.title}>{asset.title}</strong><small>{asset.fileName} · {formatStudioSize(asset.size)}</small><div>{(isImage || isVideo) && <button onClick={onOpen}><Pencil size={13} /> Open edit</button>}<button onClick={onExport}><ArrowDownToLine size={13} /> Export</button><button onClick={onRemove} aria-label={"Remove " + asset.title}><Trash2 size={13} /></button></div></div>
+    <div className="studio-asset-copy"><span>{asset.category.toUpperCase()}</span><strong title={asset.title}>{asset.title}</strong><small>{asset.fileName} · {formatStudioSize(asset.size)}</small><div>{(isImage || isVideo || isAudio) && <button onClick={onOpen}><Pencil size={13} /> Open edit</button>}<button onClick={onExport}><ArrowDownToLine size={13} /> Export</button><button onClick={onRemove} aria-label={"Remove " + asset.title}><Trash2 size={13} /></button></div></div>
   </article>;
 }
