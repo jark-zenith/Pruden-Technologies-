@@ -42,10 +42,10 @@
 .hq-room-footer { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 6px; padding-top: 6px; border-top: 1px solid #7895c022; color: #8ea2c8; font-size: 8px; }
 .hq-room-footer span { display: flex; align-items: center; gap: 5px; min-width: 0; }.hq-room-footer svg { flex: none; color: #7ba6e8; }.hq-room-footer span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hq-room-footer>svg { flex: none; color: #e4b84e; }
-.hq-room-meeting { grid-column: 2 / 4; grid-row: 1; }.hq-room-server { grid-column: 4; grid-row: 1; }
+.hq-room-meeting { grid-column: 2; grid-row: 1; }.hq-room-server { grid-column: 3; grid-row: 1; }.hq-room-finance { grid-column: 4; grid-row: 1; }
 .hq-room-engineering { grid-column: 1; grid-row: 2; }.hq-room-studio { grid-column: 4; grid-row: 2; }
 .hq-room-opportunities { grid-column: 1; grid-row: 3; }.hq-room-departments { grid-column: 2; grid-row: 3; }.hq-room-security { grid-column: 3; grid-row: 3; }.hq-room-training { grid-column: 4; grid-row: 3; }
-.hq-room-executive { grid-column: 1; grid-row: 1; }.hq-room-finance { grid-column: 1; grid-row: 2; }
+.hq-room-executive { grid-column: 1; grid-row: 1; }
 .hq-expansion-room { grid-column: 2 / 4; grid-row: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border: 1px dashed #284a7b; background: repeating-linear-gradient(45deg,#0b1528 0 16px,#091222 16px 32px); color: #58749f; font: 8px "DM Mono",monospace; letter-spacing: 1px; }
 .hq-expansion-room b { display: grid; place-items: center; width: 29px; height: 29px; border: 1px solid #35598d; border-radius: 50%; color: #9ab8e4; font-size: 19px; font-weight: 300; }.hq-expansion-room small { font-size: 7px; }
 .hq-command-hub { position: absolute; z-index: 5; left: 50%; top: 50%; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: min(19vh,19vw); aspect-ratio: 1; border: 4px solid var(--hq-gold); border-radius: 50%; padding: 0; background: radial-gradient(circle,#1c47a8,#08132b 70%); box-shadow: 0 0 34px var(--hq-gold),inset 0 0 30px var(--hq-blue); color: #eaf2ff; cursor: pointer; }
@@ -62,6 +62,10 @@
 .hq-run-result { margin-top: 12px; padding: 12px; border: 1px solid #284a7b; border-radius: 7px; background: #091a30; }.hq-run-result>div { display: flex; justify-content: space-between; align-items: center; color: #c9ddf8; font-size: 10px; }.hq-run-result button { border: 0; background: transparent; color: #9bb5d7; cursor: pointer; }.hq-run-result p { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: #b3c6e1; font-size: 10px; line-height: 1.65; }.hq-run-result.error { border-color: #8d3f4a; }
 .hq-spin { animation: hq-spin 1s linear infinite; }
 @keyframes hq-spin { to { transform: rotate(360deg); } } @keyframes hq-blink { 50% { opacity: .3; } } @keyframes hq-pulse { 50% { transform: scale(1.25); opacity: .6; } }
+.app-shell.hq-fullscreen { height: 100vh; min-height: 100vh; overflow: hidden; }
+.app-shell.hq-fullscreen .sidebar, .app-shell.hq-fullscreen .topbar, .app-shell.hq-fullscreen .prototype-banner { display: none !important; }
+.app-shell.hq-fullscreen .main-area { width: 100% !important; min-width: 0; margin: 0 !important; }
+.app-shell.hq-fullscreen .content-wrap { width: 100%; max-width: none !important; margin: 0 !important; padding: 0 !important; }
 @media (max-width: 760px) {
   .virtual-hq { position: relative; min-height: 100dvh; overflow: auto; }.hq-floor-meta { position: sticky; top: 0; height: 28px; padding: 0 10px; background: #04080f; }.hq-floor { position: relative; inset: auto; min-height: calc(100dvh - 55px); height: auto; grid-template-columns: repeat(2,minmax(0,1fr)); grid-template-rows: none; grid-auto-rows: minmax(185px,32vh); padding: 4px; gap: 4px; }.hq-room,.hq-expansion-room { grid-column: auto !important; grid-row: auto !important; }.hq-room-meeting { grid-column: span 2 !important; }.hq-expansion-room { min-height: 150px; }.hq-command-hub { display: none; }.hq-floor-legend { position: relative; right: auto; bottom: auto; justify-content: center; flex-wrap: wrap; padding: 10px; }.hq-room-dialog { max-height: 92dvh; }.hq-overlay { padding: 8px; }
 }
