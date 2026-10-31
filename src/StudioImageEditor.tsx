@@ -8,6 +8,8 @@ type CropMode = "Original" | "1:1" | "4:5" | "16:9" | "3:2";
 export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const overlayRef = useRef<HTMLImageElement | null>(null);
+  const overlayInput = useRef<HTMLInputElement>(null);
   const [brightness, setBrightness] = useState(100);
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
