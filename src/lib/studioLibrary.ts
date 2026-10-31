@@ -101,7 +101,16 @@ export async function writeAssetToStudioFolder(handle: StudioDirectoryHandle, as
   const granted = permission === "granted" || (await handle.requestPermission?.({ mode: "readwrite" })) === "granted";
   if (!granted) throw new Error("Folder access is not currently granted. Reconnect the folder and allow read/write access.");
   const folder = await handle.getDirectoryHandle(asset.category, { create: true });
-  const fileHandle = await folder.getFileHandle(asset.fileName, { create: true });
+  let targetName = asset.fileName;
+  try {
+    await folder.getFileHandle(targetName);
+    const dot = targetName.lastIndexOf(".");
+    const suffix = "-" + asset.id.slice(0, 8);
+    targetName = dot > 0 ? targetName.slice(0, dot) + suffix + targetName.slice(dot) : targetName + suffix;
+  } catch {
+    // No existing file with this name; use the original filename.
+  }
+  const fileHandle = await folder.getFileHandle(targetName, { create: true });
   const writable = await fileHandle.createWritable();
   await writable.write(asset.blob);
   await writable.close();
