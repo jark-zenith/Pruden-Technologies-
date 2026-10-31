@@ -5,6 +5,7 @@ import StudioCreativeTeam from "./StudioCreativeTeam";
 import StudioImageEditor from "./StudioImageEditor";
 import StudioVideoEditor from "./StudioVideoEditor";
 import StudioAudioEditor from "./StudioAudioEditor";
+import StudioMotionGraphicsEditor from "./StudioMotionGraphicsEditor";
 import StudioToolSuite from "./StudioToolSuite";
 import "./PrudenStudiosPage.css";
 import "./PrudenStudiosWorkspace.css";
@@ -17,6 +18,7 @@ export default function PrudenStudiosPage() {
   const [editingAsset, setEditingAsset] = useState<StudioAsset | null>(null);
   const [editingVideo, setEditingVideo] = useState<StudioAsset | null>(null);
   const [editingAudio, setEditingAudio] = useState<StudioAsset | null>(null);
+  const [motionOpen, setMotionOpen] = useState(false);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<StudioCategory>("Photos");
   const [filter, setFilter] = useState("All");
@@ -172,6 +174,7 @@ export default function PrudenStudiosPage() {
       {!selected && <div className="studio-edit-layout"><div className="studio-edit-start">
         <div className="studio-edit-start-card"><ImagePlus size={25} /><strong>Start a photo or design edit</strong><p>Open an image to crop, transform, adjust colour and add text. The original stays untouched.</p><button className="primary-button" onClick={() => editInput.current?.click()}>Choose image</button></div>
         <div className="studio-edit-start-card"><Clapperboard size={25} /><strong>Start a video edit</strong><p>Open a video to preview, set in/out points and export a trimmed clip.</p><button className="primary-button" onClick={() => editInput.current?.click()}>Choose video</button></div>
+        <div className="studio-edit-start-card"><Clapperboard size={25} /><strong>Animation & motion graphics</strong><p>Create animated titles and shape layers with keyframed movement, easing, composition presets and WebM export.</p><button className="primary-button" onClick={() => setMotionOpen(true)}>Open motion designer</button></div>
         <div className="studio-edit-start-card"><Layers3 size={25} /><strong>Continue existing work</strong><p>Open a previously imported image or video from your local Studio assets.</p><button className="secondary-button" onClick={() => setView("assets")}>Browse projects & media</button></div>
       </div><StudioToolSuite /></div>}
       {selected && <div className="studio-active-project"><span className="studio-live-dot" /> PROJECT OPEN <strong>{selected.title}</strong><small>{selected.fileName} · original preserved</small><button className="text-button" onClick={() => { setEditingAsset(null); setEditingVideo(null); setEditingAudio(null); }}>Close project</button></div>}
@@ -192,6 +195,7 @@ export default function PrudenStudiosPage() {
     {editingAsset && <StudioImageEditor asset={editingAsset} onClose={() => setEditingAsset(null)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
     {editingVideo && <StudioVideoEditor asset={editingVideo} onClose={() => setEditingVideo(null)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
     {editingAudio && <StudioAudioEditor asset={editingAudio} onClose={() => setEditingAudio(null)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
+    {motionOpen && <StudioMotionGraphicsEditor onClose={() => setMotionOpen(false)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
     <footer className="footer-note"><span>PRUDEN STUDIOS <b>·</b> CREATE. CAPTURE. EDIT. DELIVER.</span><span><Aperture size={13} /> Local-first creative workspace</span></footer>
   </section>;
 }
