@@ -10,7 +10,7 @@ const child = spawn(process.execPath, ["server.mjs"], {
     COMMAND_ACCESS_SECRET: testSecret,
     NODE_ENV: "test",
   },
-  stdio: "ignore",
+  stdio: "inherit",
 });
 
 async function waitForServer() {
