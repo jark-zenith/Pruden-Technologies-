@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Aperture, AudioLines, CheckCircle2, ChevronLeft, ChevronRight, Clapperboard, Download, Image, Layers3, Lock, Maximize2, Palette, PenTool, ScanFace, SlidersHorizontal, Sparkles, Type, WandSparkles } from "lucide-react";
+import { Aperture, AudioLines, CheckCircle2, ChevronLeft, ChevronRight, Clapperboard, Download, Image, Layers3, Lock, SlidersHorizontal, WandSparkles } from "lucide-react";
 
 const groups = [
   { id: "photo", title: "Photo editing", icon: Image, items: [
