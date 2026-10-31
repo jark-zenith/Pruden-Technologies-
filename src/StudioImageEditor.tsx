@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Crop, Download, FlipHorizontal, RotateCcw, RotateCw, SlidersHorizontal, Type, X } from "lucide-react";
-import { saveStudioAsset, type StudioAsset, type StudioCategory } from "./lib/studioLibrary";
+import { saveStudioAsset, type StudioAsset } from "./lib/studioLibrary";
 
 type Props = { asset: StudioAsset; onClose: () => void; onSaved: () => void };
 type CropMode = "Original" | "1:1" | "4:5" | "16:9" | "3:2";
@@ -82,7 +82,7 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
       const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Could not render the edited image.")), "image/png", 0.95));
       const base = asset.fileName.replace(/\.[^.]+$/, "");
       const file = new File([blob], base + "-edited.png", { type: "image/png" });
-      await saveStudioAsset(file, "Exports" as StudioCategory, asset.title + " · Edited");
+      await saveStudioAsset(file, "Exports", asset.title + " · Edited");
       onSaved();
       onClose();
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save the edited image."); }
