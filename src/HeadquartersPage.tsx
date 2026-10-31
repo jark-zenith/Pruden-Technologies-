@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import {
-  Activity, ArrowUpRight, Bot, BriefcaseBusiness, CheckCircle2, ChevronRight, CircleDot,
-  Cpu, Database, FileText, Github, Layers3, LoaderCircle, LockKeyhole, MessageSquareText,
+  Activity, BriefcaseBusiness, ChevronRight, Cpu, Database, Layers3, LoaderCircle,
   Monitor, Search, Send, ShieldCheck, Sparkles, Users, X, Zap
 } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -217,7 +216,7 @@ export default function HeadquartersPage({ tasks, projects = [], approvals = [] 
   return <section className="virtual-hq" aria-label="Pruden Technologies virtual headquarters">
     <div className="hq-floor-meta"><span className="hq-brand"><b>PRUDEN</b> TECHNOLOGIES <i>·</i> VIRTUAL HEADQUARTERS</span><span className="hq-live-state"><i /> {registry ? agents.length + " AGENTS REGISTERED" : "CONNECTING WORKFORCE"}</span></div>
     <div className="hq-floor" role="group" aria-label="Headquarters rooms">
-      {rooms.map((room, index) => {
+      {rooms.map((room) => {
         const members = membersFor(room);
         const working = members.filter((agent) => stateFor(agent) === "working").length;
         const Icon = roomIcon(room.id);
