@@ -25,7 +25,6 @@ export default function PrudenStudiosPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [view, setView] = useState<StudioView>("overview");
-  const [newEditMode, setNewEditMode] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const editInput = useRef<HTMLInputElement>(null);
 
@@ -97,7 +96,6 @@ export default function PrudenStudiosPage() {
       setBusy(false);
       if (fileInput.current) fileInput.current.value = "";
       if (editInput.current) editInput.current.value = "";
-      setNewEditMode(false);
     }
   }
 
@@ -135,7 +133,7 @@ export default function PrudenStudiosPage() {
         <button className={view === "edit" ? "active" : ""} onClick={() => setView("edit")}>Edit</button>
         <button className={view === "assets" ? "active" : ""} onClick={() => setView("assets")}>Assets <span>{assets.length}</span></button>
       </div>
-      <button className="primary-button studio-new-edit" onClick={() => { setView("edit"); setNewEditMode(true); editInput.current?.click(); }}><Plus size={15} /> New edit</button>
+      <button className="primary-button studio-new-edit" onClick={() => { setView("edit"); editInput.current?.click(); }}><Plus size={15} /> New edit</button>
       <input ref={editInput} type="file" accept="image/*,video/*" hidden onChange={(event) => void importFiles(event.target.files, true)} />
       <input ref={fileInput} type="file" accept="image/*,video/*,audio/*,image/svg+xml,.pdf,.wav,.mp3,.mp4,.webm,.mov" multiple hidden onChange={(event) => void importFiles(event.target.files)} />
     </nav>
@@ -179,7 +177,8 @@ export default function PrudenStudiosPage() {
         <details><summary><Music2 size={14} /> Audio tools <span>Asset import available</span></summary><div className="studio-tool-list"><span>Import and organize audio and sound effects in Assets</span><span className="future">Planned: waveform timeline, trimming, mixing, EQ, noise reduction, voiceover and beat sync</span></div></details>
         <details><summary><WandSparkles size={14} /> AI & advanced tools <span>Future capability</span></summary><div className="studio-tool-list"><span className="future">Planned: background removal, object cleanup, image generation, upscaling, auto captions, voice tools, scene detection and AI-assisted edits</span><span>Provider-neutral research and model integrations will be added only after their sources and permissions are verified.</span></div></details>
       </div>
-      <details className="studio-assistant-dock"><summary><Sparkles size={15} /> Lumi & Motion <span>Collapse / expand creative assistants</span></summary><StudioCreativeTeam selectedAsset={selected ? { title: selected.title, fileName: selected.fileName, category: selected.category, mimeType: selected.mimeType, size: selected.size } : null} /></details>
+      <details className="studio-assistant-dock"><summary><Sparkles size={15} /> Lumi & Motion <span>Collapse / expand creative assistants</span></summary>{!selected && <StudioCreativeTeam selectedAsset={null} />}</details>
+      {selected && <StudioCreativeTeam selectedAsset={{ title: selected.title, fileName: selected.fileName, category: selected.category, mimeType: selected.mimeType, size: selected.size }} />}
     </div>}
 
     {view === "assets" && <>
