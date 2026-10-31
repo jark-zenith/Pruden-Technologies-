@@ -43,7 +43,7 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
       ? "\n\nCURRENT STUDIO ASSET: " + selectedAsset.title + " (" + selectedAsset.fileName + "), category " + selectedAsset.category + ", type " + selectedAsset.mimeType + ", size " + selectedAsset.size + " bytes."
       : "\n\nNo specific asset is selected.";
     const next = [...history, { role: "user" as const, content: prompt }];
-    setMessages((current) => ({ ...current, [active]: next }));
+    setMessages((current) => ({ ...current, [activeKey]: next }));
     setDraft("");
     setLoading(true);
     setError("");
@@ -63,7 +63,7 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
   return <section className="studio-team panel">
     <div className="studio-team-heading">
       <div><p className="eyebrow">CREATIVE COLLABORATORS / WORKFORCE LINK</p><h2><Sparkles size={17} /> Work alongside Lumi & Motion</h2><p>Ask for creative direction, editing steps, composition feedback and production checklists. You remain in control of every manual edit.</p></div>
-      <span className={configured && agents.length === 2 ? "studio-team-status online" : "studio-team-status"}>{agents.length === 2 ? "2 AGENTS FOUND" : "CHECKING AGENTS"}</span>
+      <span className={configured && agents.length === 2 ? "studio-team-status online" : "studio-team-status"}>{agents.length === 2 ? "2 AGENTS FOUND" : agents.length + " / 2 AGENTS FOUND"}</span>
     </div>
     <div className="studio-team-tabs">
       <button className={active === "lumi" ? "active lumi" : ""} onClick={() => { setActive("lumi"); setError(""); }}><span>L</span><div><strong>Lumi</strong><small>Visual direction & image craft</small></div></button>
