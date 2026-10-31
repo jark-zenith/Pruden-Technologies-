@@ -62,9 +62,6 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
     ctx.translate(width / 2, height / 2);
     ctx.rotate(rotation * Math.PI / 180);
     ctx.scale(flip ? -1 : 1, 1);
-    const sourceWidth = rotated ? image.naturalHeight : image.naturalWidth;
-    const sourceHeight = rotated ? image.naturalWidth : image.naturalHeight;
-    const baseScale = Math.min(maxEdge / Math.max(sourceWidth, sourceHeight), 1);
     const drawWidth = width;
     const drawHeight = height;
     ctx.filter = "brightness(" + brightness + "%) contrast(" + contrast + "%) saturate(" + saturation + "%) sepia(" + warmth + "%) blur(" + blur + "px)";
