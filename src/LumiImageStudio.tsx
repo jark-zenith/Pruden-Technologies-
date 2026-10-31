@@ -1,0 +1,67 @@
+import { useEffect, useState } from "react";
+import { Download, ImagePlus, LoaderCircle, Sparkles } from "lucide-react";
+
+type ProviderStatus = { configured: boolean; provider: string; model: string | null; providers: Record<string, { configured: boolean; model: string }> };
+type GeneratedImage = { provider: string; model: string; mimeType: string; imageData: string; latencyMs: number };
+
+export default function LumiImageStudio() {
+  const [status, setStatus] = useState<ProviderStatus | null>(null);
+  const [provider, setProvider] = useState("gemini");
+  const [prompt, setPrompt] = useState("");
+  const [aspectRatio, setAspectRatio] = useState("1:1");
+  const [imageSize, setImageSize] = useState("1K");
+  const [image, setImage] = useState<GeneratedImage | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/workforce/image-status").then(async response => {
+      if (!response.ok) throw new Error("Could not read image provider status.");
+      return response.json() as Promise<ProviderStatus>;
+    }).then(data => {
+      if (!active) return;
+      setStatus(data);
+      setProvider(data.provider || "gemini");
+    }).catch(cause => {
+      if (active) setError(cause instanceof Error ? cause.message : "Image provider status unavailable.");
+    });
+    return () => { active = false; };
+  }, []);
+
+  async function generate() {
+    if (!prompt.trim() || busy) return;
+    setBusy(true); setError(""); setImage(null);
+    try {
+      const response = await fetch("/api/workforce/generate-image", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId: "lumi", prompt: prompt.trim(), aspectRatio, imageSize, provider })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Image generation failed.");
+      setImage(data as GeneratedImage);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Image generation failed.");
+    } finally { setBusy(false); }
+  }
+
+  const imageUrl = image ? "data:" + image.mimeType + ";base64," + image.imageData : "";
+  const available = Object.entries(status?.providers || {}).filter(([, value]) => value.configured);
+  return <section className="lumi-image-studio" aria-label="Lumi image studio">
+    <div className="lumi-image-heading"><div><span className="eyebrow">PRUDEN STUDIOS / IMAGE LAB</span><h3><Sparkles size={17} /> Lumi · Image Studio</h3><p>Choose an enabled image provider. Credentials remain on the private server.</p></div><span className="lumi-image-provider">{provider.toUpperCase()}</span></div>
+    <label htmlFor="lumi-image-prompt">Describe the image</label>
+    <textarea id="lumi-image-prompt" value={prompt} onChange={event => setPrompt(event.target.value)} maxLength={5000} rows={4} placeholder="Example: A premium cinematic product photograph for Pruden Studios, deep navy background, silver and electric-blue lighting…" />
+    <div className="lumi-image-options">
+      <label>Image provider<select value={provider} onChange={event => setProvider(event.target.value)} disabled={busy || available.length === 0}>
+        {available.map(([name, value]) => <option key={name} value={name}>{name === "openai" ? "OpenAI · " : "Google Gemini · "}{value.model}</option>)}
+      </select></label>
+      <label>Aspect ratio<select value={aspectRatio} onChange={event => setAspectRatio(event.target.value)}><option value="1:1">Square · 1:1</option><option value="16:9">Landscape · 16:9</option><option value="9:16">Portrait · 9:16</option><option value="4:5">Social portrait · 4:5</option><option value="3:2">Photo · 3:2</option><option value="2:3">Portrait photo · 2:3</option><option value="4:3">Landscape · 4:3</option><option value="3:4">Portrait · 3:4</option><option value="5:4">Landscape · 5:4</option><option value="21:9">Ultrawide · 21:9</option></select></label>
+      {provider === "gemini" && <label>Resolution<select value={imageSize} onChange={event => setImageSize(event.target.value)}><option value="1K">1K · Standard</option><option value="2K">2K · High</option><option value="4K">4K · Highest</option></select></label>}
+      <button className="primary-button" type="button" onClick={() => void generate()} disabled={busy || !prompt.trim() || !status?.providers?.[provider]?.configured}>{busy ? <LoaderCircle size={15} className="workforce-spinner" /> : <ImagePlus size={15} />}{busy ? "Generating…" : "Generate image"}</button>
+    </div>
+    {!status?.configured && <p className="lumi-image-footnote">No image provider is configured yet. Add GEMINI_API_KEY or OPENAI_API_KEY to the private Render environment.</p>}
+    {error && <p className="lumi-image-error" role="alert">{error}</p>}
+    {image && <div className="lumi-image-result"><img src={imageUrl} alt={"Image generated by Lumi using " + image.provider} /><div><span>{image.provider} · {image.model} · {image.mimeType} · {(image.latencyMs / 1000).toFixed(1)}s</span><a href={imageUrl} download={"lumi-generated-" + Date.now() + "." + (image.mimeType === "image/jpeg" ? "jpg" : image.mimeType === "image/webp" ? "webp" : "png")}><Download size={14} /> Save image</a></div></div>}
+    <p className="lumi-image-footnote">Provider usage may incur charges. Images are previews until saved; no printing or publishing is performed.</p>
+  </section>;
+}
