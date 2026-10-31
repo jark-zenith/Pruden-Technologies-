@@ -136,7 +136,7 @@ const geminiTestAttempts = new Map();
 // Ivy AI companion: Claude reasoning stays server-side; no provider key reaches the browser.
 const ivyAttempts = new Map();
 const ivyModules = new Set(["Home", "Overview", "Projects", "Ideas & Strategy", "Daily Journal", "Tasks", "Website Inbox", "AI Workforce", "Project Intelligence", "Social Media Monitoring", "Approvals", "Customers & CRM", "Finance", "Products & Services", "Pruden Studios", "Infrastructure", "Security & Audit", "Knowledge Base", "Reports & Settings", "GitHub"]);
-const IVY_READ_ONLY_OPERATION_NAMES = new Set(["list_projects", "list_tasks", "list_approvals", "list_customers", "list_finance_records", "get_finance_record", "get_finance_summary"]);
+const IVY_READ_ONLY_OPERATION_NAMES = new Set(["list_projects", "list_tasks", "list_approvals", "list_customers", "list_website_inbox", "list_finance_records", "get_finance_record", "get_finance_summary"]);
 const IVY_READ_ONLY_JOURNAL_NAMES = new Set(["ivy_journal_list", "ivy_journal_activity_today"]);
 const IVY_READ_ONLY_MEMORY_NAMES = new Set(["ivy_memory_search"]);
 const IVY_READ_ONLY_GITHUB_NAMES = new Set(["github_list_repositories", "render_list_services", "github_get_repository", "github_list_repository_branches", "github_list_repository_commits", "github_get_repository_tree", "github_read_repository_file", "github_list_pull_requests", "github_get_pull_request", "github_list_issues"]);
