@@ -53,17 +53,19 @@ export default function StudioVideoEditor({ asset, onClose, onSaved }: { asset: 
       if (Math.abs(video.currentTime - start) > 0.03) {
         await new Promise<void>((resolve) => { video.addEventListener("seeked", () => resolve(), { once: true }); video.currentTime = start; });
       }
-      stream = streamFactory.call(video);
-      recorder = new MediaRecorder(stream, { mimeType });
+      const activeStream = streamFactory.call(video);
+      stream = activeStream;
+      const activeRecorder = new MediaRecorder(activeStream, { mimeType });
+      recorder = activeRecorder;
       const chunks: BlobPart[] = [];
       const completed = new Promise<Blob>((resolve, reject) => {
-        recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
-        recorder.onerror = () => reject(new Error("Video capture failed."));
-        recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+        activeRecorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
+        activeRecorder.onerror = () => reject(new Error("Video capture failed."));
+        activeRecorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
       });
-      stopAtEnd = () => { if (video.currentTime >= end && recorder?.state === "recording") { video.pause(); recorder.stop(); } };
+      stopAtEnd = () => { if (video.currentTime >= end && activeRecorder.state === "recording") { video.pause(); activeRecorder.stop(); } };
       video.addEventListener("timeupdate", stopAtEnd);
-      recorder.start(250);
+      activeRecorder.start(250);
       await video.play();
       const blob = await completed;
       if (!blob.size) throw new Error("The trimmed video export was empty.");
