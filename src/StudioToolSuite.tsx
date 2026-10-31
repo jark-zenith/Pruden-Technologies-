@@ -3,11 +3,11 @@ import { Aperture, AudioLines, CheckCircle2, ChevronLeft, ChevronRight, Clapperb
 
 const groups = [
   { id: "photo", title: "Photo editing", icon: Image, items: [
-    ["Crop & resize", "ACTIVE", "Aspect-ratio crop, rotate, flip and output dimensions."],
-    ["Retouch & colour", "ACTIVE", "Brightness, contrast, saturation, warmth and soft focus."],
-    ["Layers & compositing", "ACTIVE", "Base image plus imported image overlay, opacity and blend modes."],
+    ["Freeform crop & resize", "ACTIVE", "Drag a precise crop region on the canvas, apply it across layers, rotate, flip and resize output."],
+    ["Brush eraser & colour removal", "ACTIVE", "Erase pixels with a brush or remove connected background-colour regions using adjustable tolerance; plus colour adjustments."],
+    ["Multi-layer compositing", "ACTIVE", "Add multiple image layers, select, hide, delete, adjust opacity and use blend modes."],
     ["Text & graphic design", "ACTIVE", "Text overlay, colour and size controls."],
-    ["Masks, curves & vector paths", "PLANNED", "Precision selections, masks, curves, gradients, vector shapes and retouch brushes."]
+    ["Masks, curves & precision retouch", "PLANNED", "Non-destructive layer masks, curves, healing/clone brushes, gradients, vector paths and advanced selections."]
   ]},
   { id: "video", title: "Video editing", icon: Clapperboard, items: [
     ["Preview & clip trim", "ACTIVE", "Single clip playback, IN/OUT points and WebM export."],
@@ -28,7 +28,7 @@ const groups = [
     ["Masks, tracking & 3D scenes", "PLANNED", "Advanced masks, motion tracking, 3D cameras, particle systems and compositing."]
   ]},
   { id: "ai", title: "AI-powered editing", icon: WandSparkles, items: [
-    ["Background & object tools", "DISABLED", "Background removal, object cleanup, inpainting and generative fill."],
+    ["Semantic background & object tools", "DISABLED", "AI subject selection, one-click background removal, object cleanup, inpainting and generative fill. Colour-based background removal is available in manual tools."],
     ["Enhancement & automation", "DISABLED", "Upscaling, auto captions, scene detection and smart edits."],
     ["Model providers", "DISABLED", "Provider-neutral adapters; no provider or API key is active in this workspace."]
   ]},
