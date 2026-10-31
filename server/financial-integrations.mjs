@@ -117,6 +117,7 @@ async function saveCallbackEvent(env, provider, parsed, rawBody) {
   const client = serviceClient(env);
   const providerEventId = parsed.eventId || digest(rawBody);
   const row = {
+    owner_id: configured(env.DARAJA_OWNER_ID) ? env.DARAJA_OWNER_ID : null,
     provider,
     provider_event_id: providerEventId,
     event_type: parsed.eventType,
@@ -178,5 +179,73 @@ export function registerFinancialIntegrationRoutes(app, env = process.env) {
     }
     // Accept only after Safaricom account details and validation rules have been explicitly configured.
     return res.status(200).json({ ResultCode: 0, ResultDesc: "Validation endpoint is enabled; final transaction verification occurs on confirmation." });
+  });
+
+  app.post("/api/financial/project-events", async (req, res) => {
+    if (!safeBoolean(env.PTMS_FINANCE_BRIDGE_ENABLED)) return res.status(503).json({ error: "Project financial bridge is disabled." });
+    const auth = String(req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+    if (!safeEqual(auth, env.PTMS_FINANCE_BRIDGE_SECRET)) return res.status(401).json({ error: "Invalid bridge credentials." });
+    const ownerId = env.PTMS_FINANCE_OWNER_ID || "";
+    const body = req.body || {};
+    const validUuid = (value) => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+    const amount = Number(body.amount);
+    if (!validUuid(ownerId) || !validUuid(body.project_id)) return res.status(400).json({ error: "A valid owner and project ID must be configured." });
+    if (typeof body.event_id !== "string" || body.event_id.length < 8 || body.event_id.length > 160) return res.status(400).json({ error: "event_id must be 8–160 characters." });
+    if (!["income", "expense"].includes(body.kind) || !Number.isFinite(amount) || amount <= 0 || amount > 999999999999) return res.status(400).json({ error: "A valid income/expense kind and positive amount are required." });
+    if (body.currency && body.currency !== "KES") return res.status(400).json({ error: "Only KES project events are currently supported." });
+    if (body.payment_status !== "confirmed" || typeof body.provider_reference !== "string" || body.provider_reference.length < 3 || body.provider_reference.length > 120) return res.status(400).json({ error: "Only provider-confirmed events with a provider reference can enter the financial ledger." });
+    const category = typeof body.category === "string" ? body.category.trim().slice(0, 100) : "";
+    const description = typeof body.description === "string" ? body.description.trim().slice(0, 1000) : "";
+    if (!category || !description) return res.status(400).json({ error: "category and description are required." });
+    try {
+      const client = serviceClient(env);
+      const { data: project, error: projectError } = await client.from("pruden_projects").select("id,name").eq("id", body.project_id).eq("owner_id", ownerId).maybeSingle();
+      if (projectError || !project) return res.status(404).json({ error: "Project not found for the configured PTMS owner." });
+      const idempotencyKey = "project:" + body.event_id;
+      const { data: existing } = await client.from("pruden_financial_transactions").select("id").eq("owner_id", ownerId).eq("idempotency_key", idempotencyKey).maybeSingle();
+      if (existing) return res.status(200).json({ accepted: true, duplicate: true, transaction_id: existing.id });
+      const occurredAt = body.occurred_at && !Number.isNaN(Date.parse(body.occurred_at)) ? new Date(body.occurred_at).toISOString() : new Date().toISOString();
+      const transaction = {
+        owner_id: ownerId,
+        project_id: project.id,
+        kind: body.kind,
+        amount: Math.round(amount * 100) / 100,
+        currency: "KES",
+        category,
+        description,
+        occurred_at: occurredAt,
+        source: "project_webhook",
+        status: "confirmed",
+        verification_status: "provider_verified",
+        external_reference: body.provider_reference,
+        idempotency_key: idempotencyKey,
+        project_reference: project.name,
+        metadata: { eventId: body.event_id, paymentProvider: String(body.payment_provider || "unspecified").slice(0, 60) }
+      };
+      const { data: saved, error: insertError } = await client.from("pruden_financial_transactions").insert(transaction).select("id").single();
+      if (insertError) {
+        if (insertError.code === "23505") return res.status(200).json({ accepted: true, duplicate: true });
+        throw insertError;
+      }
+      const debitAccount = body.kind === "income" ? "cash_or_payment_clearing" : "project_expense";
+      const creditAccount = body.kind === "income" ? "project_revenue" : "cash_or_payment_clearing";
+      const { error: entriesError } = await client.from("pruden_financial_ledger_entries").insert([
+        { owner_id: ownerId, transaction_id: saved.id, project_id: project.id, entry_side: "debit", ledger_account: debitAccount, amount: transaction.amount, currency: "KES", memo: description },
+        { owner_id: ownerId, transaction_id: saved.id, project_id: project.id, entry_side: "credit", ledger_account: creditAccount, amount: transaction.amount, currency: "KES", memo: description }
+      ]);
+      if (entriesError) {
+        await client.from("pruden_financial_transactions").delete().eq("id", saved.id).eq("owner_id", ownerId);
+        throw new Error("Journal entries failed; transaction was rolled back: " + entriesError.message);
+      }
+      await client.from("pruden_financial_integration_events").upsert({
+        owner_id: ownerId, provider: "project_webhook", provider_event_id: body.event_id,
+        event_type: "project_payment_confirmed", processing_status: "processed", signature_valid: true,
+        payload_digest: digest(body), safe_payload: { projectId: project.id, amount: transaction.amount, currency: "KES", kind: body.kind, providerReference: body.provider_reference }
+      }, { onConflict: "provider,provider_event_id", ignoreDuplicates: true });
+      return res.status(201).json({ accepted: true, duplicate: false, transaction_id: saved.id, project: project.name });
+    } catch (error) {
+      console.error(JSON.stringify({ event: "project_financial_event_failed", message: error instanceof Error ? error.message : "unknown" }));
+      return res.status(503).json({ error: "Project financial event could not be recorded." });
+    }
   });
 }
