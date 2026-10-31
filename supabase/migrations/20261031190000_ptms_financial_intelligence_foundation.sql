@@ -109,22 +109,32 @@ alter table public.pruden_financial_records
 create index if not exists pruden_financial_records_project_idx on public.pruden_financial_records(project_id, occurred_on desc);
 create index if not exists pruden_financial_records_account_idx on public.pruden_financial_records(account_id, occurred_on desc);
 
--- Owner-scoped access for the authenticated dashboard. Provider callbacks use the server service role.
-do $$
-declare t text;
-begin
-  foreach t in array array[
-    'pruden_financial_accounts',
-    'pruden_financial_transactions',
-    'pruden_financial_ledger_entries',
-    'pruden_financial_budgets',
-    'pruden_financial_integration_events'
-  ] loop
-    execute format('alter table public.%I enable row level security', t);
-    execute format('drop policy if exists "owner manages own financial data" on public.%I', t);
-    execute format('create policy "owner manages own financial data" on public.%I for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id)', t);
-  end loop;
-end $$;
+-- Owner-scoped access. Provider callback receipts and journal lines are read-only to clients;
+-- the server service role is the only writer for provider-originated financial records.
+alter table public.pruden_financial_accounts enable row level security;
+drop policy if exists "owner manages own financial data" on public.pruden_financial_accounts;
+create policy "owner manages own financial data" on public.pruden_financial_accounts
+  for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
+
+alter table public.pruden_financial_transactions enable row level security;
+drop policy if exists "owner reads own financial transactions" on public.pruden_financial_transactions;
+create policy "owner reads own financial transactions" on public.pruden_financial_transactions
+  for select to authenticated using ((select auth.uid()) = owner_id);
+
+alter table public.pruden_financial_ledger_entries enable row level security;
+drop policy if exists "owner reads own financial ledger entries" on public.pruden_financial_ledger_entries;
+create policy "owner reads own financial ledger entries" on public.pruden_financial_ledger_entries
+  for select to authenticated using ((select auth.uid()) = owner_id);
+
+alter table public.pruden_financial_budgets enable row level security;
+drop policy if exists "owner manages own financial data" on public.pruden_financial_budgets;
+create policy "owner manages own financial data" on public.pruden_financial_budgets
+  for all to authenticated using ((select auth.uid()) = owner_id) with check ((select auth.uid()) = owner_id);
+
+alter table public.pruden_financial_integration_events enable row level security;
+drop policy if exists "owner reads own financial integration events" on public.pruden_financial_integration_events;
+create policy "owner reads own financial integration events" on public.pruden_financial_integration_events
+  for select to authenticated using ((select auth.uid()) = owner_id);
 
 -- Prevent direct client mutation of verified provider-sourced history through the existing legacy ledger.
 -- RLS remains owner-scoped; immutability for provider-confirmed rows is enforced by backend workflow and audit.
