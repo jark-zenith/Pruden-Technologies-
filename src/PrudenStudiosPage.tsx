@@ -5,6 +5,7 @@ import StudioCreativeTeam from "./StudioCreativeTeam";
 import StudioImageEditor from "./StudioImageEditor";
 import StudioVideoEditor from "./StudioVideoEditor";
 import "./PrudenStudiosPage.css";
+import "./PrudenStudiosWorkspace.css";
 
 const categories: StudioCategory[] = ["Photos", "Posters & Designs", "Videos", "Audio & SFX", "VFX & Overlays", "Stock Footage", "Graphics", "Exports"];
 type StudioView = "overview" | "edit" | "assets";
