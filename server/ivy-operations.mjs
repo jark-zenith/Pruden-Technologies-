@@ -143,6 +143,26 @@ export async function executeIvyOperation(name, input, accessToken) {
     const total = (kind) => rows.filter((r) => r.kind === kind).reduce((sum, row) => sum + Number(row.amount || 0), 0);
     return { currency: "KES", record_count: rows.length, income_total: total("income"), expense_total: total("expense"), net_total: total("income") - total("expense"), from_date: input.from_date || null, to_date: input.to_date || null, source: "saved finance ledger records only; capital allocations excluded" };
   }
+  if (name === "list_financial_accounts") {
+    let query = client.from("pruden_financial_accounts").select("id,account_name,account_type,account_scope,provider,currency,masked_identifier,status,is_active,last_synced_at,created_at").eq("owner_id", ownerId).order("created_at", { ascending: false }).limit(100);
+    if (input.account_scope !== undefined) query = query.eq("account_scope", requireEnum(input.account_scope, ["personal","business"]));
+    if (input.status !== undefined) query = query.eq("status", requireEnum(input.status, ["pending_setup","sandbox_ready","connected","paused","disconnected"]));
+    const { data, error } = await query;
+    if (error) throw new Error("Financial account read failed: " + error.message);
+    return data || [];
+  }
+  if (name === "list_financial_transactions") {
+    let query = client.from("pruden_financial_transactions").select("id,account_id,project_id,kind,amount,currency,category,description,occurred_at,source,status,verification_status,external_reference,project_reference,created_at").eq("owner_id", ownerId).order("occurred_at", { ascending: false }).limit(Math.min(100, Math.max(1, Number.isInteger(input.limit) ? input.limit : 50)));
+    if (input.project_id !== undefined) { if (!validUuid(input.project_id)) throw new Error("Project ID is invalid."); query = query.eq("project_id", input.project_id); }
+    if (input.account_id !== undefined) { if (!validUuid(input.account_id)) throw new Error("Account ID is invalid."); query = query.eq("account_id", input.account_id); }
+    if (input.kind !== undefined) query = query.eq("kind", requireEnum(input.kind, ["income","expense","transfer_in","transfer_out","refund","fee","adjustment"]));
+    if (input.status !== undefined) query = query.eq("status", requireEnum(input.status, ["pending","confirmed","recorded","failed","reversed","needs_review"]));
+    if (input.from_date !== undefined) query = query.gte("occurred_at", financeDate(input.from_date, "Start date") + "T00:00:00.000Z");
+    if (input.to_date !== undefined) query = query.lte("occurred_at", financeDate(input.to_date, "End date") + "T23:59:59.999Z");
+    const { data, error } = await query;
+    if (error) throw new Error("Financial transaction read failed: " + error.message);
+    return data || [];
+  }
   if (name === "manage_savings_goal") {
     const action = requireEnum(input.action, ["list","create","update","archive"]);
     if (action === "list") {
