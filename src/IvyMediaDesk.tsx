@@ -110,19 +110,19 @@ export default function IvyMediaDesk() {
     {open && <section ref={panelRef} className={`ivy-media-window ${minimized ? "is-minimized" : ""}`} style={style} role="dialog" aria-label="Ivy Media Desk">
       <header className="ivy-media-header">
         <button className="ivy-media-drag" onPointerDown={startDrag} aria-label="Move Media Desk" title="Drag to move"><Grip size={16} /></button>
-        <span className="ivy-media-brand"><span className="ivy-media-mark"><Clapperboard size={17} /></span><span><strong>IVY MEDIA DESK</strong><small>Search · Discover · Watch</small></span></span>
+        <span className="ivy-media-brand"><span className="ivy-media-mark"><Clapperboard size={17} /></span><span><strong>PRUDEN MEDIA DESK</strong><small>Research · Library · Watch</small></span></span>
         <button className="ivy-media-control" onClick={() => setMinimized((value) => !value)} aria-label={minimized ? "Restore Media Desk" : "Minimize Media Desk"} title={minimized ? "Restore" : "Minimize"}>{minimized ? <Maximize2 size={15} /> : <Minus size={15} />}</button>
         <button className="ivy-media-control" onClick={() => setOpen(false)} aria-label="Close Media Desk" title="Close"><X size={16} /></button>
       </header>
       {!minimized && <>
-        {kind !== "studio" && <form className="ivy-media-search" onSubmit={(event) => void searchMedia(event)}>
-          <label className="ivy-media-searchbox"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} maxLength={180} placeholder="Search videos, creators, tutorials…" aria-label="Search web or YouTube" /><button type="submit" disabled={busy || query.trim().length < 2} aria-label="Search">{busy ? <LoaderCircle size={16} className="ivy-media-spin" /> : <Search size={16} />}</button></label>
+        <form className="ivy-media-search" onSubmit={(event) => void searchMedia(event)}>
+          {kind !== "studio" && <label className="ivy-media-searchbox"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} maxLength={180} placeholder="Search videos, creators, tutorials…" aria-label="Search web or YouTube" /><button type="submit" disabled={busy || query.trim().length < 2} aria-label="Search">{busy ? <LoaderCircle size={16} className="ivy-media-spin" /> : <Search size={16} />}</button></label>}
           <div className="ivy-media-tabs" role="tablist" aria-label="Search type">
             <button type="button" role="tab" aria-selected={kind === "youtube"} className={kind === "youtube" ? "active" : ""} onClick={() => { setKind("youtube"); setResults([]); setError(""); setNotice(""); }}><Youtube size={14} /> YouTube</button>
             <button type="button" role="tab" aria-selected={kind === "web"} className={kind === "web" ? "active" : ""} onClick={() => { setKind("web"); setResults([]); setError(""); setNotice(""); }}><Globe size={14} /> Web</button>
             <button type="button" role="tab" aria-selected={kind === "studio"} className={kind === "studio" ? "active" : ""} onClick={() => { setKind("studio"); setResults([]); setError(""); setNotice(""); setPlaying(null); }}><FolderOpen size={14} /> Studio Library</button>
           </div>
-        </form>}
+        </form>
         {error && <div className="ivy-media-message error" role="alert"><AlertCircle size={14} /><span>{error}</span></div>}
         {notice && <div className="ivy-media-message"><Search size={14} /><span>{notice}</span></div>}
         {kind === "studio" ? <div className="ivy-media-studio-library" aria-live="polite">
