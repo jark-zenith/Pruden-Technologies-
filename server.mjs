@@ -15,6 +15,7 @@ import { IVY_RUNTIME_BUDGET } from "./server/ivy-runtime-policy.mjs";
 import { callGeminiText, getModelProviderStatus } from "./server/model-providers.mjs";
 import { ivyJournalTools, executeIvyJournalTool } from "./server/ivy-journal.mjs";
 import { registerProjectIntelligenceRoutes } from "./server/project-intelligence-bridge.mjs";
+import { registerFinancialIntegrationRoutes } from "./server/financial-integrations.mjs";
 
 const app = express();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -103,6 +104,7 @@ app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, 
 app.use(express.static(dist, { index: false, maxAge: "1h" }));
 app.use("/api", (req, res, next) => isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
 registerProjectIntelligenceRoutes(app);
+registerFinancialIntegrationRoutes(app);
 registerIvyGmailRoutes(app);
 registerIvyMediaRoutes(app);
 registerAIWorkforceRoutes(app);
