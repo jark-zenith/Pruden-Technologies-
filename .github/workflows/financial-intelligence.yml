@@ -1,0 +1,39 @@
+name: Financial Intelligence checks
+
+on:
+  pull_request:
+    paths:
+      - "server/financial-integrations.mjs"
+      - "server.mjs"
+      - "server/ivy-operations.mjs"
+      - "ai-workforce/agents/ivy/RUNTIME_PROMPT.md"
+      - "supabase/migrations/**"
+      - "docs/financial-intelligence-setup.md"
+      - "src/BusinessModules.tsx"
+      - "test/financial-integrations.test.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/financial-intelligence.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server/financial-integrations.mjs"
+      - "server.mjs"
+      - "src/BusinessModules.tsx"
+      - "test/financial-integrations.test.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/financial-intelligence.yml"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run test:financial
