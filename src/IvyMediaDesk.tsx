@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from "react";
-import { Clapperboard, Search, Globe, Youtube, Play, X, Minus, Maximize2, ExternalLink, Grip, AlertCircle, LoaderCircle, PictureInPicture2 } from "lucide-react";
+import { listStudioAssets, formatStudioSize, type StudioAsset } from "./lib/studioLibrary";
+import { Clapperboard, Search, Globe, Youtube, Play, X, Minus, Maximize2, ExternalLink, Grip, AlertCircle, LoaderCircle, PictureInPicture2, FolderOpen, FileImage, Video, ArrowUpRight } from "lucide-react";
 import "./IvyMediaDesk.css";
 
-type SearchKind = "web" | "youtube";
+type SearchKind = "web" | "youtube" | "studio";
 type MediaResult = { title: string; url: string; snippet: string; source?: string; thumbnail?: string; videoId?: string };
 type ApiResponse = { results?: MediaResult[]; error?: string; configured?: boolean; providers?: { web: boolean; youtube: boolean } };
 
@@ -15,11 +16,32 @@ export default function IvyMediaDesk() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [playing, setPlaying] = useState<MediaResult | null>(null);
+  const [studioAssets, setStudioAssets] = useState<StudioAsset[]>([]);
   const [minimized, setMinimized] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [positioned, setPositioned] = useState(false);
   const drag = useRef<{ pointerX: number; pointerY: number; x: number; y: number } | null>(null);
   const panelRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const openStudioDesk = () => { setOpen(true); setMinimized(false); setKind("studio"); setError(""); setNotice(""); setPlaying(null); };
+    window.addEventListener("pruden:open-media-desk", openStudioDesk);
+    return () => window.removeEventListener("pruden:open-media-desk", openStudioDesk);
+  }, []);
+
+  useEffect(() => {
+    if (kind !== "studio") return;
+    const refreshStudioAssets = () => { void listStudioAssets().then(setStudioAssets).catch((cause) => setError(cause instanceof Error ? cause.message : "Studio library could not be refreshed.")); };
+    window.addEventListener("pruden:studio-assets-updated", refreshStudioAssets);
+    return () => window.removeEventListener("pruden:studio-assets-updated", refreshStudioAssets);
+  }, [kind]);
+
+  useEffect(() => {
+    if (kind !== "studio") return;
+    let alive = true;
+    listStudioAssets().then((assets) => { if (alive) setStudioAssets(assets); }).catch((cause) => { if (alive) setError(cause instanceof Error ? cause.message : "Studio library could not be loaded."); });
+    return () => { alive = false; };
+  }, [kind, open]);
 
   useEffect(() => {
     const finishDrag = () => { drag.current = null; };
@@ -65,6 +87,13 @@ export default function IvyMediaDesk() {
     } finally { setBusy(false); }
   }
 
+  function openStudioAsset(asset: StudioAsset) {
+    const url = URL.createObjectURL(asset.blob);
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) { const link = document.createElement("a"); link.href = url; link.download = asset.fileName; link.click(); }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
   function startDrag(event: ReactPointerEvent<HTMLButtonElement>) {
     if (event.button !== 0 || !panelRef.current) return;
     const rect = panelRef.current.getBoundingClientRect();
@@ -81,28 +110,32 @@ export default function IvyMediaDesk() {
     {open && <section ref={panelRef} className={`ivy-media-window ${minimized ? "is-minimized" : ""}`} style={style} role="dialog" aria-label="Ivy Media Desk">
       <header className="ivy-media-header">
         <button className="ivy-media-drag" onPointerDown={startDrag} aria-label="Move Media Desk" title="Drag to move"><Grip size={16} /></button>
-        <span className="ivy-media-brand"><span className="ivy-media-mark"><Clapperboard size={17} /></span><span><strong>IVY MEDIA DESK</strong><small>Search · Discover · Watch</small></span></span>
+        <span className="ivy-media-brand"><span className="ivy-media-mark"><Clapperboard size={17} /></span><span><strong>PRUDEN MEDIA DESK</strong><small>Research · Library · Watch</small></span></span>
         <button className="ivy-media-control" onClick={() => setMinimized((value) => !value)} aria-label={minimized ? "Restore Media Desk" : "Minimize Media Desk"} title={minimized ? "Restore" : "Minimize"}>{minimized ? <Maximize2 size={15} /> : <Minus size={15} />}</button>
         <button className="ivy-media-control" onClick={() => setOpen(false)} aria-label="Close Media Desk" title="Close"><X size={16} /></button>
       </header>
       {!minimized && <>
         <form className="ivy-media-search" onSubmit={(event) => void searchMedia(event)}>
-          <label className="ivy-media-searchbox"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} maxLength={180} placeholder="Search videos, creators, tutorials…" aria-label="Search web or YouTube" /><button type="submit" disabled={busy || query.trim().length < 2} aria-label="Search">{busy ? <LoaderCircle size={16} className="ivy-media-spin" /> : <Search size={16} />}</button></label>
+          {kind !== "studio" && <label className="ivy-media-searchbox"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} maxLength={180} placeholder="Search videos, creators, tutorials…" aria-label="Search web or YouTube" /><button type="submit" disabled={busy || query.trim().length < 2} aria-label="Search">{busy ? <LoaderCircle size={16} className="ivy-media-spin" /> : <Search size={16} />}</button></label>}
           <div className="ivy-media-tabs" role="tablist" aria-label="Search type">
             <button type="button" role="tab" aria-selected={kind === "youtube"} className={kind === "youtube" ? "active" : ""} onClick={() => { setKind("youtube"); setResults([]); setError(""); setNotice(""); }}><Youtube size={14} /> YouTube</button>
             <button type="button" role="tab" aria-selected={kind === "web"} className={kind === "web" ? "active" : ""} onClick={() => { setKind("web"); setResults([]); setError(""); setNotice(""); }}><Globe size={14} /> Web</button>
+            <button type="button" role="tab" aria-selected={kind === "studio"} className={kind === "studio" ? "active" : ""} onClick={() => { setKind("studio"); setResults([]); setError(""); setNotice(""); setPlaying(null); }}><FolderOpen size={14} /> Studio Library</button>
           </div>
         </form>
         {error && <div className="ivy-media-message error" role="alert"><AlertCircle size={14} /><span>{error}</span></div>}
         {notice && <div className="ivy-media-message"><Search size={14} /><span>{notice}</span></div>}
-        <div className="ivy-media-results" aria-live="polite">
+        {kind === "studio" ? <div className="ivy-media-studio-library" aria-live="polite">
+          <div className="ivy-media-library-heading"><strong>PRUDEN STUDIOS</strong><span>{studioAssets.length} saved item(s)</span></div>
+          {studioAssets.length === 0 ? <div className="ivy-media-empty"><FolderOpen size={24} /><strong>No Studio assets yet</strong><span>Import photos, posters or videos in Pruden Studios and they will appear here.</span></div> : studioAssets.map((asset) => <article className="ivy-media-studio-asset" key={asset.id}><span className="ivy-media-studio-icon">{asset.mimeType.startsWith("image/") ? <FileImage size={18} /> : <Video size={18} />}</span><div><strong>{asset.title}</strong><small>{asset.category} · {formatStudioSize(asset.size)}</small></div><button onClick={() => openStudioAsset(asset)} aria-label={"Open " + asset.fileName}><ArrowUpRight size={15} /></button></article>)}
+        </div> : <div className="ivy-media-results" aria-live="polite">
           {busy && <div className="ivy-media-empty"><LoaderCircle size={20} className="ivy-media-spin" /><span>Searching securely…</span></div>}
           {!busy && results.length === 0 && !error && !notice && <div className="ivy-media-empty"><Clapperboard size={25} /><strong>Your media workspace</strong><span>Search public web pages or YouTube videos. Results appear here.</span></div>}
           {!busy && results.map((item) => <article className="ivy-media-result" key={item.url}>
             {kind === "youtube" ? <button className="ivy-media-thumb" onClick={() => { setPlaying(item); setMinimized(false); }} aria-label={`Play ${item.title}`}>{item.thumbnail ? <img src={item.thumbnail} alt="" loading="lazy" /> : <Youtube size={24} />}<span><Play size={16} fill="currentColor" /></span></button> : <span className="ivy-media-web-icon"><Globe size={18} /></span>}
             <div className="ivy-media-result-copy"><strong>{item.title}</strong><small>{item.source || new URL(item.url).hostname}</small><p>{item.snippet}</p><div className="ivy-media-result-actions">{kind === "youtube" && <button onClick={() => { setPlaying(item); setMinimized(false); }}><Play size={12} /> Play here</button>}<a href={item.url} target="_blank" rel="noopener noreferrer"><ExternalLink size={12} /> Open source</a></div></div>
           </article>)}
-        </div>
+        </div>}
         {playing && <section className="ivy-media-player" aria-label="YouTube mini-player">
           <div className="ivy-media-player-title"><span><PictureInPicture2 size={14} /> NOW PLAYING</span><strong title={playing.title}>{playing.title}</strong><button onClick={() => setPlaying(null)} aria-label="Close video player"><X size={14} /></button></div>
           {playing.videoId ? <iframe src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(playing.videoId)}?autoplay=1&rel=0`} title={playing.title} allow="accelerometer; autoplay; encrypted-media; picture-in-picture; web-share" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /> : <p>Video ID is unavailable for this result.</p>}
