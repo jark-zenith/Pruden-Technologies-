@@ -145,7 +145,7 @@ export default function PrudenStudiosPage() {
           <h1>Make something <em>remarkable.</em></h1>
           <p>A project-first creative workspace for photography, visual design, video production and reusable media assets.</p>
           <div className="studio-hero-actions">
-            <button className="primary-button" onClick={() => { setView("edit"); setNewEditMode(true); editInput.current?.click(); }} disabled={busy}><Plus size={16} /> Start new edit</button>
+            <button className="primary-button" onClick={() => { setView("edit"); editInput.current?.click(); }} disabled={busy}><Plus size={16} /> Start new edit</button>
             <button className="secondary-button" onClick={() => { setView("assets"); fileInput.current?.click(); }}><ImagePlus size={15} /> Add assets</button>
             <button className="secondary-button" onClick={connectFolder}><FolderOpen size={15} /> {folderName ? "Change device folder" : "Connect device folder"}</button>
           </div>
