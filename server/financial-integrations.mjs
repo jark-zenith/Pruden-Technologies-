@@ -6,7 +6,7 @@ const configured = (value) => typeof value === "string" && value.trim().length >
 const darajaBaseUrl = (env) => env.DARAJA_ENV === "production" ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke";
 
 export function isExternalFinancialWebhookPath(pathname) {
-  return /^\\/daraja\\/(?:stk-callback|c2b-confirmation|c2b-validation)\\/[^/]+$/.test(pathname)
+  return /^\/daraja\/(?:stk-callback|c2b-confirmation|c2b-validation)\/[^/]+$/.test(pathname)
     || pathname === "/financial/project-events";
 }
 
