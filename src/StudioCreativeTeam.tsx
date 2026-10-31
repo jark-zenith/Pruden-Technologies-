@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Bot, LoaderCircle, MessageCircle, Send, Sparkles, X } from "lucide-react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { Bot, LoaderCircle, MessageCircle, Send, Sparkles } from "lucide-react";
 
 type StudioAgent = { id: string; name: string; title: string; personality?: string; orbColor?: string; responsibilities?: string[]; allowedActions?: string[]; restrictedActions?: string[] };
 type Registry = { ivy: StudioAgent; departments: { agents: StudioAgent[] }[] };
@@ -36,7 +36,9 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
 
   async function send() {
     const prompt = draft.trim();
-    if (!prompt || !agent || loading || !configured) return;
+    const activeKey = active;
+    const targetAgent = agent;
+    if (!prompt || !targetAgent || loading || !configured) return;
     const context = selectedAsset
       ? "\n\nCURRENT STUDIO ASSET: " + selectedAsset.title + " (" + selectedAsset.fileName + "), category " + selectedAsset.category + ", type " + selectedAsset.mimeType + ", size " + selectedAsset.size + " bytes."
       : "\n\nNo specific asset is selected.";
@@ -46,14 +48,14 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
     setLoading(true);
     setError("");
     try {
-      const conversation = next.map((item) => (item.role === "user" ? "FOUNDER" : agent.name.toUpperCase()) + ": " + item.content).join("\n\n");
+      const conversation = next.map((item) => (item.role === "user" ? "FOUNDER" : targetAgent.name.toUpperCase()) + ": " + item.content).join("\n\n");
       const response = await fetch("/api/workforce/run", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agentId: agent.id, task: studioBrief + context + "\n\nContinue this conversation in your assigned role.\n\n" + conversation })
+        body: JSON.stringify({ agentId: targetAgent.id, task: studioBrief + context + "\n\nContinue this conversation in your assigned role.\n\n" + conversation })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Agent request failed.");
-      setMessages((current) => ({ ...current, [active]: [...(current[active] || next), { role: "assistant", content: String(data.output || "No response was returned.") }] }));
+      setMessages((current) => ({ ...current, [activeKey]: [...(current[activeKey] || next), { role: "assistant", content: String(data.output || "No response was returned.") }] }));
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Agent request failed."); }
     finally { setLoading(false); }
   }
@@ -69,7 +71,7 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
       <button className="studio-team-expand" onClick={() => setExpanded((value) => !value)}>{expanded ? "Collapse" : "Expand chat"}</button>
     </div>
     {agent ? <div className={expanded ? "studio-team-chat expanded" : "studio-team-chat"}>
-      <div className="studio-team-agent"><span style={{ "--agent-color": agent.orbColor || (active === "lumi" ? "#a78bfa" : "#38bdf8") } as React.CSSProperties}>{active.slice(0,1).toUpperCase()}</span><div><strong>{agent.name}</strong><small>{agent.title}</small></div><Bot size={16} /></div>
+      <div className="studio-team-agent"><span style={{ "--agent-color": agent.orbColor || (active === "lumi" ? "#a78bfa" : "#38bdf8") } as CSSProperties}>{active.slice(0,1).toUpperCase()}</span><div><strong>{agent.name}</strong><small>{agent.title}</small></div><Bot size={16} /></div>
       <div className="studio-team-messages">
         {history.length === 0 && <div className="studio-team-empty"><MessageCircle size={22} /><strong>Start a creative session with {agent.name}</strong><p>{active === "lumi" ? "Ask for a portrait retouching workflow, lighting critique, colour grading advice or poster composition." : "Ask for a shot sequence, editing rhythm, transition plan, storyboard or video export settings."}</p></div>}
         {history.map((item, index) => <article key={index} className={"studio-team-message " + item.role}><small>{item.role === "user" ? "YOU" : agent.name.toUpperCase()}</small><p>{item.content}</p></article>)}
