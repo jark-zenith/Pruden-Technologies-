@@ -1,4 +1,4 @@
-export type StudioCategory = "Photos" | "Posters & Designs" | "Videos" | "Exports";
+export type StudioCategory = "Photos" | "Posters & Designs" | "Videos" | "Audio & SFX" | "VFX & Overlays" | "Stock Footage" | "Graphics" | "Exports";
 export type StudioAsset = {
   id: string;
   title: string;
