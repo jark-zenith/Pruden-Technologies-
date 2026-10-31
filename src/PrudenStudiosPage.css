@@ -74,3 +74,13 @@
 .studio-video-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .studio-video-actions button,.studio-video-actions a{display:flex;align-items:center;gap:6px;text-decoration:none;font-size:.7rem}
 .studio-video-message{color:#39c994;font-size:.72rem}
+
+/* Keep the same Lumi/Motion chat instance available above the editor overlay */
+.studio-team.floating{position:fixed;z-index:150;left:18px;bottom:18px;width:min(390px,calc(100vw - 36px));max-height:min(68vh,620px);overflow:auto;box-shadow:0 18px 65px #000b;background:var(--panel);border-color:#4a6c91}
+.studio-team.floating .studio-team-heading>div>p:last-child{display:none}
+.studio-team.floating .studio-team-heading h2{font-size:.95rem}
+.studio-team.floating .studio-team-messages{max-height:145px;min-height:90px}
+.studio-team.floating .studio-team-chat.expanded .studio-team-messages{max-height:300px}
+.studio-team-hide{padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--mute);font-size:.65rem;cursor:pointer}
+.studio-team-reopen{position:fixed;z-index:150;left:18px;bottom:18px;display:flex;align-items:center;gap:8px;padding:11px 14px;border:1px solid #4a6c91;border-radius:10px;background:#12243a;color:#dcecff;box-shadow:0 12px 40px #0009;font-size:.75rem;font-weight:700;cursor:pointer}
+@media(max-width:620px){.studio-team.floating{left:8px;bottom:8px;width:calc(100vw - 16px);max-height:58vh}.studio-team-reopen{left:8px;bottom:8px}}
