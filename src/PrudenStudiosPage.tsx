@@ -126,6 +126,7 @@ export default function PrudenStudiosPage() {
           <button className="primary-button" onClick={() => fileInput.current?.click()} disabled={busy}><ImagePlus size={16} /> {busy ? "Importing…" : "Import media"}</button>
           <button className="secondary-button" onClick={() => window.dispatchEvent(new CustomEvent("pruden:open-media-desk", { detail: { tab: "studio" } }))}><Clapperboard size={15} /> Open Media Desk</button>
           <button className="secondary-button" onClick={connectFolder}><FolderOpen size={15} /> {folderName ? "Change device folder" : "Connect device folder"}</button>
+          <select className="studio-category-select" value={category} onChange={(event) => setCategory(event.target.value as StudioCategory)} aria-label="Choose media category">{categories.map((item) => <option key={item} value={item}>{item}</option>)}</select>
           <input ref={fileInput} type="file" accept="image/*,video/*,.pdf" multiple hidden onChange={(event) => void importFiles(event.target.files)} />
         </div>
         <p className="studio-privacy"><ShieldCheck size={14} /> Files are stored in this browser profile first. Nothing is uploaded to a cloud service by this Studio screen.</p>
@@ -158,7 +159,7 @@ export default function PrudenStudiosPage() {
     </div>
     {filteredAssets.length === 0 ? <div className="studio-empty"><FileImage size={30} /><strong>Your creative library starts here</strong><p>Import a photo, poster, video or export. Your files will appear here and in the Media Desk library.</p><button className="secondary-button" onClick={() => fileInput.current?.click()}><ImagePlus size={14} /> Add your first media file</button></div> :
       <div className="studio-asset-grid">{filteredAssets.map((asset) => <article className="studio-asset-card" key={asset.id}>
-        <div className="studio-asset-preview">{asset.mimeType.startsWith("image/") ? <img src={URL.createObjectURL(asset.blob)} alt={asset.title} /> : asset.mimeType.startsWith("video/") ? <Video size={34} /> : <FileImage size={34} />}</div>
+        <div className="studio-asset-preview">{asset.mimeType.startsWith("image/") ? <img src={previewUrls[asset.id] || ""} alt={asset.title} /> : asset.mimeType.startsWith("video/") ? <Video size={34} /> : <FileImage size={34} />}</div>
         <div className="studio-asset-copy"><span>{asset.category.toUpperCase()}</span><strong title={asset.title}>{asset.title}</strong><small>{asset.fileName} · {formatStudioSize(asset.size)}</small><div><button onClick={() => void exportAsset(asset)}><ArrowDownToLine size={13} /> Export</button><button onClick={() => void removeAsset(asset)} aria-label={"Remove " + asset.title}><Trash2 size={13} /></button></div></div>
       </article>)}</div>
     }
