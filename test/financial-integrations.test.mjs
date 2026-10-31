@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getFinancialIntegrationStatus, sanitizeDarajaCallback } from "../server/financial-integrations.mjs";
+import { getFinancialIntegrationStatus, isExternalFinancialWebhookPath, sanitizeDarajaCallback } from "../server/financial-integrations.mjs";
 
 test("Daraja remains disabled and sandbox-only without credentials", () => {
   const status = getFinancialIntegrationStatus({});
@@ -46,4 +46,14 @@ test("C2B callback masks phone numbers and keeps transaction references", () => 
   assert.equal(result.safePayload.billReference, "PICHahub-ORDER-1");
   assert.equal(result.safePayload.phone, "••••5678");
   assert.equal("FirstName" in result.safePayload, false);
+});
+
+test("only token-protected financial webhook paths bypass the workspace session gate", () => {
+  assert.equal(isExternalFinancialWebhookPath("/daraja/stk-callback/opaque-token"), true);
+  assert.equal(isExternalFinancialWebhookPath("/daraja/c2b-confirmation/opaque-token"), true);
+  assert.equal(isExternalFinancialWebhookPath("/daraja/c2b-validation/opaque-token"), true);
+  assert.equal(isExternalFinancialWebhookPath("/financial/project-events"), true);
+  assert.equal(isExternalFinancialWebhookPath("/financial/integrations/status"), false);
+  assert.equal(isExternalFinancialWebhookPath("/financial/daraja/stk-push"), false);
+  assert.equal(isExternalFinancialWebhookPath("/daraja/stk-callback"), false);
 });
