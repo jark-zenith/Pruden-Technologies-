@@ -32,7 +32,7 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
     let alive = true;
     const url = URL.createObjectURL(asset.blob);
     const image = new Image();
-    image.onload = () => { if (alive) { imageRef.current = image; setResizeWidth(image.naturalWidth); setResizeHeight(image.naturalHeight); draw(); } URL.revokeObjectURL(url); };
+    image.onload = () => { if (alive) { imageRef.current = image; draw(); } URL.revokeObjectURL(url); };
     image.onerror = () => { if (alive) setError("This image could not be opened by the browser editor."); URL.revokeObjectURL(url); };
     image.src = url;
     return () => { alive = false; URL.revokeObjectURL(url); };
@@ -54,7 +54,8 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
       if (width / height > target) width = Math.round(height * target);
       else height = Math.round(width / target);
     }
-    if (resizeWidth > 0 && resizeHeight > 0) { width = Math.min(5000, resizeWidth); height = Math.min(5000, resizeHeight); }
+    if (resizeWidth > 0) width = Math.min(5000, resizeWidth);
+    if (resizeHeight > 0) height = Math.min(5000, resizeHeight);
     canvas.width = width; canvas.height = height;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -62,8 +63,9 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
     ctx.translate(width / 2, height / 2);
     ctx.rotate(rotation * Math.PI / 180);
     ctx.scale(flip ? -1 : 1, 1);
-    const drawWidth = width;
-    const drawHeight = height;
+    const fitScale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+    const drawWidth = image.naturalWidth * fitScale;
+    const drawHeight = image.naturalHeight * fitScale;
     ctx.filter = "brightness(" + brightness + "%) contrast(" + contrast + "%) saturate(" + saturation + "%) sepia(" + warmth + "%) blur(" + blur + "px)";
     ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
     ctx.restore();
@@ -108,7 +110,7 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
 
   function reset() {
     setBrightness(100); setContrast(100); setSaturation(100); setWarmth(0); setBlur(0); setRotation(0); setFlip(false); setCrop("Original"); setText("");
-    if (imageRef.current) { setResizeWidth(imageRef.current.naturalWidth); setResizeHeight(imageRef.current.naturalHeight); }
+    setResizeWidth(0); setResizeHeight(0);
     overlayRef.current = null; setOverlayName(""); setOverlayOpacity(100); setBlendMode("source-over");
   }
 
