@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Crop, Download, FlipHorizontal, ImagePlus, Layers3, Maximize2, MousePointer2, Paintbrush, Pipette, RotateCcw, RotateCw, SlidersHorizontal, Trash2, Type, X } from "lucide-react";
 import { saveStudioAsset, type StudioAsset } from "./lib/studioLibrary";
+import "./StudioImageEditor.css";
 
 type Props = { asset: StudioAsset; onClose: () => void; onSaved: () => void };
 type Tool = "move" | "crop" | "eraser" | "background";
@@ -161,7 +162,9 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
     const r0 = data[start], g0 = data[start + 1], b0 = data[start + 2];
     const threshold = tolerance * 3;
     const visited = new Uint8Array(width * height);
-    const stack = [y0 * width + x0];
+    const first = y0 * width + x0;
+    const stack = [first];
+    visited[first] = 1;
     let removed = 0;
     while (stack.length) {
       const index = stack.pop()!;
@@ -171,10 +174,10 @@ export default function StudioImageEditor({ asset, onClose, onSaved }: Props) {
       if (Math.abs(data[p] - r0) + Math.abs(data[p + 1] - g0) + Math.abs(data[p + 2] - b0) > threshold) continue;
       data[p + 3] = 0; removed++;
       const x = index % width; const y = Math.floor(index / width);
-      if (x > 0) stack.push(index - 1);
-      if (x < width - 1) stack.push(index + 1);
-      if (y > 0) stack.push(index - width);
-      if (y < height - 1) stack.push(index + width);
+      if (x > 0 && !visited[index - 1]) { visited[index - 1] = 1; stack.push(index - 1); }
+      if (x < width - 1 && !visited[index + 1]) { visited[index + 1] = 1; stack.push(index + 1); }
+      if (y > 0 && !visited[index - width]) { visited[index - width] = 1; stack.push(index - width); }
+      if (y < height - 1 && !visited[index + width]) { visited[index + width] = 1; stack.push(index + width); }
     }
     ctx.putImageData(image, 0, 0);
     renderComposite();
