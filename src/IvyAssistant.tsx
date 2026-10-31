@@ -12,7 +12,6 @@ type SpeechRecognitionEventLike = { resultIndex: number; results: ArrayLike<Spee
 type SpeechRecognitionLike = { lang: string; continuous: boolean; interimResults: boolean; onresult: ((event: SpeechRecognitionEventLike) => void) | null; onerror: (() => void) | null; onend: (() => void) | null; start: () => void; stop: () => void };
 type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike };
 
-const modules = ["Overview", "Projects", "Tasks", "Website Inbox", "AI Workforce", "Approvals", "Customers & CRM", "Finance", "Products & Services", "Infrastructure", "Security & Audit", "Knowledge Base", "Reports & Settings", "GitHub"];
 const PREF_KEY = "pruden-ivy-preferences-v1";
 const HISTORY_KEY = "pruden-ivy-history-v1";
 const defaultPreferences: IvyPreferences = { voiceOutput: true, continuousListening: true, cameraEnabled: false, autoStartVoice: false };
@@ -35,8 +34,9 @@ function dataUrlParts(dataUrl: string) {
   return { mediaType: match[1], data: match[2] };
 }
 
-export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
+export default function IvyAssistant({ activeModule, availableModules, onNavigate, workspace }: {
   activeModule: string;
+  availableModules: string[];
   onNavigate: (module: string) => void;
   workspace: { projects: Array<{ name: string; status: string }>; tasks: Array<{ title: string; state: string; priority: string }>; approvals: Array<{ title: string; status: string }>; repositories: Array<{ name: string; repoUrl: string; visibility: string; archived: boolean; deploymentUrl: string | null; deploymentServices: Array<{ name: string; url: string; type: string; suspended: string }> }>; backendStatus: string };
 }) {
@@ -264,7 +264,7 @@ export default function IvyAssistant({ activeModule, onNavigate, workspace }: {
       const reply = String(result.reply || "I couldn't produce a response this time.");
       setMessages((current) => [...current, { role: "assistant", content: reply }]);
       for (const action of (result.actions || []) as IvyAction[]) {
-        if (action.type === "navigate_module" && modules.includes(action.value)) onNavigate(action.value);
+        if (action.type === "navigate_module" && availableModules.includes(action.value)) onNavigate(action.value);
         if (action.type === "open_external_url" && /^https:\/\//i.test(action.value)) window.open(action.value, "_blank", "noopener,noreferrer");
       }
       if (preferences.voiceOutput && voiceActive) {
