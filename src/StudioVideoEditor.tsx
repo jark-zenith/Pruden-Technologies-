@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Check, Clapperboard, Download, LoaderCircle, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clapperboard, Download, LoaderCircle, Music2, PanelsRightBottom, Sparkles, X } from "lucide-react";
 import { saveStudioAsset, type StudioAsset } from "./lib/studioLibrary";
 
 export default function StudioVideoEditor({ asset, onClose, onSaved }: { asset: StudioAsset; onClose: () => void; onSaved: () => void }) {
@@ -11,6 +11,7 @@ export default function StudioVideoEditor({ asset, onClose, onSaved }: { asset: 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [toolsOpen, setToolsOpen] = useState(true);
 
   useEffect(() => {
     const next = URL.createObjectURL(asset.blob);
@@ -87,15 +88,20 @@ export default function StudioVideoEditor({ asset, onClose, onSaved }: { asset: 
 
   return <div className="studio-editor-backdrop" role="dialog" aria-modal="true" aria-label={"Edit video " + asset.title}>
     <section className="studio-video-editor">
-      <header className="studio-editor-header"><div><p className="eyebrow">PRUDEN STUDIOS / VIDEO CUT DESK</p><h2>{asset.title}</h2><small>Manual clip preview and trim · Original remains untouched</small></div><button onClick={onClose} aria-label="Close video editor"><X size={19} /></button></header>
-      <div className="studio-video-stage">{url && <video ref={videoRef} src={url} controls playsInline onLoadedMetadata={loaded} onTimeUpdate={(event) => { const current = event.currentTarget.currentTime; const readout = document.getElementById("studio-video-current"); if (readout) readout.textContent = time(current); }} />}</div>
-      <div className="studio-video-controls">
-        <div className="studio-video-readout"><span>IN <strong>{time(start)}</strong></span><span>OUT <strong>{time(end)}</strong></span><span>DURATION <strong>{time(Math.max(0, end - start))}</strong></span><span>CURRENT <strong id="studio-video-current">00:00</strong></span></div>
+      <header className="studio-editor-header"><div><p className="eyebrow">PRUDEN STUDIOS / VIDEO CUT DESK</p><h2>{asset.title}</h2><small>Single-clip editor · Original remains untouched</small></div><div className="studio-video-header-actions"><button className="secondary-button" onClick={() => setToolsOpen((value) => !value)}>{toolsOpen ? <ChevronRight size={15} /> : <ChevronLeft size={15} />} {toolsOpen ? "Hide tools" : "Show tools"}</button><button onClick={onClose} aria-label="Close video editor"><X size={19} /></button></div></header>
+      <div className="studio-video-layout"><main><div className="studio-video-stage">{url && <video ref={videoRef} src={url} controls playsInline onLoadedMetadata={loaded} onTimeUpdate={(event) => { const current = event.currentTarget.currentTime; const readout = document.getElementById("studio-video-current"); if (readout) readout.textContent = time(current); }} />}</div></main>
+      {toolsOpen && <aside className="studio-video-inspector"><div className="studio-video-controls">
+        <div className="studio-video-inspector-title"><PanelsRightBottom size={15} /> EDITING TOOLS / INSPECTOR</div><div className="studio-video-readout"><span>IN <strong>{time(start)}</strong></span><span>OUT <strong>{time(end)}</strong></span><span>DURATION <strong>{time(Math.max(0, end - start))}</strong></span><span>CURRENT <strong id="studio-video-current">00:00</strong></span></div>
         <label>Start point <input type="range" min="0" max={Math.max(0, duration)} step=".1" value={Math.min(start, duration)} onChange={(event) => { const value = Math.min(Number(event.target.value), end - .5); setStart(Math.max(0, value)); seekTo(Math.max(0, value)); }} /></label>
         <label>End point <input type="range" min="0" max={Math.max(0, duration)} step=".1" value={Math.min(end, duration)} onChange={(event) => { const value = Math.max(Number(event.target.value), start + .5); setEnd(Math.min(duration, value)); }} /></label>
         <div className="studio-video-actions"><button className="secondary-button" onClick={() => { if (videoRef.current) setStart(videoRef.current.currentTime); }}><Clapperboard size={14} /> Set IN at playhead</button><button className="secondary-button" onClick={() => { if (videoRef.current) setEnd(videoRef.current.currentTime); }}>Set OUT at playhead</button><button className="primary-button" onClick={() => void exportTrim()} disabled={busy || !duration || end <= start}><Check size={14} /> {busy ? <><LoaderCircle size={14} /> Exporting clip…</> : "Export trimmed clip"}</button><a className="secondary-button" href={url} download={asset.fileName}><Download size={14} /> Original</a></div>
         {message && <p className="studio-video-message">{message}</p>}{error && <p className="studio-editor-error" role="alert">{error}</p>}
-        <p className="studio-team-footnote">This first video tool supports one clip and in/out trimming only. It does not yet provide multi-track editing, transitions, titles, audio mixing or colour grading.</p>
+        <details className="studio-video-tool-group" open><summary><Clapperboard size={14} /> Video timeline & editing</summary><p>Active: preview, playhead, IN/OUT points and single-clip trim export.</p><small>Not yet available: multi-track timeline, clip splitting, ripple edits, transitions, speed ramps, stabilization, proxies and multicam.</small></details>
+        <details className="studio-video-tool-group"><summary><Music2 size={14} /> Audio editing</summary><p>Audio assets can be imported into the Studio library.</p><small>Disabled: waveform editing, multiple audio tracks, mixing, EQ, noise removal, ducking and voiceover recording.</small></details>
+        <details className="studio-video-tool-group"><summary><Sparkles size={14} /> Animation & motion graphics</summary><small>Disabled: keyframes, animated titles, motion paths, tracking, masks, compositing and transitions.</small></details>
+        <details className="studio-video-tool-group"><summary><Download size={14} /> Export & project management</summary><p>Active: export selected clip as WebM and save it to Studio Exports. Download original media.</p><small>Not yet available: MP4/H.264 export, project save files, autosave, version history, render queue and custom presets.</small></details>
+        <details className="studio-video-tool-group"><summary><Sparkles size={14} /> AI & professional tools</summary><small>Disabled: auto captions, scene detection, object tracking, background removal, generative video, colour grading scopes, chroma key and advanced audio mastering. AI tools require provider configuration.</small></details>
+      </div></aside>}
       </div>
     </section>
   </div>;
