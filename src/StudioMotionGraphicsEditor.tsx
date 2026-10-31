@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { saveStudioAsset } from "./lib/studioLibrary";
+import "./StudioMotionGraphicsEditor.css";
 import { Activity, Clapperboard, Download, Film, Layers3, Pause, Play, Plus, RotateCcw, Square, Trash2, X } from "lucide-react";
 
 type MotionLayer = {
