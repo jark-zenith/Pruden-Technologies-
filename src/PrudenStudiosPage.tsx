@@ -7,6 +7,7 @@ const categories: StudioCategory[] = ["Photos", "Posters & Designs", "Videos", "
 
 export default function PrudenStudiosPage() {
   const [assets, setAssets] = useState<StudioAsset[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<StudioCategory>("Photos");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -30,6 +31,13 @@ export default function PrudenStudiosPage() {
       if (handle) { setFolderHandle(handle); setFolderName(handle.name); }
     }).catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    const urls: Record<string, string> = {};
+    assets.forEach((asset) => { if (asset.mimeType.startsWith("image/")) urls[asset.id] = URL.createObjectURL(asset.blob); });
+    setPreviewUrls(urls);
+    return () => Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+  }, [assets]);
 
   const filteredAssets = useMemo(() => assets.filter((asset) =>
     (filter === "All" || asset.category === filter) &&
@@ -67,6 +75,7 @@ export default function PrudenStudiosPage() {
         saved += 1;
       }
       await refresh();
+      window.dispatchEvent(new Event("pruden:studio-assets-updated"));
       setMessage(folderHandle
         ? saved + " file(s) added to the Studio library. Folder copies were attempted."
         : saved + " file(s) saved in this browser's local Studio library.");
@@ -101,6 +110,7 @@ export default function PrudenStudiosPage() {
     if (!window.confirm("Remove " + asset.fileName + " from the Studio browser library? This does not delete a copy already exported to your device folder.")) return;
     await deleteStudioAsset(asset.id);
     await refresh();
+    window.dispatchEvent(new Event("pruden:studio-assets-updated"));
   }
 
   const totalBytes = assets.reduce((sum, asset) => sum + asset.size, 0);
