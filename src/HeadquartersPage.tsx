@@ -70,7 +70,7 @@ function Scene({ type }: { type: Room["scene"] }) {
   </span>;
 }
 
-export default function HeadquartersPage({ tasks, projects = [], approvals = [] }: { tasks: Task[]; projects?: Project[]; approvals?: Approval[] }) {
+export default function HeadquartersPage({ tasks, projects = [], approvals = [], onExit }: { tasks: Task[]; projects?: Project[]; approvals?: Approval[]; onExit: () => void }) {
   const [registry, setRegistry] = useState<Registry | null>(null);
   const [registryError, setRegistryError] = useState("");
   const [system, setSystem] = useState<SystemSnapshot>({ health: null, ivy: null, capabilities: null });
@@ -214,7 +214,7 @@ export default function HeadquartersPage({ tasks, projects = [], approvals = [] 
   };
 
   return <section className="virtual-hq" aria-label="Pruden Technologies virtual headquarters">
-    <div className="hq-floor-meta"><span className="hq-brand"><b>PRUDEN</b> TECHNOLOGIES <i>·</i> VIRTUAL HEADQUARTERS</span><span className="hq-live-state"><i /> {registry ? agents.length + " AGENTS REGISTERED" : "CONNECTING WORKFORCE"}</span></div>
+    <div className="hq-floor-meta"><button className="hq-brand hq-exit" onClick={onExit} aria-label="Exit virtual headquarters and open Overview"><b>PRUDEN</b> TECHNOLOGIES <i>·</i> EXIT HQ</button><span className="hq-live-state"><i /> {registry ? agents.length + " AGENTS REGISTERED" : "CONNECTING WORKFORCE"}</span></div>
     <div className="hq-floor" role="group" aria-label="Headquarters rooms">
       {rooms.map((room) => {
         const members = membersFor(room);
