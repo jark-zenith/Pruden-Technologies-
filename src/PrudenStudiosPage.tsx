@@ -4,6 +4,7 @@ import { deleteStudioAsset, formatStudioSize, getStudioDirectoryHandle, listStud
 import StudioCreativeTeam from "./StudioCreativeTeam";
 import StudioImageEditor from "./StudioImageEditor";
 import StudioVideoEditor from "./StudioVideoEditor";
+import StudioToolSuite from "./StudioToolSuite";
 import "./PrudenStudiosPage.css";
 import "./PrudenStudiosWorkspace.css";
 
@@ -165,19 +166,13 @@ export default function PrudenStudiosPage() {
 
     {view === "edit" && <div className="studio-edit-workspace">
       <header className="studio-edit-heading"><div><p className="eyebrow">CREATIVE WORKSPACE / EDIT</p><h1>{selected?.title || "Your editing workspace"}</h1><p>Keep the canvas clear. Open only the tools you need.</p></div><div><button className="secondary-button" onClick={() => editInput.current?.click()}><Plus size={14} /> Open media</button><button className="secondary-button" onClick={() => setView("assets")}><FolderOpen size={14} /> Browse assets</button></div></header>
-      {!selected && <div className="studio-edit-start">
+      {!selected && <div className="studio-edit-layout"><div className="studio-edit-start">
         <div className="studio-edit-start-card"><ImagePlus size={25} /><strong>Start a photo or design edit</strong><p>Open an image to crop, transform, adjust colour and add text. The original stays untouched.</p><button className="primary-button" onClick={() => editInput.current?.click()}>Choose image</button></div>
         <div className="studio-edit-start-card"><Clapperboard size={25} /><strong>Start a video edit</strong><p>Open a video to preview, set in/out points and export a trimmed clip.</p><button className="primary-button" onClick={() => editInput.current?.click()}>Choose video</button></div>
         <div className="studio-edit-start-card"><Layers3 size={25} /><strong>Continue existing work</strong><p>Open a previously imported image or video from your local Studio assets.</p><button className="secondary-button" onClick={() => setView("assets")}>Browse projects & media</button></div>
-      </div>}
+      </div><StudioToolSuite /></div>}
       {selected && <div className="studio-active-project"><span className="studio-live-dot" /> PROJECT OPEN <strong>{selected.title}</strong><small>{selected.fileName} · original preserved</small><button className="text-button" onClick={() => { setEditingAsset(null); setEditingVideo(null); }}>Close project</button></div>}
-      <div className="studio-tool-accordions">
-        <details><summary><Pencil size={14} /> Photo & design tools <span>Crop · transform · adjustments · text</span></summary><div className="studio-tool-list"><span>Crop ratios and rotate / flip</span><span>Brightness, contrast, saturation, warmth and soft focus</span><span>Text overlay with colour and size controls</span><span className="future">Planned: layers, masks, object removal, retouching, curves, gradients, vector tools and AI fill</span></div></details>
-        <details><summary><Clapperboard size={14} /> Video tools <span>Preview · in/out trim · WebM export</span></summary><div className="studio-tool-list"><span>Single-clip preview and trim points</span><span>Set IN / OUT at playhead and export trimmed WebM</span><span className="future">Planned: multi-track timeline, transitions, keyframes, speed ramps, chroma key, tracking, colour grading and captions</span></div></details>
-        <details><summary><Music2 size={14} /> Audio tools <span>Asset import available</span></summary><div className="studio-tool-list"><span>Import and organize audio and sound effects in Assets</span><span className="future">Planned: waveform timeline, trimming, mixing, EQ, noise reduction, voiceover and beat sync</span></div></details>
-        <details><summary><WandSparkles size={14} /> AI & advanced tools <span>Future capability</span></summary><div className="studio-tool-list"><span className="future">Planned: background removal, object cleanup, image generation, upscaling, auto captions, voice tools, scene detection and AI-assisted edits</span><span>Provider-neutral research and model integrations will be added only after their sources and permissions are verified.</span></div></details>
-      </div>
-      <details className="studio-assistant-dock"><summary><Sparkles size={15} /> Lumi & Motion <span>Collapse / expand creative assistants</span></summary>{!selected && <StudioCreativeTeam selectedAsset={null} />}</details>
+      {!selected && <StudioCreativeTeam selectedAsset={null} />}
       {selected && <StudioCreativeTeam selectedAsset={{ title: selected.title, fileName: selected.fileName, category: selected.category, mimeType: selected.mimeType, size: selected.size }} />}
     </div>}
 
