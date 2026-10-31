@@ -234,7 +234,7 @@ export function registerFinancialIntegrationRoutes(app, env = process.env) {
 
   app.post("/api/financial/project-events", async (req, res) => {
     if (!safeBoolean(env.PTMS_FINANCE_BRIDGE_ENABLED)) return res.status(503).json({ error: "Project financial bridge is disabled." });
-    const auth = String(req.headers.authorization || "").replace(/^Bearer\\s+/i, "");
+    const auth = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
     if (!safeEqual(auth, env.PTMS_FINANCE_BRIDGE_SECRET)) return res.status(401).json({ error: "Invalid bridge credentials." });
     const ownerId = env.PTMS_FINANCE_OWNER_ID || "";
     const body = req.body || {};
