@@ -45,25 +45,27 @@ export default function StudioVideoEditor({ asset, onClose, onSaved }: { asset: 
     const mimeType = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((type) => MediaRecorder.isTypeSupported(type));
     if (!mimeType) { setError("This browser does not support a compatible WebM export codec."); return; }
     setBusy(true); setError(""); setMessage("");
+    let stream: MediaStream | undefined;
+    let recorder: MediaRecorder | undefined;
+    let stopAtEnd: (() => void) | undefined;
     try {
       video.pause();
-      video.currentTime = start;
-      await new Promise<void>((resolve) => video.addEventListener("seeked", () => resolve(), { once: true }));
-      const stream = streamFactory.call(video);
-      const recorder = new MediaRecorder(stream, { mimeType });
+      if (Math.abs(video.currentTime - start) > 0.03) {
+        await new Promise<void>((resolve) => { video.addEventListener("seeked", () => resolve(), { once: true }); video.currentTime = start; });
+      }
+      stream = streamFactory.call(video);
+      recorder = new MediaRecorder(stream, { mimeType });
       const chunks: BlobPart[] = [];
       const completed = new Promise<Blob>((resolve, reject) => {
         recorder.ondataavailable = (event) => { if (event.data.size) chunks.push(event.data); };
         recorder.onerror = () => reject(new Error("Video capture failed."));
         recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
       });
-      const stopAtEnd = () => { if (video.currentTime >= end && recorder.state === "recording") { video.pause(); recorder.stop(); } };
+      stopAtEnd = () => { if (video.currentTime >= end && recorder?.state === "recording") { video.pause(); recorder.stop(); } };
       video.addEventListener("timeupdate", stopAtEnd);
       recorder.start(250);
       await video.play();
       const blob = await completed;
-      video.removeEventListener("timeupdate", stopAtEnd);
-      stream.getTracks().forEach((track) => track.stop());
       if (!blob.size) throw new Error("The trimmed video export was empty.");
       const base = asset.fileName.replace(/\.[^.]+$/, "");
       const file = new File([blob], base + "-trimmed.webm", { type: mimeType });
@@ -72,7 +74,13 @@ export default function StudioVideoEditor({ asset, onClose, onSaved }: { asset: 
       setMessage("Trimmed clip saved to Studio Exports as a WebM video.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not export the trimmed clip.");
-    } finally { setBusy(false); }
+    } finally {
+      if (stopAtEnd) video.removeEventListener("timeupdate", stopAtEnd);
+      if (recorder?.state === "recording") recorder.stop();
+      stream?.getTracks().forEach((track) => track.stop());
+      video.pause();
+      setBusy(false);
+    }
   }
 
   return <div className="studio-editor-backdrop" role="dialog" aria-modal="true" aria-label={"Edit video " + asset.title}>
