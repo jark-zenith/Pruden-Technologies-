@@ -5,6 +5,11 @@ const safeBoolean = (value) => value === "true";
 const configured = (value) => typeof value === "string" && value.trim().length > 0;
 const darajaBaseUrl = (env) => env.DARAJA_ENV === "production" ? "https://api.safaricom.co.ke" : "https://sandbox.safaricom.co.ke";
 
+export function isExternalFinancialWebhookPath(pathname) {
+  return /^\\/daraja\\/(?:stk-callback|c2b-confirmation|c2b-validation)\\/[^/]+$/.test(pathname)
+    || pathname === "/financial/project-events";
+}
+
 export function getFinancialIntegrationStatus(env = process.env) {
   const sandbox = env.DARAJA_ENV !== "production";
   const hasCredentials = configured(env.DARAJA_CONSUMER_KEY) && configured(env.DARAJA_CONSUMER_SECRET);
