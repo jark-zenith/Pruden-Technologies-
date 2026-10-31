@@ -313,3 +313,14 @@ html[data-theme="dark"] .task-check{border-color:var(--line);color:var(--muted)}
 @keyframes ivy-mouth{from{transform:scaleY(.6)}to{transform:scaleY(1.25)}}
 @keyframes ivy-blink{0%,45%,48%,100%{transform:scaleY(1)}46.5%{transform:scaleY(.12)}}
 @media(prefers-reduced-motion:reduce){.ivy-face-eyes i,.ivy-face-mouth,.ivy-presence-wave i{animation:none!important}}
+
+/* Pruden Studios dashboard entry point */
+.studio-dashboard-shortcut{width:100%;display:flex;align-items:center;gap:14px;padding:16px 18px;margin:0 0 20px;text-align:left;border:1px solid var(--line);border-radius:13px;background:linear-gradient(105deg,var(--panel),var(--panel2));color:var(--text);cursor:pointer;transition:border-color .18s,transform .18s}
+.studio-dashboard-shortcut:hover{border-color:var(--blue);transform:translateY(-1px)}
+.studio-shortcut-icon{width:44px;height:44px;display:grid;place-items:center;flex:none;border:1px solid #538dd755;border-radius:11px;background:#2c69a51a;color:var(--blue)}
+.studio-dashboard-shortcut>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}
+.studio-dashboard-shortcut small{font:8px 'DM Mono',monospace;letter-spacing:1px;color:var(--blue)}
+.studio-dashboard-shortcut strong{font-size:1rem;color:var(--text)}
+.studio-dashboard-shortcut em{font-style:normal;font-size:.74rem;line-height:1.5;color:var(--mute)}
+.studio-shortcut-action{display:flex;align-items:center;gap:6px;flex:none;color:var(--blue);font-size:.72rem;font-weight:700}
+@media(max-width:620px){.studio-dashboard-shortcut{align-items:flex-start;flex-wrap:wrap}.studio-shortcut-action{margin-left:58px}}
