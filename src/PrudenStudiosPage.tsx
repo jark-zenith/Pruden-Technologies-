@@ -67,7 +67,7 @@ export default function PrudenStudiosPage() {
     let saved = 0;
     try {
       for (const file of Array.from(files)) {
-        const asset = await saveStudioAsset(file, category, file.name.replace(/\\.[^.]+$/, ""));
+        const asset = await saveStudioAsset(file, category, file.name.replace(/\.[^.]+$/, ""));
         if (folderHandle) {
           try { await writeAssetToStudioFolder(folderHandle, asset); }
           catch (cause) { setError(cause instanceof Error ? cause.message : "Saved to browser storage, but folder copy failed."); }
