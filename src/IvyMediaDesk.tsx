@@ -31,6 +31,13 @@ export default function IvyMediaDesk() {
 
   useEffect(() => {
     if (kind !== "studio") return;
+    const refreshStudioAssets = () => { void listStudioAssets().then(setStudioAssets).catch((cause) => setError(cause instanceof Error ? cause.message : "Studio library could not be refreshed.")); };
+    window.addEventListener("pruden:studio-assets-updated", refreshStudioAssets);
+    return () => window.removeEventListener("pruden:studio-assets-updated", refreshStudioAssets);
+  }, [kind]);
+
+  useEffect(() => {
+    if (kind !== "studio") return;
     let alive = true;
     listStudioAssets().then((assets) => { if (alive) setStudioAssets(assets); }).catch((cause) => { if (alive) setError(cause instanceof Error ? cause.message : "Studio library could not be loaded."); });
     return () => { alive = false; };
