@@ -16,9 +16,14 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [hidden, setHidden] = useState(false);
   const [error, setError] = useState("");
   const agent = agents.find((item) => item.id.toLowerCase() === active || item.name.toLowerCase() === active);
   const history = messages[active] || [];
+
+  useEffect(() => {
+    setHidden(false);
+  }, [selectedAsset?.fileName]);
 
   useEffect(() => {
     let alive = true;
@@ -60,7 +65,9 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
     finally { setLoading(false); }
   }
 
-  return <section className="studio-team panel">
+  if (selectedAsset && hidden) return <button className="studio-team-reopen" onClick={() => setHidden(false)}><Sparkles size={15} /> Lumi & Motion</button>;
+
+  return <section className={selectedAsset ? "studio-team panel floating" : "studio-team panel"}>
     <div className="studio-team-heading">
       <div><p className="eyebrow">CREATIVE COLLABORATORS / WORKFORCE LINK</p><h2><Sparkles size={17} /> Work alongside Lumi & Motion</h2><p>Ask for creative direction, editing steps, composition feedback and production checklists. You remain in control of every manual edit.</p></div>
       <span className={configured && agents.length === 2 ? "studio-team-status online" : "studio-team-status"}>{agents.length === 2 ? "2 AGENTS FOUND" : agents.length + " / 2 AGENTS FOUND"}</span>
@@ -68,7 +75,7 @@ export default function StudioCreativeTeam({ selectedAsset }: { selectedAsset?: 
     <div className="studio-team-tabs">
       <button className={active === "lumi" ? "active lumi" : ""} onClick={() => { setActive("lumi"); setError(""); }}><span>L</span><div><strong>Lumi</strong><small>Visual direction & image craft</small></div></button>
       <button className={active === "motion" ? "active motion" : ""} onClick={() => { setActive("motion"); setError(""); }}><span>M</span><div><strong>Motion</strong><small>Video, pacing & storytelling</small></div></button>
-      <button className="studio-team-expand" onClick={() => setExpanded((value) => !value)}>{expanded ? "Collapse" : "Expand chat"}</button>
+      <button className="studio-team-expand" onClick={() => setExpanded((value) => !value)}>{expanded ? "Collapse chat" : "Expand chat"}</button>{selectedAsset && <button className="studio-team-hide" onClick={() => setHidden(true)}>Hide</button>}
     </div>
     {agent ? <div className={expanded ? "studio-team-chat expanded" : "studio-team-chat"}>
       <div className="studio-team-agent"><span style={{ "--agent-color": agent.orbColor || (active === "lumi" ? "#a78bfa" : "#38bdf8") } as CSSProperties}>{active.slice(0,1).toUpperCase()}</span><div><strong>{agent.name}</strong><small>{agent.title}</small></div><Bot size={16} /></div>
