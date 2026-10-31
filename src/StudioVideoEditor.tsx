@@ -101,6 +101,7 @@ export default function StudioVideoEditor({ asset, onClose, onSaved }: { asset: 
         <details className="studio-video-tool-group"><summary><Sparkles size={14} /> Animation & motion graphics</summary><small>Disabled: keyframes, animated titles, motion paths, tracking, masks, compositing and transitions.</small></details>
         <details className="studio-video-tool-group"><summary><Download size={14} /> Export & project management</summary><p>Active: export selected clip as WebM and save it to Studio Exports. Download original media.</p><small>Not yet available: MP4/H.264 export, project save files, autosave, version history, render queue and custom presets.</small></details>
         <details className="studio-video-tool-group"><summary><Sparkles size={14} /> AI & professional tools</summary><small>Disabled: auto captions, scene detection, object tracking, background removal, generative video, colour grading scopes, chroma key and advanced audio mastering. AI tools require provider configuration.</small></details>
+      </div></aside>}
       </div>
     </section>
   </div>;
