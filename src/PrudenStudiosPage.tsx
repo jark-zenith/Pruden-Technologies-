@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Aperture, ArrowDownToLine, Clapperboard, FileImage, FolderOpen, HardDrive, ImagePlus, Layers3, RefreshCw, Search, ShieldCheck, Trash2, Video, X } from "lucide-react";
+import { Aperture, ArrowDownToLine, Clapperboard, FileImage, FolderOpen, HardDrive, ImagePlus, Layers3, RefreshCw, Search, ShieldCheck, Trash2, Video, X, Pencil } from "lucide-react";
 import { deleteStudioAsset, formatStudioSize, getStudioDirectoryHandle, listStudioAssets, saveStudioAsset, saveStudioDirectoryHandle, writeAssetToStudioFolder, type StudioAsset, type StudioCategory } from "./lib/studioLibrary";
+import StudioCreativeTeam from "./StudioCreativeTeam";
+import StudioImageEditor from "./StudioImageEditor";
 import "./PrudenStudiosPage.css";
 
 const categories: StudioCategory[] = ["Photos", "Posters & Designs", "Videos", "Exports"];
 
 export default function PrudenStudiosPage() {
   const [assets, setAssets] = useState<StudioAsset[]>([]);
+  const [editingAsset, setEditingAsset] = useState<StudioAsset | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
   const [category, setCategory] = useState<StudioCategory>("Photos");
   const [filter, setFilter] = useState("All");
@@ -134,6 +137,8 @@ export default function PrudenStudiosPage() {
       <div className="studio-hero-art"><div className="studio-aperture"><Aperture size={76} strokeWidth={1.1} /></div><span>CREATE / CAPTURE / DELIVER</span><small>PRUDEN STUDIOS · EST. 2026</small></div>
     </div>
 
+    <StudioCreativeTeam selectedAsset={editingAsset ? { title: editingAsset.title, fileName: editingAsset.fileName, category: editingAsset.category, mimeType: editingAsset.mimeType, size: editingAsset.size } : null} />
+
     <div className="studio-stats">
       <article className="studio-stat"><span><Layers3 size={16} /> LIBRARY ITEMS</span><strong>{String(assets.length).padStart(2, "0")}</strong><small>Local media records</small></article>
       <article className="studio-stat"><span><HardDrive size={16} /> MEDIA SIZE</span><strong>{formatStudioSize(totalBytes)}</strong><small>Files held in browser storage</small></article>
@@ -160,9 +165,10 @@ export default function PrudenStudiosPage() {
     {filteredAssets.length === 0 ? <div className="studio-empty"><FileImage size={30} /><strong>Your creative library starts here</strong><p>Import a photo, poster, video or export. Your files will appear here and in the Media Desk library.</p><button className="secondary-button" onClick={() => fileInput.current?.click()}><ImagePlus size={14} /> Add your first media file</button></div> :
       <div className="studio-asset-grid">{filteredAssets.map((asset) => <article className="studio-asset-card" key={asset.id}>
         <div className="studio-asset-preview">{asset.mimeType.startsWith("image/") ? <img src={previewUrls[asset.id] || ""} alt={asset.title} /> : asset.mimeType.startsWith("video/") ? <Video size={34} /> : <FileImage size={34} />}</div>
-        <div className="studio-asset-copy"><span>{asset.category.toUpperCase()}</span><strong title={asset.title}>{asset.title}</strong><small>{asset.fileName} · {formatStudioSize(asset.size)}</small><div><button onClick={() => void exportAsset(asset)}><ArrowDownToLine size={13} /> Export</button><button onClick={() => void removeAsset(asset)} aria-label={"Remove " + asset.title}><Trash2 size={13} /></button></div></div>
+        <div className="studio-asset-copy"><span>{asset.category.toUpperCase()}</span><strong title={asset.title}>{asset.title}</strong><small>{asset.fileName} · {formatStudioSize(asset.size)}</small><div>{asset.mimeType.startsWith("image/") && <button onClick={() => setEditingAsset(asset)}><Pencil size={13} /> Edit</button>}<button onClick={() => void exportAsset(asset)}><ArrowDownToLine size={13} /> Export</button><button onClick={() => void removeAsset(asset)} aria-label={"Remove " + asset.title}><Trash2 size={13} /></button></div></div>
       </article>)}</div>
     }
+    {editingAsset && <StudioImageEditor asset={editingAsset} onClose={() => setEditingAsset(null)} onSaved={() => { void refresh(); window.dispatchEvent(new Event("pruden:studio-assets-updated")); }} />}
     <footer className="footer-note"><span>PRUDEN STUDIOS <b>·</b> CREATE. CAPTURE. EDIT. DELIVER.</span><span><Aperture size={13} /> Local-first creative workspace</span></footer>
   </section>;
 }
