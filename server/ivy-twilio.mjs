@@ -148,7 +148,7 @@ async function twilioRequest(path) {
   const token = process.env.TWILIO_AUTH_TOKEN || "";
   if (!sid || !token) throw new Error("Twilio Account SID and Auth Token are required.");
   const auth = Buffer.from(sid + ":" + token).toString("base64");
-  const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(sid) + "/" + path, {
+  const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(sid) + path, {
     headers: { Authorization: "Basic " + auth },
     signal: AbortSignal.timeout(15000)
   });
@@ -163,7 +163,7 @@ async function twilioRequest(path) {
 
 export async function inspectIvyTwilioAccount() {
   const account = await twilioRequest(".json");
-  const numbers = await twilioRequest("IncomingPhoneNumbers.json?PageSize=100");
+  const numbers = await twilioRequest("/IncomingPhoneNumbers.json?PageSize=100");
   const voiceNumbers = (Array.isArray(numbers?.incoming_phone_numbers) ? numbers.incoming_phone_numbers : [])
     .filter((number) => number?.capabilities?.voice === true)
     .map((number) => ({
