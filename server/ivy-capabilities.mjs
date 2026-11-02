@@ -12,6 +12,13 @@ export function ivyCapabilityStatus() {
     email: { status: gmailConfigured ? "configured_unverified" : "setup_required", provider: "Gmail OAuth", note: "Gmail has a separate connection/status panel; confirm its connected status before use." },
     github: githubCapabilityStatus(),
     whatsapp: { status: "not_implemented", provider: "WhatsApp Business Platform", writeToolsEnabled: false },
+    ownerContact: {
+      email: process.env.IVY_OWNER_EMAIL || null,
+      directPhone: process.env.IVY_OWNER_PHONE || null,
+      directWhatsApp: process.env.IVY_OWNER_WHATSAPP || null,
+      businessWhatsApp: process.env.PRUDEN_WHATSAPP_BUSINESS_PHONE || null,
+      note: "Private owner contact routing only; configured destinations do not prove that voice, SMS, or WhatsApp delivery is enabled."
+    },
     voiceCalling: ivyTwilioCapabilityStatus(),
     payments: { status: "not_implemented", writeToolsEnabled: false },
     contracts: { status: "not_implemented", signingEnabled: false, note: "Document drafting only; no electronic signature integration." },
