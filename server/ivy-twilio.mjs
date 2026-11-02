@@ -174,9 +174,9 @@ export function registerIvyTwilioRoutes(app) {
         Url: webhookUrl(req, "voice", record.id),
         Method: "POST",
         StatusCallback: webhookUrl(req, "status", record.id),
-        StatusCallbackMethod: "POST",
-        StatusCallbackEvent: "initiated ringing answered completed"
+        StatusCallbackMethod: "POST"
       });
+      for (const event of ["initiated", "ringing", "answered", "completed"]) params.append("StatusCallbackEvent", event);
       const auth = Buffer.from(process.env.TWILIO_ACCOUNT_SID + ":" + process.env.TWILIO_AUTH_TOKEN).toString("base64");
       const response = await fetch(base, {
         method: "POST",
