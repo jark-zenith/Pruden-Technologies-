@@ -13,6 +13,10 @@ const buttonStyle = { padding: "9px 13px", borderRadius: 10, border: "1px solid 
 export default function BusinessModules({ active, user }: { active: ModuleName; user: User }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [goals, setGoals] = useState<Row[]>([]);
+  const [financialAccounts, setFinancialAccounts] = useState<Row[]>([]);
+  const [financialTransactions, setFinancialTransactions] = useState<Row[]>([]);
+  const [accountFormOpen, setAccountFormOpen] = useState(false);
+  const [accountForm, setAccountForm] = useState({ account_name: "", account_type: "mpesa_personal", account_scope: "personal", provider: "manual", masked_identifier: "" });
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -37,14 +41,17 @@ export default function BusinessModules({ active, user }: { active: ModuleName; 
     setBusy(true); setError(""); setNotice("");
     try {
       if (active === "Finance") {
-        const [ledger, savings] = await Promise.all([
+        const [ledger, savings, accounts, transactions] = await Promise.all([
           supa().from("pruden_financial_records").select("*").eq("owner_id", uid).order("occurred_on", { ascending: false }).limit(200),
-          supa().from("pruden_savings_goals").select("*").eq("owner_id", uid).neq("status", "archived").order("created_at", { ascending: false }).limit(100)
+          supa().from("pruden_savings_goals").select("*").eq("owner_id", uid).neq("status", "archived").order("created_at", { ascending: false }).limit(100),
+          supa().from("pruden_financial_accounts").select("*").eq("owner_id", uid).order("created_at", { ascending: false }).limit(100),
+          supa().from("pruden_financial_transactions").select("*").eq("owner_id", uid).order("occurred_at", { ascending: false }).limit(100)
         ]);
-        if (ledger.error) throw ledger.error;
-        if (savings.error) throw savings.error;
+        for (const result of [ledger, savings, accounts, transactions]) if (result.error) throw result.error;
         setRows(ledger.data || []);
         setGoals(savings.data || []);
+        setFinancialAccounts(accounts.data || []);
+        setFinancialTransactions(transactions.data || []);
       } else if (active === "Reports & Settings") {
         setGoals([]);
         const [customers, ledger, products, approvals] = await Promise.all([
@@ -90,6 +97,28 @@ export default function BusinessModules({ active, user }: { active: ModuleName; 
     } catch(e){setError(e instanceof Error?e.message:"Save failed.");}
     finally{setBusy(false);}
   }
+  async function saveFinancialAccount(e:FormEvent) {
+    e.preventDefault(); setBusy(true); setError(""); setNotice("");
+    try {
+      const payload = {
+        owner_id: uid,
+        account_name: accountForm.account_name.trim(),
+        account_type: accountForm.account_type,
+        account_scope: accountForm.account_scope,
+        provider: accountForm.provider,
+        masked_identifier: accountForm.masked_identifier.trim() || null,
+        status: "pending_setup"
+      };
+      if (!payload.account_name) throw new Error("Account name is required.");
+      const { data, error: insertError } = await supa().from("pruden_financial_accounts").insert(payload).select("*").single();
+      if (insertError) throw insertError;
+      const { error: auditError } = await supa().from("pruden_audit_events").insert({ owner_id: uid, actor_id: uid, action: "financial_account.created", entity_type: "pruden_financial_accounts", entity_id: data.id, details: { account_type: payload.account_type, account_scope: payload.account_scope, provider: payload.provider } });
+      if (auditError) throw auditError;
+      setAccountForm({ account_name: "", account_type: "mpesa_personal", account_scope: "personal", provider: "manual", masked_identifier: "" });
+      setAccountFormOpen(false); setNotice("Financial account added. It is not connected to a payment provider yet."); setRefreshKey(n=>n+1);
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not add financial account."); }
+    finally { setBusy(false); }
+  }
   async function decide(row:Row,status:"approved"|"rejected") {
     setBusy(true);setError("");setNotice("");
     try { const {error:e}=await supa().from("pruden_approvals").update({status,reviewed_at:new Date().toISOString()}).eq("id",row.id).eq("owner_id",uid).eq("status","pending"); if(e)throw e;
@@ -106,6 +135,26 @@ export default function BusinessModules({ active, user }: { active: ModuleName; 
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><h2 style={{display:"flex",alignItems:"center",gap:9,fontSize:18}}><Icon size={18}/>{config.title}</h2>{config.fields.length>0&&<button style={buttonStyle} onClick={startCreate}><Plus size={14}/> New record</button>}</div>
       {error&&<p role="alert" style={{color:"#fb7185",padding:10,border:"1px solid #fb718544",borderRadius:10}}><CircleAlert size={14}/> {error}</p>}
       {notice&&<p role="status" style={{color:"#34d399"}}><Check size={14}/> {notice}</p>}
+      {active==="Finance" && <section aria-label="Financial accounts" style={{marginTop:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <div><h3 style={{fontSize:15,marginBottom:4}}>Connected accounts</h3><p style={{fontSize:12,opacity:.72,marginTop:0}}>Register personal and business accounts. Registration does not connect or authorize money movement.</p></div>
+          <button type="button" style={buttonStyle} onClick={()=>setAccountFormOpen(v=>!v)}><Plus size={14}/> Add account</button>
+        </div>
+        {accountFormOpen && <form onSubmit={saveFinancialAccount} style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:10,padding:14,border:"1px solid var(--border, #334155)",borderRadius:12,marginBottom:14}}>
+          <label style={{display:"grid",gap:5,fontSize:12}}>Account name<input required value={accountForm.account_name} onChange={e=>setAccountForm(p=>({...p,account_name:e.target.value}))} placeholder="e.g. Personal M-Pesa" style={inputStyle}/></label>
+          <label style={{display:"grid",gap:5,fontSize:12}}>Account type<select value={accountForm.account_type} onChange={e=>setAccountForm(p=>({...p,account_type:e.target.value}))} style={inputStyle}><option value="mpesa_personal">Personal M-Pesa</option><option value="mpesa_paybill">M-Pesa Paybill</option><option value="mpesa_till">M-Pesa Till</option><option value="bank">Bank</option><option value="cash">Cash</option><option value="payment_gateway">Payment gateway</option><option value="other">Other</option></select></label>
+          <label style={{display:"grid",gap:5,fontSize:12}}>Scope<select value={accountForm.account_scope} onChange={e=>setAccountForm(p=>({...p,account_scope:e.target.value}))} style={inputStyle}><option value="personal">Personal</option><option value="business">Business</option></select></label>
+          <label style={{display:"grid",gap:5,fontSize:12}}>Provider<select value={accountForm.provider} onChange={e=>setAccountForm(p=>({...p,provider:e.target.value}))} style={inputStyle}><option value="manual">Manual / statement import</option><option value="safaricom_daraja">Safaricom Daraja</option><option value="bank_import">Bank import</option><option value="paystack">Paystack</option><option value="other">Other</option></select></label>
+          <label style={{display:"grid",gap:5,fontSize:12}}>Masked identifier (optional)<input value={accountForm.masked_identifier} onChange={e=>setAccountForm(p=>({...p,masked_identifier:e.target.value}))} placeholder="e.g. •••• 1234" style={inputStyle}/></label>
+          <div style={{display:"flex",gap:8,alignItems:"end"}}><button type="submit" style={buttonStyle} disabled={busy}>{busy?"Saving…":"Save account"}</button><button type="button" style={buttonStyle} onClick={()=>setAccountFormOpen(false)}>Cancel</button></div>
+        </form>}
+        {financialAccounts.length===0 ? <p style={{opacity:.7,fontSize:13}}>No accounts registered yet.</p> : <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>{financialAccounts.map(account=><article key={account.id} style={{padding:13,border:"1px solid var(--border, #334155)",borderRadius:12}}><div style={{display:"flex",justifyContent:"space-between",gap:8}}><strong>{account.account_name}</strong><small>{account.status.replaceAll("_"," ")}</small></div><p style={{fontSize:12,opacity:.75,margin:"7px 0"}}>{account.account_type.replaceAll("_"," ")} · {account.account_scope} · {account.provider.replaceAll("_"," ")}</p><small>{account.masked_identifier||"Identifier not supplied"} · {account.currency}</small></article>)}</div>}
+      </section>}
+      {active==="Finance" && <section aria-label="Imported financial transactions" style={{marginTop:22}}>
+        <h3 style={{fontSize:15,marginBottom:8}}>Verified & imported transactions</h3>
+        <p style={{fontSize:12,opacity:.72,marginTop:0}}>Provider events remain separate from manually entered ledger rows until verified and reconciled.</p>
+        {financialTransactions.length===0 ? <p style={{opacity:.7,fontSize:13}}>No imported or provider transactions yet. Daraja is not connected.</p> : <div style={{display:"grid",gap:8}}>{financialTransactions.map(tx=><article key={tx.id} style={{padding:12,border:"1px solid var(--border, #334155)",borderRadius:10,display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><strong>{tx.description||tx.category}</strong><p style={{fontSize:12,opacity:.72,margin:"4px 0"}}>{tx.kind.replaceAll("_"," ")} · {tx.source.replaceAll("_"," ")} · {new Date(tx.occurred_at).toLocaleString()}</p><small>{tx.status} · {tx.verification_status}</small></div><strong style={{whiteSpace:"nowrap"}}>{money(Number(tx.amount))}</strong></article>)}</div>}
+      </section>}
       {active==="Finance" && <section aria-label="Savings goals" style={{marginTop:18}}>
         <h3 style={{fontSize:15,marginBottom:10}}>Capital & savings goals</h3>
         {goals.length===0 ? <p style={{opacity:.75}}>No savings goals saved yet. Ask Ivy to create one, or configure a goal through Ivy's Finance tools.</p> :
