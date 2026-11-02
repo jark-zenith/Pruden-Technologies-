@@ -1,4 +1,5 @@
 import { githubCapabilityStatus } from "./ivy-github.mjs";
+import { ivyTwilioCapabilityStatus } from "./ivy-twilio.mjs";
 
 export function ivyCapabilityStatus() {
   const supabaseConfigured = Boolean((process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL) && (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY));
@@ -11,6 +12,7 @@ export function ivyCapabilityStatus() {
     email: { status: gmailConfigured ? "configured_unverified" : "setup_required", provider: "Gmail OAuth", note: "Gmail has a separate connection/status panel; confirm its connected status before use." },
     github: githubCapabilityStatus(),
     whatsapp: { status: "not_implemented", provider: "WhatsApp Business Platform", writeToolsEnabled: false },
+    voiceCalling: ivyTwilioCapabilityStatus(),
     payments: { status: "not_implemented", writeToolsEnabled: false },
     contracts: { status: "not_implemented", signingEnabled: false, note: "Document drafting only; no electronic signature integration." },
     deployments: { status: "not_implemented", productionDeployEnabled: false },

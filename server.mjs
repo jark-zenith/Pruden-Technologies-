@@ -15,6 +15,7 @@ import { IVY_RUNTIME_BUDGET } from "./server/ivy-runtime-policy.mjs";
 import { callGeminiText, getModelProviderStatus } from "./server/model-providers.mjs";
 import { ivyJournalTools, executeIvyJournalTool } from "./server/ivy-journal.mjs";
 import { registerProjectIntelligenceRoutes } from "./server/project-intelligence-bridge.mjs";
+import { registerIvyTwilioWebhookRoutes, registerIvyTwilioRoutes } from "./server/ivy-twilio.mjs";
 import { registerFinancialIntegrationRoutes, isExternalFinancialWebhookPath } from "./server/financial-integrations.mjs";
 
 const app = express();
@@ -30,6 +31,7 @@ const attempts = new Map();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "6mb" }));
+app.use(express.urlencoded({ extended: false, limit: "32kb" }));
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
@@ -102,9 +104,12 @@ app.post("/api/auth/lock", (_req, res) => {
 });
 app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y" }));
 app.use(express.static(dist, { index: false, maxAge: "1h" }));
+// Twilio callbacks must be reachable without the browser session; the module verifies Twilio signatures and per-call HMAC tokens.
+registerIvyTwilioWebhookRoutes(app);
 app.use("/api", (req, res, next) => isExternalFinancialWebhookPath(req.path) || isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
-registerProjectIntelligenceRoutes(app);
+registerIvyTwilioRoutes(app);
 registerFinancialIntegrationRoutes(app);
+registerProjectIntelligenceRoutes(app);
 registerIvyGmailRoutes(app);
 registerIvyMediaRoutes(app);
 registerAIWorkforceRoutes(app);
@@ -138,7 +143,7 @@ const geminiTestAttempts = new Map();
 // Ivy AI companion: Claude reasoning stays server-side; no provider key reaches the browser.
 const ivyAttempts = new Map();
 const ivyModules = new Set(["Home", "Overview", "Projects", "Ideas & Strategy", "Daily Journal", "Tasks", "Website Inbox", "AI Workforce", "Project Intelligence", "Social Media Monitoring", "Approvals", "Customers & CRM", "Finance", "Products & Services", "Pruden Studios", "Infrastructure", "Security & Audit", "Knowledge Base", "Reports & Settings", "GitHub"]);
-const IVY_ALLOWED_OPERATION_NAMES = new Set(["list_projects", "list_tasks", "list_approvals", "list_customers", "list_finance_records", "get_finance_record", "get_finance_summary", "list_financial_accounts", "list_financial_transactions", "create_finance_record", "request_approval"]);
+const IVY_ALLOWED_OPERATION_NAMES = new Set(["list_projects", "list_tasks", "list_approvals", "list_customers", "list_website_inbox", "list_finance_records", "get_finance_record", "get_finance_summary", "list_financial_accounts", "list_financial_transactions", "create_finance_record", "request_approval"]);
 const IVY_READ_ONLY_JOURNAL_NAMES = new Set(["ivy_journal_list", "ivy_journal_activity_today"]);
 const IVY_READ_ONLY_MEMORY_NAMES = new Set(["ivy_memory_search"]);
 const IVY_READ_ONLY_GITHUB_NAMES = new Set(["github_list_repositories", "render_list_services", "github_get_repository", "github_list_repository_branches", "github_list_repository_commits", "github_get_repository_tree", "github_read_repository_file", "github_list_pull_requests", "github_get_pull_request", "github_list_issues"]);
@@ -153,7 +158,7 @@ const ivyTools = [
   ...ivyGitHubTools.filter((tool) => IVY_READ_ONLY_GITHUB_NAMES.has(tool.name)),
   ivyCapabilityTool
 ];
-const ivyReadOnlyToolNames = new Set(ivyTools.map((tool) => tool.name));
+const ivyAllowedToolNames = new Set(ivyTools.map((tool) => tool.name));
 app.get("/api/ivy/status", (_req, res) => res.json({ configured: Boolean(process.env.ANTHROPIC_API_KEY), provider: "anthropic", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", modelProviders: getModelProviderStatus() }));
 app.get("/api/ivy/capabilities", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(ivyCapabilityStatus()); });
 app.post("/api/ivy/idea", async (req, res) => {
@@ -315,8 +320,8 @@ app.post("/api/ivy/chat", async (req, res) => {
           continue;
         }
         ivyToolCalls += 1;
-        if (!ivyReadOnlyToolNames.has(call.name)) {
-          results.push({ type: "tool_result", tool_use_id: call.id, content: "Denied: Ivy is in read-only co-pilot mode. This action is not available to her." });
+        if (!ivyAllowedToolNames.has(call.name)) {
+          results.push({ type: "tool_result", tool_use_id: call.id, content: "Denied: this Ivy operation is not in the server-side allowlist." });
           continue;
         }
         if (Date.now() - ivyStartedAt >= IVY_RUNTIME_BUDGET.maxExecutionMsPerRequest) {

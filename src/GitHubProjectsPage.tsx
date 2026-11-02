@@ -82,6 +82,20 @@ export default function GitHubProjectsPage() {
       <a className="primary-button github-account-link" href="https://github.com/jark-zenith" target="_blank" rel="noreferrer"><Github size={15} /> GitHub account <ExternalLink size={13} /></a>
     </div>
 
+    <section className="github-project-detail-panel" aria-labelledby="featured-prudenverse-title">
+      <div className="github-project-heading">
+        <div>
+          <p className="eyebrow">FEATURED PRUDEN TECHNOLOGIES PROJECT</p>
+          <h2 id="featured-prudenverse-title">PrudenVerse Hub</h2>
+        </div>
+        <span className="deployment-label configured"><i /> LIVE SHOWCASE</span>
+      </div>
+      <p>Explore the PrudenVerse stories hub — a public-facing showcase for stories and updates from the PrudenVerse ecosystem.</p>
+      <div className="github-project-actions">
+        <a href="https://prudenverse-hub.lovable.app/stories" target="_blank" rel="noreferrer"><Globe size={14} /> Open PrudenVerse Hub <ExternalLink size={12} /></a>
+      </div>
+    </section>
+
     <div className="github-summary-grid">
       <article className="github-summary-card"><span>Repositories listed</span><strong>{githubProjects.length}</strong><small>Visible to the connected GitHub account</small></article>
       <article className="github-summary-card"><span>Deployment URLs linked</span><strong>{liveCount}</strong><small>Matched from the Render workspace</small></article>
