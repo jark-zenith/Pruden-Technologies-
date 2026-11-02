@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "start": "node server.mjs",
-    "android:sync": "cap sync android"
+    "android:sync": "cap sync android",
+    "test:financial": "node --test test/financial-integrations.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
