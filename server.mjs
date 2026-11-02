@@ -15,6 +15,7 @@ import { IVY_RUNTIME_BUDGET } from "./server/ivy-runtime-policy.mjs";
 import { callGeminiText, getModelProviderStatus } from "./server/model-providers.mjs";
 import { ivyJournalTools, executeIvyJournalTool } from "./server/ivy-journal.mjs";
 import { registerProjectIntelligenceRoutes } from "./server/project-intelligence-bridge.mjs";
+import { registerIvyTwilioWebhookRoutes, registerIvyTwilioRoutes } from "./server/ivy-twilio.mjs";
 
 const app = express();
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,7 @@ const attempts = new Map();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "6mb" }));
+app.use(express.urlencoded({ extended: false, limit: "32kb" }));
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "no-referrer");
@@ -101,7 +103,10 @@ app.post("/api/auth/lock", (_req, res) => {
 });
 app.use("/assets", express.static(path.join(dist, "assets"), { immutable: true, maxAge: "1y" }));
 app.use(express.static(dist, { index: false, maxAge: "1h" }));
+// Twilio callbacks must be reachable without the browser session; the module verifies Twilio signatures and per-call HMAC tokens.
+registerIvyTwilioWebhookRoutes(app);
 app.use("/api", (req, res, next) => isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
+registerIvyTwilioRoutes(app);
 registerProjectIntelligenceRoutes(app);
 registerIvyGmailRoutes(app);
 registerIvyMediaRoutes(app);
