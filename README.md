@@ -139,3 +139,22 @@ Motion remains responsible for video and motion-production planning only. Video 
 ## Project status
 
 This README describes the repository's code and intended setup. It does not claim that all integrations are configured, the new Finance migration has been applied to production, or a deployed app has passed live read/write tests. Those states must be confirmed in the target environment.
+
+## Ivy outbound calling (Twilio foundation)
+
+The Twilio foundation adds a server-only outbound-call endpoint and signed Twilio webhooks. It is intentionally conservative:
+
+- Calls can only be placed to the configured `IVY_OWNER_PHONE`; callers cannot supply an arbitrary destination number.
+- The private PTMS session protects the call-start and call-status API routes.
+- Twilio webhooks are public endpoints because Twilio must reach them, but each request is checked with Twilio's `X-Twilio-Signature` and an application HMAC token.
+- Call records are stored in `pruden_ivy_calls`, which has RLS enabled and no access for browser `anon` or `authenticated` roles. The server uses `SUPABASE_SERVICE_ROLE_KEY` only.
+- The initial call reads a prepared PTMS update and offers keypad acknowledgement/replay. **Natural two-way AI voice conversation and automatic issue escalation are not enabled by this foundation.** They require a separately tested live audio/voice-agent bridge and an explicit call policy.
+
+Apply `supabase/migrations/20261102130000_ivy_twilio_calls.sql` to the intended Supabase project. Configure all five Twilio/Ivy variables in the private Render service, and ensure `SUPABASE_SERVICE_ROLE_KEY` is already configured there. In Twilio, configure no manual webhook URLs: PTMS supplies per-call HTTPS callback URLs.
+
+API:
+- `POST /api/ivy/calls` with `{ "title": "...", "summary": "...", "severity": "info|warning|critical" }`
+- `GET /api/ivy/calls/:id`
+- Twilio callbacks: `POST /api/ivy/twilio/voice`, `/response`, and `/status`
+
+A `202` response means Twilio accepted the request, not that the call was answered. Confirm delivery using the subsequent signed status callback and call record. Never commit real Twilio credentials.
