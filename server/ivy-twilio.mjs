@@ -142,60 +142,116 @@ export function registerIvyTwilioWebhookRoutes(app) {
   });
 }
 
+
+async function twilioRequest(path) {
+  const sid = process.env.TWILIO_ACCOUNT_SID || "";
+  const token = process.env.TWILIO_AUTH_TOKEN || "";
+  if (!sid || !token) throw new Error("Twilio Account SID and Auth Token are required.");
+  const auth = Buffer.from(sid + ":" + token).toString("base64");
+  const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(sid) + "/" + path, {
+    headers: { Authorization: "Basic " + auth },
+    signal: AbortSignal.timeout(15000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error("Twilio account check failed.");
+    error.providerCode = payload?.code || response.status;
+    throw error;
+  }
+  return payload;
+}
+
+export async function inspectIvyTwilioAccount() {
+  const account = await twilioRequest(".json");
+  const numbers = await twilioRequest("IncomingPhoneNumbers.json?PageSize=100");
+  const voiceNumbers = (Array.isArray(numbers?.incoming_phone_numbers) ? numbers.incoming_phone_numbers : [])
+    .filter((number) => number?.capabilities?.voice === true)
+    .map((number) => ({
+      phoneNumber: String(number.phone_number || ""),
+      friendlyName: String(number.friendly_name || ""),
+      voiceEnabled: true,
+      smsEnabled: number?.capabilities?.sms === true
+    }));
+  const configuredFrom = process.env.TWILIO_PHONE_NUMBER || "";
+  const selected = voiceNumbers.find((number) => number.phoneNumber === configuredFrom) || null;
+  return {
+    accountStatus: String(account?.status || "unknown"),
+    accountType: String(account?.type || "unknown"),
+    voiceCapableNumbers: voiceNumbers,
+    configuredFromNumberPresent: Boolean(configuredFrom),
+    configuredFromNumberVoiceEnabled: Boolean(selected),
+    configuredFromNumber: configuredFrom || null,
+    outboundCallConfigurationComplete: Boolean(selected && process.env.IVY_OWNER_PHONE && process.env.TWILIO_VOICE_WEBHOOK_SECRET && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    kenyaGeoPermissions: "not_checked_in_api; verify Voice > Settings > Geo Permissions in Twilio Console"
+  };
+}
+
+export async function createIvyOwnerCall({ req, title, summary, severity = "info", source = "ivy_chat_explicit_owner_call" }) {
+  if (!twilioConfigured()) throw new Error("Twilio is not fully configured. A Voice-enabled Twilio number, owner destination, webhook secret, Account SID and Auth Token are required.");
+  const safeTitle = clean(title, 120, "Call title");
+  const safeSummary = clean(summary, 2500, "Call summary");
+  const safeSeverity = ["info", "warning", "critical"].includes(severity) ? severity : "info";
+  const client = serviceClient();
+  const { data: record, error: insertError } = await client.from(table).insert({
+    title: safeTitle,
+    summary: safeSummary,
+    severity: safeSeverity,
+    destination_number: process.env.IVY_OWNER_PHONE,
+    source,
+    status: "queued"
+  }).select("id,title,status,created_at").single();
+  if (insertError || !record) throw new Error("Call history is not ready. Apply the Ivy calls database migration and verify server-side Supabase configuration.");
+  const base = "https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(process.env.TWILIO_ACCOUNT_SID) + "/Calls.json";
+  const params = new URLSearchParams({
+    To: process.env.IVY_OWNER_PHONE,
+    From: process.env.TWILIO_PHONE_NUMBER,
+    Url: webhookUrl(req, "voice", record.id),
+    Method: "POST",
+    StatusCallback: webhookUrl(req, "status", record.id),
+    StatusCallbackMethod: "POST"
+  });
+  for (const event of ["initiated", "ringing", "answered", "completed"]) params.append("StatusCallbackEvent", event);
+  const auth = Buffer.from(process.env.TWILIO_ACCOUNT_SID + ":" + process.env.TWILIO_AUTH_TOKEN).toString("base64");
+  const response = await fetch(base, {
+    method: "POST",
+    headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+    signal: AbortSignal.timeout(20000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    await client.from(table).update({ status: "failed", provider_error_code: String(payload?.code || response.status), updated_at: new Date().toISOString() }).eq("id", record.id);
+    console.warn(JSON.stringify({ event: "ivy_twilio_call_rejected", httpStatus: response.status, providerCode: payload?.code || null, callRecordId: record.id }));
+    const error = new Error("Twilio rejected the call request. Check the Twilio Console and account permissions.");
+    error.providerCode = payload?.code || response.status;
+    throw error;
+  }
+  await client.from(table).update({ status: payload.status || "queued", twilio_call_sid: payload.sid || null, updated_at: new Date().toISOString() }).eq("id", record.id);
+  console.log(JSON.stringify({ event: "ivy_twilio_call_created", callRecordId: record.id, twilioCallSid: payload.sid || null, status: payload.status || "queued" }));
+  return {
+    accepted: true,
+    callId: record.id,
+    status: payload.status || "queued",
+    message: "Twilio accepted the call request. This does not yet confirm that the phone rang or was answered."
+  };
+}
+
 export function registerIvyTwilioRoutes(app) {
   app.post("/api/ivy/calls", async (req, res) => {
-    if (!twilioConfigured()) return res.status(503).json({ error: "Twilio is not fully configured. Add all five Twilio/Ivy environment values on the private server." });
-    let title;
-    let summary;
-    let severity;
     try {
-      title = clean(req.body?.title, 120, "Call title");
-      summary = clean(req.body?.summary, 2500, "Call summary");
-      severity = ["info", "warning", "critical"].includes(req.body?.severity) ? req.body.severity : "info";
-    } catch (error) {
-      return res.status(400).json({ error: error instanceof Error ? error.message : "Invalid call request." });
-    }
-    let client;
-    try {
-      client = serviceClient();
-      const { data: record, error: insertError } = await client.from(table).insert({
-        title,
-        summary,
-        severity,
-        destination_number: process.env.IVY_OWNER_PHONE,
-        source: "ptms_manual_or_approved_trigger",
-        status: "queued"
-      }).select("id,title,status,created_at").single();
-      if (insertError || !record) throw new Error("Call history is not ready. Apply the Ivy calls database migration and verify SUPABASE_SERVICE_ROLE_KEY.");
-      const base = "https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(process.env.TWILIO_ACCOUNT_SID) + "/Calls.json";
-      const params = new URLSearchParams({
-        To: process.env.IVY_OWNER_PHONE,
-        From: process.env.TWILIO_PHONE_NUMBER,
-        Url: webhookUrl(req, "voice", record.id),
-        Method: "POST",
-        StatusCallback: webhookUrl(req, "status", record.id),
-        StatusCallbackMethod: "POST"
+      const result = await createIvyOwnerCall({
+        req,
+        title: req.body?.title,
+        summary: req.body?.summary,
+        severity: req.body?.severity,
+        source: "ptms_manual_or_approved_trigger"
       });
-      for (const event of ["initiated", "ringing", "answered", "completed"]) params.append("StatusCallbackEvent", event);
-      const auth = Buffer.from(process.env.TWILIO_ACCOUNT_SID + ":" + process.env.TWILIO_AUTH_TOKEN).toString("base64");
-      const response = await fetch(base, {
-        method: "POST",
-        headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
-        body: params,
-        signal: AbortSignal.timeout(20000)
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        await client.from(table).update({ status: "failed", provider_error_code: String(payload?.code || response.status), updated_at: new Date().toISOString() }).eq("id", record.id);
-        console.warn(JSON.stringify({ event: "ivy_twilio_call_rejected", httpStatus: response.status, providerCode: payload?.code || null, callRecordId: record.id }));
-        return res.status(502).json({ error: "Twilio rejected the call request. Check the Twilio Console and account permissions.", callId: record.id });
-      }
-      await client.from(table).update({ status: payload.status || "queued", twilio_call_sid: payload.sid || null, updated_at: new Date().toISOString() }).eq("id", record.id);
-      console.log(JSON.stringify({ event: "ivy_twilio_call_created", callRecordId: record.id, twilioCallSid: payload.sid || null, status: payload.status || "queued" }));
-      return res.status(202).json({ accepted: true, callId: record.id, status: payload.status || "queued", message: "Twilio accepted the call request. This does not yet confirm that the phone rang or was answered." });
+      return res.status(202).json(result);
     } catch (error) {
-      console.error(JSON.stringify({ event: "ivy_twilio_call_create_error", message: error instanceof Error ? error.message : "unknown" }));
-      return res.status(503).json({ error: error instanceof Error ? error.message : "Ivy could not start the call." });
+      const message = error instanceof Error ? error.message : "Ivy could not start the call.";
+      const status = /required|must be|between/i.test(message) ? 400 : /Twilio rejected/i.test(message) ? 502 : 503;
+      console.error(JSON.stringify({ event: "ivy_twilio_call_create_error", message }));
+      return res.status(status).json({ error: message });
     }
   });
 
