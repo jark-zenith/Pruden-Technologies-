@@ -377,6 +377,18 @@ export const githubProjects: GitHubProject[] = [
     "deploymentServices": []
   },
   {
+    "name": "MyKiosk",
+    "repoUrl": "https://github.com/jark-zenith/MyKiosk",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": null,
+    "deploymentName": null,
+    "deploymentType": null,
+    "deploymentBranch": null,
+    "deploymentServices": []
+  },
+  {
     "name": "portfolio",
     "repoUrl": "https://github.com/jark-zenith/portfolio",
     "visibility": "public",
