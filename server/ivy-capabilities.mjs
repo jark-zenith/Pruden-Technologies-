@@ -11,7 +11,7 @@ export function ivyCapabilityStatus() {
     workspaceDatabase: { status: supabaseConfigured ? "configured_unverified" : "not_connected", scope: "signed-in founder's row-level-security-protected workspace tables" },
     email: { status: gmailConfigured ? "configured_unverified" : "setup_required", provider: "Gmail OAuth", note: "Gmail has a separate connection/status panel; confirm its connected status before use." },
     github: githubCapabilityStatus(),
-    whatsapp: { status: "not_implemented", provider: "WhatsApp Business Platform", writeToolsEnabled: false },
+    whatsapp: { ...ivyTwilioCapabilityStatus().whatsapp, writeToolsEnabled: false },
     ownerContact: {
       email: process.env.IVY_OWNER_EMAIL || null,
       directPhone: process.env.IVY_OWNER_PHONE || null,
