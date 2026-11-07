@@ -5,6 +5,8 @@
 **Target activation window:** 7 days from approval  
 **Primary rule:** A listed integration is a recommended assignment, not proof that PTMS can call it. Only server-side adapters with verified credentials, scoped permissions, tests, audit events, and post-action verification count as live tools.
 
+**2026-11-07 activation checkpoint:** The registry currently keeps both global tool switches off. A feature-branch change is enforcing `toolsEnabled` as the master switch and `externalActionsEnabled` as the additional GitHub write/admin gate. This is a fail-closed policy correction only; it does not enable tools, add credentials, or change production.
+
 ## 1. Current-state audit
 
 Repository: `jark-zenith/Pruden-Technologies-`, default branch `main`.  
@@ -195,10 +197,10 @@ Every tool call must be checked against agent ID, tool name, resource allowlist,
 ## 4. Seven-day activation sequence
 
 ### Day 1 — Runtime foundation
-- Reconcile the registry's `toolsEnabled` and `externalActionsEnabled` flags with actual server capability reporting.
-- Create an explicit per-agent tool catalogue and server-side permission matrix.
-- Define the Composio server-side connection strategy, connection ownership, account mapping, and credential storage.
-- Add tests proving denied tools cannot be called by the wrong agent.
+- [x] Enforce the registry's `toolsEnabled` master switch and `externalActionsEnabled` GitHub write/admin gate in specialist and group tool exposure. Tests cover disabled-by-default behavior, read-only mode, role-scoped writes, and read-only group/Sentinel access. Implemented on `feat/workforce-global-tool-gates-20261107`; CI/review pending; not deployed.
+- [ ] Create an explicit per-agent tool catalogue and server-side permission matrix.
+- [x] Document the Composio server-side connection strategy, connection ownership, account mapping, and credential storage. PTMS still requires its own credential/connection; ChatGPT-side connections are not inherited.
+- [x] Add tests proving global-disabled and role-disallowed tools are not exposed.
 
 ### Day 2 — Research and intelligence
 - Activate and test Atlas/Nova public research with source extraction and checked timestamps.
