@@ -15,7 +15,7 @@ import { IVY_RUNTIME_BUDGET } from "./server/ivy-runtime-policy.mjs";
 import { callGeminiText, getModelProviderStatus } from "./server/model-providers.mjs";
 import { ivyJournalTools, executeIvyJournalTool } from "./server/ivy-journal.mjs";
 import { registerProjectIntelligenceRoutes } from "./server/project-intelligence-bridge.mjs";
-import { registerIvyTwilioWebhookRoutes, registerIvyTwilioRoutes, inspectIvyTwilioAccount, createIvyOwnerCall } from "./server/ivy-twilio.mjs";
+import { registerIvyTwilioWebhookRoutes, registerIvyTwilioRoutes, inspectIvyTwilioAccount, createIvyOwnerCall, sendIvyOwnerSms } from "./server/ivy-twilio.mjs";
 import { registerFinancialIntegrationRoutes, isExternalFinancialWebhookPath } from "./server/financial-integrations.mjs";
 
 const app = express();
@@ -154,6 +154,7 @@ const ivyTools = [
   { name: "workforce_list_agents", description: "Read the authoritative PRUDEN AI workforce directory, reporting lines, responsibilities and restrictions.", input_schema: { type: "object", properties: {}, required: [] } },
   { name: "ivy_twilio_check", description: "Verify the configured Twilio account and list its incoming phone numbers that actually have Voice capability. Use when the founder asks to check Twilio voice setup. Never expose credentials.", input_schema: { type: "object", properties: {}, required: [] } },
   { name: "ivy_call_owner", description: "Place an outbound phone call only to the founder's fixed IVY_OWNER_PHONE configured on the server. Use only when the founder explicitly asks Ivy to call them now. Never call any other number, never choose a destination, and never call proactively. The spoken content is a short message prepared from the founder's request.", input_schema: { type: "object", properties: { title: { type: "string", maxLength: 120 }, summary: { type: "string", maxLength: 2500 }, severity: { type: "string", enum: ["info", "warning", "critical"] } }, required: ["title", "summary"] } },
+  { name: "ivy_sms_owner", description: "Send an SMS only to the founder's fixed IVY_OWNER_PHONE configured on the server. Use only when the founder explicitly asks Ivy to text them now. Never message another number and never send proactively.", input_schema: { type: "object", properties: { body: { type: "string", maxLength: 1500 } }, required: ["body"] } },
   ...ivyOperationTools.filter((tool) => IVY_ALLOWED_OPERATION_NAMES.has(tool.name)),
   ...ivyJournalTools.filter((tool) => IVY_READ_ONLY_JOURNAL_NAMES.has(tool.name)),
   ...ivyMemoryTools.filter((tool) => IVY_READ_ONLY_MEMORY_NAMES.has(tool.name)),
@@ -375,6 +376,20 @@ app.post("/api/ivy/chat", async (req, res) => {
             result = JSON.stringify(callResult);
           } catch (error) {
             result = JSON.stringify({ accepted: false, error: error instanceof Error ? error.message : "Ivy could not start the call.", providerCode: Number.isFinite(Number(error?.providerCode)) ? Number(error.providerCode) : null });
+          }
+        } else if (call.name === "ivy_sms_owner") {
+          try {
+            result = JSON.stringify(await sendIvyOwnerSms({
+              req,
+              body: call.input?.body,
+              source: "ivy_chat_explicit_owner_sms"
+            }));
+          } catch (error) {
+            result = JSON.stringify({
+              accepted: false,
+              error: error instanceof Error ? error.message : "Ivy could not send the SMS.",
+              providerCode: Number.isFinite(Number(error?.providerCode)) ? Number(error.providerCode) : null
+            });
           }
         } else if (call.name === "get_capability_status") {
           result = JSON.stringify(ivyCapabilityStatus());
