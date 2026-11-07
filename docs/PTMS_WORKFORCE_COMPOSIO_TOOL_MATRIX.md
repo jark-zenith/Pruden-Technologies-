@@ -253,7 +253,7 @@ Every tool call must be checked against agent ID, tool name, resource allowlist,
 
 ## 7. Known dependencies and cost notes
 
-- PTMS requires its own Composio server-side API credential and authorized connection configuration before PTMS agents can call the Composio-connected accounts.
+- PTMS requires its own Composio server-side API credential and authorized connection configuration before PTMS agents can call the Composio-connected accounts. Official Composio docs recommend session-based tool execution for new agents and identify the project API key as the server credential. The current TypeScript SDK documentation requires Node.js 22.22.3 or newer; verify the actual Render Node runtime before choosing the SDK. If the service remains on Node 20, use the documented REST API/session interface or deliberately upgrade the runtime with tests rather than installing an incompatible SDK.
 - Existing GitHub, Tavily, Gemini, Gmail OAuth, Render, and Supabase integrations must be tested independently; configured environment variables do not prove live operation.
 - Parallel instant web search reports a rate of $0.001 per Fast search; use a low request budget and verify current account terms before scaling.
 - ElevenLabs instant text-to-speech reports $0.08 per 1,000 input characters; keep generation opt-in and usage-bounded.
