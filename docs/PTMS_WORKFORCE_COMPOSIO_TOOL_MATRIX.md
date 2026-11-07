@@ -197,7 +197,7 @@ Every tool call must be checked against agent ID, tool name, resource allowlist,
 ## 4. Seven-day activation sequence
 
 ### Day 1 — Runtime foundation
-- [x] Enforce the registry's `toolsEnabled` master switch and `externalActionsEnabled` GitHub write/admin gate in specialist and group tool exposure. Tests cover disabled-by-default behavior, read-only mode, role-scoped writes, and read-only group/Sentinel access. Implemented on `feat/workforce-global-tool-gates-20261107`; CI/review pending; not deployed.
+- [x] Enforce the registry's `toolsEnabled` master switch and `externalActionsEnabled` GitHub write/admin gate in specialist and group tool exposure. Tests cover disabled-by-default behavior, read-only mode, role-scoped writes, and read-only group/Sentinel access. Implemented on `feat/workforce-global-tool-gates-20261107`; both workforce and command CI workflows passed; review pending; not deployed.
 - [ ] Create an explicit per-agent tool catalogue and server-side permission matrix.
 - [x] Document the Composio server-side connection strategy, connection ownership, account mapping, and credential storage. PTMS still requires its own credential/connection; ChatGPT-side connections are not inherited.
 - [x] Add tests proving global-disabled and role-disallowed tools are not exposed.
