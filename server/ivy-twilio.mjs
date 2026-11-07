@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const table = "pruden_ivy_calls";
+const messagesTable = "pruden_ivy_messages";
 const callStatuses = new Set(["queued", "initiated", "ringing", "in-progress", "completed", "busy", "failed", "no-answer", "canceled"]);
 
 function clean(value, max, label) {
@@ -27,6 +28,12 @@ function twilioConfigured() {
     process.env.IVY_OWNER_PHONE &&
     process.env.TWILIO_VOICE_WEBHOOK_SECRET
   );
+}
+function twilioMessagingConfigured() {
+  return Boolean(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER && process.env.IVY_OWNER_PHONE);
+}
+function validE164(value) {
+  return typeof value === "string" && /^\+[1-9]\d{7,14}$/.test(value);
 }
 function signedCallToken(callId) {
   return createHmac("sha256", process.env.TWILIO_VOICE_WEBHOOK_SECRET || "").update(callId).digest("hex");
@@ -78,6 +85,12 @@ async function getCall(callId) {
   if (error) throw new Error("Call record could not be read.");
   return data;
 }
+async function updateMessage(messageId, patch) {
+  const client = serviceClient();
+  const { data, error } = await client.from(messagesTable).update(patch).eq("id", messageId).select("id,status,twilio_message_sid,updated_at").maybeSingle();
+  if (error) throw new Error("Message record update failed.");
+  return data;
+}
 
 export function ivyTwilioCapabilityStatus() {
   const configured = twilioConfigured();
@@ -88,7 +101,11 @@ export function ivyTwilioCapabilityStatus() {
     destinationPolicy: "fixed IVY_OWNER_PHONE only",
     webhookSecurity: "Twilio request signature plus application HMAC token",
     liveConversation: "not_implemented",
-    callHistory: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) ? "database_required_and_migration_pending_or_applied" : "service_role_key_required"
+    callHistory: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) ? "database_required_and_migration_pending_or_applied" : "service_role_key_required",
+    inboundVoice: twilioConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required",
+    outboundSms: twilioMessagingConfigured() ? "configured_unverified" : "setup_required",
+    inboundSms: twilioMessagingConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required",
+    liveConversation: "not_implemented"
   };
 }
 
@@ -140,6 +157,106 @@ export function registerIvyTwilioWebhookRoutes(app) {
       return res.status(500).type("text/plain").send("Unable to update call status.");
     }
   });
+
+  app.post("/api/ivy/twilio/inbound-voice", async (req, res) => {
+    if (!validateTwilioRequest(req)) return res.status(403).type("text/plain").send("Invalid webhook signature.");
+    const callSid = typeof req.body?.CallSid === "string" ? req.body.CallSid : "";
+    const caller = typeof req.body?.From === "string" ? req.body.From : "";
+    const destination = typeof req.body?.To === "string" ? req.body.To : "";
+    if (!/^CA[0-9a-f]{32}$/i.test(callSid) || !validE164(caller) || !validE164(destination)) {
+      return xmlResponse(res, "<Say>We could not validate this call.</Say><Hangup/>", 400);
+    }
+    try {
+      const client = serviceClient();
+      const { data: record, error } = await client.from(table).insert({
+        title: "Inbound call",
+        summary: "Caller reached the PRUDEN Technologies Ivy IVR.",
+        severity: "info",
+        source: "twilio_inbound_call",
+        destination_number: destination,
+        caller_number: caller,
+        direction: "inbound",
+        twilio_call_sid: callSid,
+        status: "in-progress"
+      }).select("id").single();
+      if (error || !record) throw new Error("Inbound call could not be recorded.");
+      const action = xml(webhookUrl(req, "inbound-choice", record.id));
+      const gather = '<Gather input="dtmf" numDigits="1" timeout="8" action="' + action + '" method="POST"><Say>Thank you for calling PRUDEN Technologies. I am Ivy, the virtual assistant. Press 1 to hear about our services. Press 2 to request a callback.</Say></Gather>';
+      return xmlResponse(res, gather + "<Say>We did not receive a selection. Goodbye.</Say><Hangup/>");
+    } catch (error) {
+      console.error(JSON.stringify({ event: "ivy_twilio_inbound_voice_error", message: error instanceof Error ? error.message : "unknown" }));
+      return xmlResponse(res, "<Say>We are unable to process your call right now. Please try again later.</Say><Hangup/>", 500);
+    }
+  });
+
+  app.post("/api/ivy/twilio/inbound-choice", async (req, res) => {
+    if (!verifyWebhook(req)) return res.status(403).type("text/plain").send("Invalid webhook signature.");
+    const digit = typeof req.body?.Digits === "string" ? req.body.Digits : "";
+    try {
+      const message = digit === "1"
+        ? "PRUDEN Technologies builds digital products, websites, AI solutions and business automation systems. Thank you for calling."
+        : digit === "2"
+          ? "Your callback request has been recorded. The PRUDEN Technologies team will follow up."
+          : "No valid selection was received. Please contact PRUDEN Technologies again.";
+      await updateCall(req.query.callId, {
+        callback_digit: digit === "1" || digit === "2" ? digit : null,
+        callback_at: new Date().toISOString(),
+        status: digit === "1" || digit === "2" ? "completed" : "no-answer"
+      });
+      return xmlResponse(res, "<Say>" + xml(message) + "</Say><Hangup/>");
+    } catch (error) {
+      console.error(JSON.stringify({ event: "ivy_twilio_inbound_choice_error", message: error instanceof Error ? error.message : "unknown" }));
+      return xmlResponse(res, "<Say>We could not save your selection. Goodbye.</Say><Hangup/>", 500);
+    }
+  });
+
+  app.post("/api/ivy/twilio/inbound-sms", async (req, res) => {
+    if (!validateTwilioRequest(req)) return res.status(403).type("text/plain").send("Invalid webhook signature.");
+    const sid = typeof req.body?.MessageSid === "string" ? req.body.MessageSid : (typeof req.body?.SmsSid === "string" ? req.body.SmsSid : "");
+    const from = typeof req.body?.From === "string" ? req.body.From : "";
+    const to = typeof req.body?.To === "string" ? req.body.To : "";
+    const body = typeof req.body?.Body === "string" ? req.body.Body.trim() : "";
+    if (!/^SM[0-9a-f]{32}$/i.test(sid) || !validE164(from) || !validE164(to) || !body || body.length > 1600) {
+      return res.status(400).type("text/plain").send("Invalid message payload.");
+    }
+    try {
+      const client = serviceClient();
+      const { error } = await client.from(messagesTable).upsert({
+        direction: "inbound",
+        from_number: from,
+        to_number: to,
+        body,
+        status: "received",
+        twilio_message_sid: sid,
+        source: "twilio_inbound_sms",
+        updated_at: new Date().toISOString()
+      }, { onConflict: "twilio_message_sid" });
+      if (error) throw new Error("Inbound SMS could not be recorded.");
+      return res.status(200).type("text/xml").send('<?xml version="1.0" encoding="UTF-8"?><Response/>');
+    } catch (error) {
+      console.error(JSON.stringify({ event: "ivy_twilio_inbound_sms_error", message: error instanceof Error ? error.message : "unknown" }));
+      return res.status(500).type("text/plain").send("Unable to record message.");
+    }
+  });
+
+  app.post("/api/ivy/twilio/message-status", async (req, res) => {
+    if (!verifyWebhook(req)) return res.status(403).type("text/plain").send("Invalid webhook signature.");
+    const allowed = new Set(["accepted", "queued", "sending", "sent", "delivered", "undelivered", "failed", "read"]);
+    const status = typeof req.body?.MessageStatus === "string" && allowed.has(req.body.MessageStatus) ? req.body.MessageStatus : "failed";
+    const errorCode = typeof req.body?.ErrorCode === "string" && /^\\d{1,8}$/.test(req.body.ErrorCode) ? req.body.ErrorCode : null;
+    try {
+      await updateMessage(req.query.callId, {
+        status,
+        twilio_message_sid: typeof req.body?.MessageSid === "string" ? req.body.MessageSid.slice(0, 64) : null,
+        provider_error_code: errorCode,
+        updated_at: new Date().toISOString()
+      });
+      return res.status(204).end();
+    } catch (error) {
+      console.error(JSON.stringify({ event: "ivy_twilio_message_status_error", message: error instanceof Error ? error.message : "unknown" }));
+      return res.status(500).type("text/plain").send("Unable to update message status.");
+    }
+  });
 }
 
 
@@ -164,7 +281,8 @@ async function twilioRequest(path) {
 export async function inspectIvyTwilioAccount() {
   const account = await twilioRequest(".json");
   const numbers = await twilioRequest("/IncomingPhoneNumbers.json?PageSize=100");
-  const voiceNumbers = (Array.isArray(numbers?.incoming_phone_numbers) ? numbers.incoming_phone_numbers : [])
+  const allNumbers = Array.isArray(numbers?.incoming_phone_numbers) ? numbers.incoming_phone_numbers : [];
+  const voiceNumbers = allNumbers
     .filter((number) => number?.capabilities?.voice === true)
     .map((number) => ({
       phoneNumber: String(number.phone_number || ""),
@@ -172,17 +290,77 @@ export async function inspectIvyTwilioAccount() {
       voiceEnabled: true,
       smsEnabled: number?.capabilities?.sms === true
     }));
+  const smsNumbers = allNumbers
+    .filter((number) => number?.capabilities?.sms === true)
+    .map((number) => ({ phoneNumber: String(number.phone_number || ""), friendlyName: String(number.friendly_name || ""), smsEnabled: true }));
   const configuredFrom = process.env.TWILIO_PHONE_NUMBER || "";
   const selected = voiceNumbers.find((number) => number.phoneNumber === configuredFrom) || null;
+  const selectedSms = smsNumbers.find((number) => number.phoneNumber === configuredFrom) || null;
   return {
     accountStatus: String(account?.status || "unknown"),
     accountType: String(account?.type || "unknown"),
     voiceCapableNumbers: voiceNumbers,
+    smsCapableNumbers: smsNumbers,
     configuredFromNumberPresent: Boolean(configuredFrom),
     configuredFromNumberVoiceEnabled: Boolean(selected),
+    configuredFromNumberSmsEnabled: Boolean(selectedSms),
     configuredFromNumber: configuredFrom || null,
     outboundCallConfigurationComplete: Boolean(selected && process.env.IVY_OWNER_PHONE && process.env.TWILIO_VOICE_WEBHOOK_SECRET && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    outboundSmsConfigurationComplete: Boolean(selectedSms && process.env.IVY_OWNER_PHONE && process.env.SUPABASE_SERVICE_ROLE_KEY),
+    inboundVoiceWebhook: "/api/ivy/twilio/inbound-voice",
+    inboundSmsWebhook: "/api/ivy/twilio/inbound-sms",
     kenyaGeoPermissions: "not_checked_in_api; verify Voice > Settings > Geo Permissions in Twilio Console"
+  };
+}
+
+
+export async function sendIvyOwnerSms({ req, body, source = "ivy_chat_explicit_owner_sms" }) {
+  if (!twilioMessagingConfigured()) throw new Error("Twilio SMS is not configured. A messaging-capable Twilio number, account credentials and founder destination are required.");
+  const safeBody = clean(body, 1500, "SMS body");
+  const destination = process.env.IVY_OWNER_PHONE;
+  const sender = process.env.TWILIO_PHONE_NUMBER;
+  if (!validE164(destination) || !validE164(sender)) throw new Error("Twilio sender and founder destination must use E.164 phone-number format.");
+  const client = serviceClient();
+  const { data: record, error: insertError } = await client.from(messagesTable).insert({
+    direction: "outbound",
+    from_number: sender,
+    to_number: destination,
+    body: safeBody,
+    status: "queued",
+    source
+  }).select("id,status,created_at").single();
+  if (insertError || !record) throw new Error("Message history is not ready. Apply the Ivy communications database migration first.");
+  const base = "https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(process.env.TWILIO_ACCOUNT_SID) + "/Messages.json";
+  const params = new URLSearchParams({
+    To: destination,
+    From: sender,
+    Body: safeBody,
+    StatusCallback: webhookUrl(req, "message-status", record.id)
+  });
+  const auth = Buffer.from(process.env.TWILIO_ACCOUNT_SID + ":" + process.env.TWILIO_AUTH_TOKEN).toString("base64");
+  const response = await fetch(base, {
+    method: "POST",
+    headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
+    body: params,
+    signal: AbortSignal.timeout(20000)
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    await updateMessage(record.id, { status: "failed", provider_error_code: String(payload?.code || response.status), updated_at: new Date().toISOString() });
+    const error = new Error("Twilio rejected the SMS request. Check account trial restrictions, sender capabilities and destination verification.");
+    error.providerCode = payload?.code || response.status;
+    throw error;
+  }
+  await updateMessage(record.id, {
+    status: payload.status || "queued",
+    twilio_message_sid: payload.sid || null,
+    updated_at: new Date().toISOString()
+  });
+  return {
+    accepted: true,
+    messageId: record.id,
+    status: payload.status || "queued",
+    message: "Twilio accepted the SMS request. Delivery is not confirmed until a delivered status callback arrives."
   };
 }
 
@@ -252,6 +430,18 @@ export function registerIvyTwilioRoutes(app) {
       const status = /required|must be|between/i.test(message) ? 400 : /Twilio rejected/i.test(message) ? 502 : 503;
       console.error(JSON.stringify({ event: "ivy_twilio_call_create_error", message }));
       return res.status(status).json({ error: message });
+    }
+  });
+
+  app.post("/api/ivy/messages/owner", async (req, res) => {
+    try {
+      const result = await sendIvyOwnerSms({ req, body: req.body?.body, source: "ptms_manual_or_approved_trigger" });
+      return res.status(202).json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Ivy could not send the SMS.";
+      const status = /required|must be|between/i.test(message) ? 400 : /Twilio rejected/i.test(message) ? 502 : 503;
+      console.error(JSON.stringify({ event: "ivy_twilio_sms_create_error", message }));
+      return res.status(status).json({ error: message, providerCode: Number.isFinite(Number(error?.providerCode)) ? Number(error.providerCode) : null });
     }
   });
 
