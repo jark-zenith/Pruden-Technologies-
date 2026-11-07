@@ -104,8 +104,7 @@ export function ivyTwilioCapabilityStatus() {
     callHistory: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) ? "database_required_and_migration_pending_or_applied" : "service_role_key_required",
     inboundVoice: twilioConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required",
     outboundSms: twilioMessagingConfigured() ? "configured_unverified" : "setup_required",
-    inboundSms: twilioMessagingConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required",
-    liveConversation: "not_implemented"
+    inboundSms: twilioMessagingConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required"
   };
 }
 
@@ -243,7 +242,7 @@ export function registerIvyTwilioWebhookRoutes(app) {
     if (!verifyWebhook(req)) return res.status(403).type("text/plain").send("Invalid webhook signature.");
     const allowed = new Set(["accepted", "queued", "sending", "sent", "delivered", "undelivered", "failed", "read"]);
     const status = typeof req.body?.MessageStatus === "string" && allowed.has(req.body.MessageStatus) ? req.body.MessageStatus : "failed";
-    const errorCode = typeof req.body?.ErrorCode === "string" && /^\\d{1,8}$/.test(req.body.ErrorCode) ? req.body.ErrorCode : null;
+    const errorCode = typeof req.body?.ErrorCode === "string" && /^\d{1,8}$/.test(req.body.ErrorCode) ? req.body.ErrorCode : null;
     try {
       await updateMessage(req.query.callId, {
         status,
