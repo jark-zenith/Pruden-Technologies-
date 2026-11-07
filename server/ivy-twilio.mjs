@@ -35,6 +35,9 @@ function twilioMessagingConfigured() {
 function validE164(value) {
   return typeof value === "string" && /^\+[1-9]\d{7,14}$/.test(value);
 }
+function validTwilioAddress(value) {
+  return validE164(value) || (typeof value === "string" && /^whatsapp:\+[1-9]\d{7,14}$/.test(value));
+}
 function signedCallToken(callId) {
   return createHmac("sha256", process.env.TWILIO_VOICE_WEBHOOK_SECRET || "").update(callId).digest("hex");
 }
@@ -104,7 +107,14 @@ export function ivyTwilioCapabilityStatus() {
     callHistory: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY) ? "database_required_and_migration_pending_or_applied" : "service_role_key_required",
     inboundVoice: twilioConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required",
     outboundSms: twilioMessagingConfigured() ? "configured_unverified" : "setup_required",
-    inboundSms: twilioMessagingConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required"
+    inboundSms: twilioMessagingConfigured() ? "webhook_ready_number_configuration_pending" : "setup_required",
+    whatsapp: {
+      status: process.env.TWILIO_WHATSAPP_SANDBOX_ENABLED === "true" ? "sandbox_configured_unverified" : "sandbox_activation_required",
+      provider: "Twilio WhatsApp Sandbox",
+      inboundWebhook: "/api/ivy/twilio/inbound-sms",
+      automaticReplies: "disabled_until_explicitly_enabled",
+      businessNumberUntouched: true
+    }
   };
 }
 
@@ -215,7 +225,7 @@ export function registerIvyTwilioWebhookRoutes(app) {
     const from = typeof req.body?.From === "string" ? req.body.From : "";
     const to = typeof req.body?.To === "string" ? req.body.To : "";
     const body = typeof req.body?.Body === "string" ? req.body.Body.trim() : "";
-    if (!/^SM[0-9a-f]{32}$/i.test(sid) || !validE164(from) || !validE164(to) || !body || body.length > 1600) {
+    if (!/^SM[0-9a-f]{32}$/i.test(sid) || !validTwilioAddress(from) || !validTwilioAddress(to) || !body || body.length > 1600) {
       return res.status(400).type("text/plain").send("Invalid message payload.");
     }
     try {
@@ -227,7 +237,7 @@ export function registerIvyTwilioWebhookRoutes(app) {
         body,
         status: "received",
         twilio_message_sid: sid,
-        source: "twilio_inbound_sms",
+        source: from.startsWith("whatsapp:") ? "twilio_inbound_whatsapp" : "twilio_inbound_sms",
         updated_at: new Date().toISOString()
       }, { onConflict: "twilio_message_sid" });
       if (error) throw new Error("Inbound SMS could not be recorded.");

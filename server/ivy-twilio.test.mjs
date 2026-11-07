@@ -35,6 +35,8 @@ test("Twilio capability status never reports live AI voice as implemented", () =
   assert.equal(typeof status.inboundVoice, "string");
   assert.equal(typeof status.inboundSms, "string");
   assert.equal(typeof status.outboundSms, "string");
+  assert.equal(status.whatsapp.provider, "Twilio WhatsApp Sandbox");
+  assert.equal(status.whatsapp.businessNumberUntouched, true);
 });
 
 test("Twilio capability status reports setup required when sender number is absent", () => {
@@ -97,6 +99,22 @@ test("inbound SMS rejects invalid Twilio signatures", async () => {
       query: {},
       get(name) { return name === "host" ? "pruden-command-secure.onrender.com" : ""; }
     };
+    const res = responseHarness();
+    await routeHarness().get(path)(req, res);
+    assert.equal(res.code, 403);
+  } finally {
+    if (previous === undefined) delete process.env.TWILIO_AUTH_TOKEN;
+    else process.env.TWILIO_AUTH_TOKEN = previous;
+  }
+});
+
+
+test("inbound WhatsApp rejects requests without a valid Twilio signature", async () => {
+  const previous = process.env.TWILIO_AUTH_TOKEN;
+  process.env.TWILIO_AUTH_TOKEN = "unit-test-token";
+  try {
+    const path = "/api/ivy/twilio/inbound-sms";
+    const req = { protocol: "https", originalUrl: path, body: { MessageSid: "SM" + "a".repeat(32), From: "whatsapp:+254180574470", To: "whatsapp:+14155238886", Body: "Hello Ivy" }, query: {}, get(name) { return name === "host" ? "pruden-command-secure.onrender.com" : ""; } };
     const res = responseHarness();
     await routeHarness().get(path)(req, res);
     assert.equal(res.code, 403);
