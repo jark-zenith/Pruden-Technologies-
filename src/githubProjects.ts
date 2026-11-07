@@ -45,27 +45,6 @@ export const githubProjects: GitHubProject[] = [
     ]
   },
   {
-    "name": "Order-Up",
-    "repoUrl": "https://github.com/jark-zenith/Order-Up",
-    "visibility": "public",
-    "archived": false,
-    "defaultBranch": "main",
-    "deploymentUrl": "https://order-up-w3zj.onrender.com",
-    "deploymentName": "order-up",
-    "deploymentType": "static_site",
-    "deploymentBranch": "main",
-    "deploymentServices": [
-      {
-        "name": "order-up",
-        "url": "https://order-up-w3zj.onrender.com",
-        "type": "static_site",
-        "branch": "main",
-        "serviceId": "srv-dau3oemk1f9s73a7u6l0",
-        "suspended": "not_suspended"
-      }
-    ]
-  },
-  {
     "name": "Pruden-Jack-Gideon",
     "repoUrl": "https://github.com/jark-zenith/Pruden-Jack-Gideon",
     "visibility": "public",
@@ -111,27 +90,6 @@ export const githubProjects: GitHubProject[] = [
         "type": "web_service",
         "branch": "main",
         "serviceId": "srv-db9t1v3bc2fs73d4hpqg",
-        "suspended": "not_suspended"
-      }
-    ]
-  },
-  {
-    "name": "study-tracker",
-    "repoUrl": "https://github.com/jark-zenith/study-tracker",
-    "visibility": "public",
-    "archived": false,
-    "defaultBranch": "main",
-    "deploymentUrl": "https://pruden-study-tracker.onrender.com",
-    "deploymentName": "pruden-study-tracker",
-    "deploymentType": "web_service",
-    "deploymentBranch": "main",
-    "deploymentServices": [
-      {
-        "name": "pruden-study-tracker",
-        "url": "https://pruden-study-tracker.onrender.com",
-        "type": "web_service",
-        "branch": "main",
-        "serviceId": "srv-davoe53ncjis73f5ifh0",
         "suspended": "not_suspended"
       }
     ]
@@ -389,6 +347,18 @@ export const githubProjects: GitHubProject[] = [
     "deploymentServices": []
   },
   {
+    "name": "Order-Up",
+    "repoUrl": "https://github.com/jark-zenith/Order-Up",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": null,
+    "deploymentName": null,
+    "deploymentType": null,
+    "deploymentBranch": null,
+    "deploymentServices": []
+  },
+  {
     "name": "portfolio",
     "repoUrl": "https://github.com/jark-zenith/portfolio",
     "visibility": "public",
@@ -415,6 +385,18 @@ export const githubProjects: GitHubProject[] = [
   {
     "name": "R.I.T.A-AI",
     "repoUrl": "https://github.com/jark-zenith/R.I.T.A-AI",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": null,
+    "deploymentName": null,
+    "deploymentType": null,
+    "deploymentBranch": null,
+    "deploymentServices": []
+  },
+  {
+    "name": "study-tracker",
+    "repoUrl": "https://github.com/jark-zenith/study-tracker",
     "visibility": "public",
     "archived": false,
     "defaultBranch": "main",
