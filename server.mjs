@@ -8,6 +8,7 @@ import { registerIvyMediaRoutes } from "./server/ivy-media.mjs";
 import { registerAIWorkforceRoutes, getAIWorkforceDirectory, runAIWorkforceAgent } from "./server/ai-workforce.mjs";
 import { registerImageGenerationRoutes } from "./server/image-generation.mjs";
 import { ivyOperationTools, executeIvyOperation } from "./server/ivy-operations.mjs";
+import { IVY_ALLOWED_OPERATION_NAMES } from "./server/ivy-operation-policy.mjs";
 import { ivyGitHubTools, executeIvyGitHubTool } from "./server/ivy-github.mjs";
 import { ivyCapabilityStatus, ivyCapabilityTool } from "./server/ivy-capabilities.mjs";
 import { ivyMemoryTools, executeIvyMemory, getIvyMemoryContext } from "./server/ivy-memory.mjs";
@@ -143,7 +144,7 @@ const geminiTestAttempts = new Map();
 // Ivy AI companion: Claude reasoning stays server-side; no provider key reaches the browser.
 const ivyAttempts = new Map();
 const ivyModules = new Set(["Home", "Overview", "Projects", "Ideas & Strategy", "Daily Journal", "Tasks", "Website Inbox", "AI Workforce", "Project Intelligence", "Social Media Monitoring", "Approvals", "Customers & CRM", "Finance", "Products & Services", "Pruden Studios", "Infrastructure", "Security & Audit", "Knowledge Base", "Reports & Settings", "GitHub"]);
-const IVY_ALLOWED_OPERATION_NAMES = new Set(["list_projects", "list_tasks", "list_approvals", "list_customers", "list_website_inbox", "create_project", "create_task", "create_idea", "list_finance_records", "get_finance_record", "get_finance_summary", "list_financial_accounts", "list_financial_transactions", "create_finance_record", "request_approval"]);
+
 const IVY_READ_ONLY_JOURNAL_NAMES = new Set(["ivy_journal_list", "ivy_journal_activity_today"]);
 const IVY_READ_ONLY_MEMORY_NAMES = new Set(["ivy_memory_search"]);
 const IVY_READ_ONLY_GITHUB_NAMES = new Set(["github_list_repositories", "render_list_services", "github_get_repository", "github_list_repository_branches", "github_list_repository_commits", "github_get_repository_tree", "github_read_repository_file", "github_list_pull_requests", "github_get_pull_request", "github_list_issues"]);
