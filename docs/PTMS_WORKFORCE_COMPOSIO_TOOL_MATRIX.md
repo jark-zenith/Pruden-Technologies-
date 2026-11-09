@@ -7,6 +7,8 @@
 
 **2026-11-07 activation checkpoint:** The registry currently keeps both global tool switches off. A feature-branch change is enforcing `toolsEnabled` as the master switch and `externalActionsEnabled` as the additional GitHub write/admin gate. This is a fail-closed policy correction only; it does not enable tools, add credentials, or change production.
 
+**Research exposure rule:** Atlas/Nova research tool definitions are exposed only when the global `toolsEnabled` switch is on and `TAVILY_API_KEY` is present. Missing research credentials must remove the tools from the model-visible allowlist and appear as `blocked_missing_TAVILY_API_KEY`; a configured key still requires a live smoke test before the capability is marked verified.
+
 ## 1. Current-state audit
 
 Repository: `jark-zenith/Pruden-Technologies-`, default branch `main`.  
