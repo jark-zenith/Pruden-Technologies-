@@ -7,8 +7,8 @@ export type GitHubProject = {
   deploymentUrl: string | null; deploymentName: string | null; deploymentType: string | null; deploymentBranch: string | null; deploymentServices?: DeploymentService[];
 };
 
-// Inventory snapshot from the connected GitHub owner account and Render workspace.
-// Render URLs are configured service URLs, not an uptime guarantee. Refresh from providers to sync.
+// Provider inventory snapshot: connected GitHub owner account and Render workspace.
+// External homepage URLs are shown separately from Render services; configured URLs are not an uptime guarantee.
 export const githubProjects: GitHubProject[] = [
   {
     "name": "Arc-Africa-",
@@ -28,6 +28,27 @@ export const githubProjects: GitHubProject[] = [
         "branch": "main",
         "serviceId": "srv-dbai28nbtjjs73f8de30",
         "suspended": "not_suspended"
+      }
+    ]
+  },
+  {
+    "name": "Atlas-CRM",
+    "repoUrl": "https://github.com/jark-zenith/Atlas-CRM",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": "https://atlas-crm-flame.vercel.app",
+    "deploymentName": "External deployment",
+    "deploymentType": "external",
+    "deploymentBranch": null,
+    "deploymentServices": [
+      {
+        "name": "External deployment",
+        "url": "https://atlas-crm-flame.vercel.app",
+        "type": "external",
+        "branch": null,
+        "serviceId": null,
+        "suspended": "unknown"
       }
     ]
   },
@@ -203,6 +224,27 @@ export const githubProjects: GitHubProject[] = [
     ]
   },
   {
+    "name": "portfolio",
+    "repoUrl": "https://github.com/jark-zenith/portfolio",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": "https://portfolio-magicui.vercel.app",
+    "deploymentName": "External deployment",
+    "deploymentType": "external",
+    "deploymentBranch": null,
+    "deploymentServices": [
+      {
+        "name": "External deployment",
+        "url": "https://portfolio-magicui.vercel.app",
+        "type": "external",
+        "branch": null,
+        "serviceId": null,
+        "suspended": "unknown"
+      }
+    ]
+  },
+  {
     "name": "Printroom",
     "repoUrl": "https://github.com/jark-zenith/Printroom",
     "visibility": "private",
@@ -331,18 +373,6 @@ export const githubProjects: GitHubProject[] = [
     "name": "app-1",
     "repoUrl": "https://github.com/jark-zenith/app-1",
     "visibility": "private",
-    "archived": false,
-    "defaultBranch": "main",
-    "deploymentUrl": null,
-    "deploymentName": null,
-    "deploymentType": null,
-    "deploymentBranch": null,
-    "deploymentServices": []
-  },
-  {
-    "name": "Atlas-CRM",
-    "repoUrl": "https://github.com/jark-zenith/Atlas-CRM",
-    "visibility": "public",
     "archived": false,
     "defaultBranch": "main",
     "deploymentUrl": null,
@@ -787,18 +817,6 @@ export const githubProjects: GitHubProject[] = [
     "name": "Platform-Deon-AI",
     "repoUrl": "https://github.com/jark-zenith/Platform-Deon-AI",
     "visibility": "private",
-    "archived": false,
-    "defaultBranch": "main",
-    "deploymentUrl": null,
-    "deploymentName": null,
-    "deploymentType": null,
-    "deploymentBranch": null,
-    "deploymentServices": []
-  },
-  {
-    "name": "portfolio",
-    "repoUrl": "https://github.com/jark-zenith/portfolio",
-    "visibility": "public",
     "archived": false,
     "defaultBranch": "main",
     "deploymentUrl": null,
