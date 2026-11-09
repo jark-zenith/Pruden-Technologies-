@@ -39,17 +39,17 @@ export function allowedGitHubToolNames(agentId) {
   return new Set();
 }
 
-export function availableToolNamesForAgent(agentId, controls = registry.globalControls) {
+export function availableToolNamesForAgent(agentId, controls = registry.globalControls, researchConfigured = Boolean(process.env.TAVILY_API_KEY)) {
   if (controls?.toolsEnabled !== true) return new Set();
   const assignedGitHubTools = agentId === "group" ? GITHUB_READ_TOOLS : allowedGitHubToolNames(agentId);
   const githubTools = [...assignedGitHubTools].filter(name => {
     if ((GITHUB_WRITE_TOOLS.has(name) || GITHUB_REPOSITORY_ADMIN_TOOLS.has(name)) && controls.externalActionsEnabled !== true) return false;
     return true;
   });
-  return new Set([
-    ...githubTools,
-    ...(RESEARCH_AGENTS.has(agentId) ? researchTools.map(tool => tool.name) : [])
-  ]);
+  const researchToolNames = RESEARCH_AGENTS.has(agentId) && researchConfigured
+    ? researchTools.map(tool => tool.name)
+    : [];
+  return new Set([...githubTools, ...researchToolNames]);
 }
 
 function availableGitHubToolNames(agentId) {
@@ -189,14 +189,15 @@ export function getAIWorkforceDirectory() {
   const annotate = agent => {
     const githubTools = [...availableGitHubToolNames(agent.id)];
     const researchAssigned = RESEARCH_AGENTS.has(agent.id);
-    const researchEnabled = registry.globalControls.toolsEnabled === true && researchAssigned;
+    const researchConfigured = Boolean(process.env.TAVILY_API_KEY);
+    const researchEnabled = registry.globalControls.toolsEnabled === true && researchAssigned && researchConfigured;
     const toolAccess = [...new Set([...githubTools, ...(researchEnabled ? researchTools.map(tool => tool.name) : [])])];
     return {
       ...agent,
       toolAccess,
       toolReadiness: {
-        liveWebSearch: !researchAssigned ? "not_assigned" : !registry.globalControls.toolsEnabled ? "disabled_by_global_policy" : (process.env.TAVILY_API_KEY ? "configured_pending_live_test" : "blocked_missing_TAVILY_API_KEY"),
-        publicPageInspection: !researchAssigned ? "not_assigned" : !registry.globalControls.toolsEnabled ? "disabled_by_global_policy" : "assigned; subject to public-page access limits",
+        liveWebSearch: !researchAssigned ? "not_assigned" : !registry.globalControls.toolsEnabled ? "disabled_by_global_policy" : (researchConfigured ? "configured_pending_live_test" : "blocked_missing_TAVILY_API_KEY"),
+        publicPageInspection: !researchAssigned ? "not_assigned" : !registry.globalControls.toolsEnabled ? "disabled_by_global_policy" : (researchConfigured ? "configured_pending_live_test" : "blocked_missing_TAVILY_API_KEY"),
         github: !allowedGitHubToolNames(agent.id).size ? "not_assigned" : !registry.globalControls.toolsEnabled ? "disabled_by_global_policy" : (githubTools.length ? "available_with_server_permissions" : "blocked_missing_or_disabled_GITHUB_TOKEN")
       }
     };
