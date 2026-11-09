@@ -63,7 +63,7 @@ test("the registry-wide toolsEnabled switch disables all specialist and group to
 test("Atlas and Nova receive only their read-only research toolset when tools are enabled", () => {
   const expected = ["research_search_web", "research_open_page", "research_job_sites"];
   for (const agentId of ["atlas", "nova"]) {
-    const tools = availableToolNamesForAgent(agentId, readOnlyControls);
+    const tools = availableToolNamesForAgent(agentId, readOnlyControls, true);
     for (const name of expected) assert.ok(tools.has(name), agentId + " missing " + name);
     assert.equal(tools.has("github_create_pull_request"), false, agentId + " must not get GitHub writes");
   }
@@ -108,4 +108,18 @@ test("group chat remains read-only even when external actions are enabled", () =
   assert.ok(tools.has("github_list_repositories"));
   assert.ok(!tools.has("github_create_branch"));
   assert.ok(!tools.has("github_create_pull_request"));
+});
+
+test("Atlas and Nova do not receive research tools when Tavily is not configured", () => {
+  for (const agentId of ["atlas", "nova"]) {
+    const tools = availableToolNamesForAgent(agentId, readOnlyControls, false);
+    assert.equal(tools.size, 0, agentId);
+  }
+});
+
+test("the global tools switch still disables research even when Tavily is configured", () => {
+  for (const agentId of ["atlas", "nova"]) {
+    const tools = availableToolNamesForAgent(agentId, { toolsEnabled: false, externalActionsEnabled: false }, true);
+    assert.equal(tools.size, 0, agentId);
+  }
 });
