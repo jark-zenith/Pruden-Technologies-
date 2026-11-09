@@ -23,10 +23,25 @@ Verified from the repository:
 - The workforce shared thread is in process memory and is not durable task history.
 - PTMS database tables already include tasks, projects, approvals, audit events, ideas, journal, CRM, finance, and notifications. These are not automatically exposed as specialist tools.
 
-Verified Composio-side connections available to the connected ChatGPT session at audit time:
-- GitHub, Supabase, Render
-- Parallel web research
-- Gmail, Google Drive, Slack, Canva, Descript, ElevenLabs, Notion
+Verified Composio-side connection snapshot — 2026-11-09 (ChatGPT session only):
+
+| Toolkit | Session connection | Scope / limitation observed |
+|---|---|---|
+| GitHub | Active private connection | Repository, PR, commit and CI tools discovered |
+| Supabase MCP | Active private connection | Two connected accounts; account selection is required |
+| Supabase | Active private connection | Two connected accounts; account selection is required |
+| Render | Active private connection | Read-only service, deploy, event, log and metric tools discovered |
+| Parallel | Instant-account tools only | `PARALLEL_SEARCH_WEB` and `PARALLEL_MAKE_DECISIONS` are allowlisted |
+| Gmail | Active private connection | Message search/read and draft tools discovered; send tools exist but are not approved for autonomous use |
+| Slack | Active private connection | Search/history/thread-read tools discovered; posting is not approved |
+| Google Drive | Active private connection | File/folder search, download and draft-creation tools discovered; sharing is not approved |
+| Canva | No active connection | Do not assign Canva execution to Pixel or Lumi until a connection is established |
+| Descript MCP | Active private connection | Project listing and draft-oriented project tools discovered; publishing remains prohibited |
+| ElevenLabs | Instant-account tools only | Speech/audio tools are allowlisted; text-to-speech is listed at $0.08 per 1,000 input characters with no displayed discount |
+| Notion | Active private connection | Page/database search and internal draft tools discovered |
+| Twilio | Active private connection | Account, number, messaging-service and call-inspection tools discovered; sending remains prohibited |
+
+Connection status is time-sensitive and must be rechecked before execution. An active ChatGPT-side connection does not prove that the same account, scopes, or tools are available to the PTMS server.
 
 **Important boundary:** These connections are available to this ChatGPT/Composio session. They are not yet verified as available to the PTMS Render server or its specialist agents. PTMS needs a separate server-side Composio integration and its own authenticated connection context. Never copy a ChatGPT connector token into PTMS or expose credentials to browser code.
 
