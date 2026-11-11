@@ -43,6 +43,7 @@ The contract does not store raw provider responses, secrets, credentials, custom
 - `blocked` and `failed` require a reason.
 - A model output moves the record to `awaiting_verification`, not `verified_complete`.
 - `verified_complete` requires at least one evidence reference, one passing result for every acceptance criterion, evidence references attached to each criterion, and an independent verifier not present in `executorAgentIds`.
+- This pure helper does not authenticate actor IDs, fetch or authorize Supabase approval records, check approval owner/target/scope/expiry/one-time-use, or confirm that a verifier is the registered Sentinel. The future server gateway must perform those checks using trusted server-side data before calling these transitions.
 - Failed and verified-complete states are terminal for a run. A retry should create a new run ID rather than rewriting prior activity.
 
 ## Current integration boundary
