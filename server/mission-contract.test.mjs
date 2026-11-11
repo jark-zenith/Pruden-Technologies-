@@ -128,16 +128,22 @@ test("verified completion requires evidence and an independent verifier", () => 
     verifierId: "sentinel",
     evidence: []
   }), /evidence/);
+  const evidence = [
+    { kind: "source_page", ref: "https://example.com/source-a", summary: "Original employer listing inspected." },
+    { kind: "verification", ref: "github://checks/mission-42", summary: "Independent acceptance review passed." }
+  ];
   const verified = transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
     actorId: "sentinel",
     verifierId: "sentinel",
-    evidence: [
-      { kind: "source_page", ref: "https://example.com/source-a", summary: "Original employer listing inspected." },
-      { kind: "verification", ref: "github://checks/mission-42", summary: "Independent acceptance review passed." }
+    evidence,
+    criteriaResults: [
+      { criterion: "Original source URLs are recorded", passed: true, evidenceRefs: ["https://example.com/source-a"] },
+      { criterion: "Sentinel independently verifies the result", passed: true, evidenceRefs: ["github://checks/mission-42"] }
     ]
   });
   assert.equal(verified.status, MISSION_STATUS.VERIFIED_COMPLETE);
   assert.equal(verified.verification.verifierId, "sentinel");
+  assert.equal(verified.verification.criteriaResults.length, 2);
   assert.equal(verified.evidence.length, 2);
   assert.ok(verified.finishedAt);
   assert.throws(() => transitionMissionStatus(verified, MISSION_STATUS.RUNNING, { actorId: "ivy" }), /Invalid mission transition/);
@@ -175,4 +181,36 @@ test("mission activity is append-only, sequenced, and scoped to assigned agents"
     actorId: "ivy",
     agentId: "vault"
   }), /not assigned/);
+});
+
+test("verified completion must pass every acceptance criterion and cite stored evidence", () => {
+  const running = transitionMissionStatus(makeMission(), MISSION_STATUS.RUNNING, { actorId: "ivy" });
+  const pending = transitionMissionStatus(running, MISSION_STATUS.AWAITING_VERIFICATION, {
+    actorId: "atlas",
+    outputSummary: "Candidate results are ready for independent review."
+  });
+  const evidence = [
+    { kind: "source_page", ref: "https://example.com/source-a" },
+    { kind: "verification", ref: "github://checks/mission-43" }
+  ];
+  const base = { actorId: "sentinel", verifierId: "sentinel", evidence };
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, base), /one result for every acceptance criterion/);
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    ...base,
+    criteriaResults: [{ criterion: "Original source URLs are recorded", passed: true, evidenceRefs: ["https://example.com/source-a"] }]
+  }), /one result for every acceptance criterion/);
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    ...base,
+    criteriaResults: [
+      { criterion: "Original source URLs are recorded", passed: true, evidenceRefs: ["https://example.com/source-a"] },
+      { criterion: "Sentinel independently verifies the result", passed: false, evidenceRefs: ["github://checks/mission-43"] }
+    ]
+  }), /must be marked passed/);
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    ...base,
+    criteriaResults: [
+      { criterion: "Original source URLs are recorded", passed: true, evidenceRefs: ["https://not-stored.example/source"] },
+      { criterion: "Sentinel independently verifies the result", passed: true, evidenceRefs: ["github://checks/mission-43"] }
+    ]
+  }), /must reference evidence stored/);
 });
