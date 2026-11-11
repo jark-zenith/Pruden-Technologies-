@@ -42,7 +42,7 @@ The contract does not store raw provider responses, secrets, credentials, custom
 - `awaiting_approval` requires an approval ID. Re-queueing from that state requires the same approval ID and an explicit `approved` decision.
 - `blocked` and `failed` require a reason.
 - A model output moves the record to `awaiting_verification`, not `verified_complete`.
-- `verified_complete` requires at least one evidence reference and an independent verifier not present in `executorAgentIds`.
+- `verified_complete` requires at least one evidence reference, one passing result for every acceptance criterion, evidence references attached to each criterion, and an independent verifier not present in `executorAgentIds`.
 - Failed and verified-complete states are terminal for a run. A retry should create a new run ID rather than rewriting prior activity.
 
 ## Current integration boundary
