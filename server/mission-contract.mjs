@@ -116,6 +116,35 @@ function normalizeEvidence(value) {
   });
 }
 
+function normalizeCriteriaResults(acceptanceCriteria, value, evidence) {
+  if (!Array.isArray(value) || value.length !== acceptanceCriteria.length) {
+    throw new TypeError("criteriaResults must contain one result for every acceptance criterion.");
+  }
+  const evidenceRefs = new Set(evidence.map(item => item.reference));
+  const results = value.map((item, index) => {
+    assertObject(item, "criteriaResults[" + index + "]");
+    const criterion = requiredText(item.criterion, "criteriaResults[" + index + "].criterion", 1000);
+    if (!acceptanceCriteria.includes(criterion)) {
+      throw new TypeError("criteriaResults contains an unknown acceptance criterion.");
+    }
+    if (item.passed !== true) throw new Error("Every acceptance criterion must be marked passed before verification.");
+    const evidenceRefsForCriterion = textList(item.evidenceRefs, "criteriaResults[" + index + "].evidenceRefs", {
+      minItems: 1,
+      maxItems: 100,
+      itemMaxLength: 2000
+    });
+    if (evidenceRefsForCriterion.some(reference => !evidenceRefs.has(reference))) {
+      throw new Error("Each acceptance criterion must reference evidence stored on this mission.");
+    }
+    return { criterion, passed: true, evidenceRefs: evidenceRefsForCriterion };
+  });
+  const completedCriteria = new Set(results.map(item => item.criterion));
+  if (completedCriteria.size !== acceptanceCriteria.length || acceptanceCriteria.some(item => !completedCriteria.has(item))) {
+    throw new Error("Every acceptance criterion must have exactly one verification result.");
+  }
+  return results;
+}
+
 function assertMissionRecord(record) {
   assertObject(record, "mission record");
   requiredText(record.missionId, "missionId", 160);
@@ -271,8 +300,9 @@ export function transitionMissionStatus(record, nextStatus, details = {}, option
       throw new Error("The verifier must be independent of the mission executors.");
     }
     const evidence = normalizeEvidence(details.evidence);
+    const criteriaResults = normalizeCriteriaResults(record.acceptanceCriteria, details.criteriaResults, evidence);
     next.evidence = [...record.evidence, ...evidence];
-    next.verification = { verifierId, verifiedAt: at, evidence };
+    next.verification = { verifierId, verifiedAt: at, criteriaResults, evidence };
     next.finishedAt = at;
     summary ||= "Acceptance criteria independently verified.";
   }
