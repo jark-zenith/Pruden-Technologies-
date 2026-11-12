@@ -104,7 +104,7 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     ...researchTools.filter(tool => allowedToolNames.has(tool.name)),
     ...(process.env.GITHUB_TOKEN ? ivyGitHubTools.filter(tool => allowedToolNames.has(tool.name) && availableGitHubToolNames(agentId).has(tool.name)) : [])
   ];
-  const textProvider = (process.env.WORKFORCE_TEXT_PROVIDER || "auto").toLowerCase();
+  const textProvider = (process.env.WORKFORCE_TEXT_PROVIDER || "anthropic").toLowerCase();
   const canUseGeminiText = Boolean(process.env.GEMINI_API_KEY) && tools.length === 0;
   if ((textProvider === "gemini" || textProvider === "auto") && canUseGeminiText) {
     try {
