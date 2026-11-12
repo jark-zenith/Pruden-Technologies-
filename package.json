@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "start": "node server.mjs",
     "android:sync": "cap sync android",
-    "test:financial": "node --test test/financial-integrations.test.mjs"
+    "test:financial": "node --test test/financial-integrations.test.mjs",
+    "test:terminal": "node --test test/server-terminal.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
