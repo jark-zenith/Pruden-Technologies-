@@ -328,6 +328,9 @@ export function registerAIWorkforceRoutes(app) {
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
     if (!message || message.length > registry.globalControls.maxInputCharacters) return res.status(400).json({ error: `Message is required and must be at most ${registry.globalControls.maxInputCharacters} characters.` });
     sharedThread.push({ role: "Founder", name: "Founder", content: message, at: new Date().toISOString() });
+    const groupRun = { runId: randomUUID(), agentId: "ivy", taskSummary: message.replace(/\s+/g, " ").slice(0, 220), startedAt: new Date().toISOString() };
+    activeWorkforceRuns.set(groupRun.runId, groupRun);
+    publishWorkforceRuntimeEvent("group_started", groupRun);
     try {
       const roster = allAgents.map(a => `- ${a.name} (${a.id}), ${a.title}, ${a.department}; responsibilities: ${(a.responsibilities || []).join("; ")}`).join("\n");
       const result = await callClaude([
@@ -338,13 +341,21 @@ export function registerAIWorkforceRoutes(app) {
         "Group chat receives read-only GitHub tools only when the global toolsEnabled switch is true and the server GitHub connection is configured; it never receives write tools. Individual agent runs receive tools according to the global switches and server-side role policy. Controlled writes additionally require externalActionsEnabled, PRUDEN_GITHUB_WRITE_REPOS, feature branches, and pull requests. Repository creation is only exposed to Ivy and Forge and also requires PRUDEN_GITHUB_CREATE_REPOSITORIES=true. Never merge, write directly to the default branch, change permissions, expose secrets, send external messages, spend money, or deploy. Verify tool results and be honest about blockers.",
         "The shared history is in process memory and may be lost on restart; never describe it as durable storage."
       ].join("\n\n"), "Recent shared group thread:\n" + sharedContext() + "\n\nRespond to the latest Founder message: " + message, Math.min(2200, (registry.globalControls.maxOutputTokens || 1200) * 2), availableToolNamesForAgent("group"), "group");
+      activeWorkforceRuns.delete(groupRun.runId);
+      const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };
+      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: "success", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+      publishWorkforceRuntimeEvent("group_finished", groupRun, "success");
       sharedThread.push({ role: "Workforce", name: "AI Workforce", content: result.output, at: new Date().toISOString() });
       if (sharedThread.length > MAX_SHARED_MESSAGES) sharedThread.splice(0, sharedThread.length - MAX_SHARED_MESSAGES);
-      console.log(JSON.stringify({ event: "workforce_group_run_completed", at: new Date().toISOString(), usage: result.usage }));
+      console.log(JSON.stringify({ event: "workforce_group_run_completed", runId: groupRun.runId, at: new Date().toISOString(), usage: result.usage }));
       res.json({ status: "completed", output: result.output, messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false, usage: result.usage });
     } catch (error) {
+      activeWorkforceRuns.delete(groupRun.runId);
+      const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };
+      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: "failed", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+      publishWorkforceRuntimeEvent("group_failed", groupRun, "failed");
       sharedThread.pop();
-      console.error(JSON.stringify({ event: "workforce_group_run_failed", at: new Date().toISOString(), message: String(error?.message || error).slice(0, 200) }));
+      console.error(JSON.stringify({ event: "workforce_group_run_failed", runId: groupRun.runId, at: new Date().toISOString(), message: String(error?.message || error).slice(0, 200) }));
       res.status(error.statusCode || 502).json({ error: error.message || "Group chat failed." });
     }
   });
