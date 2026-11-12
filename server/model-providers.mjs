@@ -4,7 +4,7 @@ export function getModelProviderStatus() {
   return {
     anthropic: { configured: Boolean(process.env.ANTHROPIC_API_KEY), model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5", supportsWorkforceTools: true },
     gemini: { configured: Boolean(process.env.GEMINI_API_KEY), model: process.env.GEMINI_MODEL || "gemini-flash-latest", supportsWorkforceTools: false, mode: "text-only fallback until tool-call execution is implemented" },
-    textProviderPreference: (process.env.WORKFORCE_TEXT_PROVIDER || "auto").toLowerCase()
+    textProviderPreference: (process.env.WORKFORCE_TEXT_PROVIDER || "anthropic").toLowerCase()
   };
 }
 
