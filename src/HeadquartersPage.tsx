@@ -134,14 +134,15 @@ export default function HeadquartersPage({ tasks, projects = [], approvals = [],
     };
     refreshRef.current = refresh;
     void refresh();
-    if (!supabase) return () => { alive = false; };
-    const channel = supabase.channel("ptms-hq-live-feed")
+    const client = supabase;
+    if (!client) return () => { alive = false; };
+    const channel = client.channel("ptms-hq-live-feed")
       .on("postgres_changes", { event: "*", schema: "public", table: "pruden_tasks" }, () => { void refresh(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "pruden_approvals" }, () => { void refresh(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "pruden_audit_events" }, () => { void refresh(); })
       .subscribe((status) => { if (alive && status === "SUBSCRIBED") setDatabaseConnection("live"); if (alive && (status === "CHANNEL_ERROR" || status === "TIMED_OUT")) setDatabaseConnection("offline"); });
     const fallback = window.setInterval(() => { void refresh(); }, 20000);
-    return () => { alive = false; window.clearInterval(fallback); void supabase.removeChannel(channel); };
+    return () => { alive = false; window.clearInterval(fallback); void client.removeChannel(channel); };
   }, [refreshDatabase]);
 
   const sendToFrame = useCallback((type: string, payload: Record<string, unknown> = {}) => {
