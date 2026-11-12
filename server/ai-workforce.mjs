@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { callGeminiText, getModelProviderStatus } from "./model-providers.mjs";
 import { researchTools, executeResearchTool, getResearchStatus } from "./research-web.mjs";
 import path from "node:path";
@@ -14,6 +15,10 @@ const allAgents = [{ ...registry.ivy, department: "Executive Office" }, ...regis
 const agentById = new Map(allAgents.map(a => [a.id, a]));
 const attempts = new Map();
 const sharedThread = [];
+const activeWorkforceRuns = new Map();
+const workforceAgentActivity = new Map();
+const workforceRuntimeEvents = [];
+const workforceRuntimeClients = new Set();
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS_PER_WINDOW = 20;
 const MAX_SHARED_MESSAGES = 30;
@@ -185,6 +190,49 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
 }
 function sharedContext() { return sharedThread.slice(-MAX_SHARED_MESSAGES).map(m => `[${m.role}] ${m.name}: ${m.content}`).join("\n"); }
 
+function getAIWorkforceRuntimeSnapshot() {
+  const active = [...activeWorkforceRuns.values()];
+  return {
+    agents: allAgents.map(agent => {
+      const current = active.filter(run => run.agentId === agent.id).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] || null;
+      const previous = workforceAgentActivity.get(agent.id) || null;
+      return {
+        id: agent.id,
+        state: current ? "working" : "standby",
+        currentTask: current?.taskSummary || null,
+        runId: current?.runId || null,
+        startedAt: current?.startedAt || null,
+        lastTask: previous?.taskSummary || null,
+        lastOutcome: previous?.outcome || null,
+        lastActivityAt: previous?.at || null,
+        runCount: previous?.runCount || 0
+      };
+    }),
+    events: workforceRuntimeEvents.slice(0, 50),
+    updatedAt: new Date().toISOString(),
+    persistence: "process-memory"
+  };
+}
+
+function publishWorkforceRuntimeEvent(type, run, outcome = null) {
+  const event = {
+    id: randomUUID(),
+    type,
+    agentId: run.agentId,
+    agentName: agentById.get(run.agentId)?.name || run.agentId,
+    runId: run.runId,
+    taskSummary: run.taskSummary,
+    outcome,
+    occurredAt: new Date().toISOString()
+  };
+  workforceRuntimeEvents.unshift(event);
+  if (workforceRuntimeEvents.length > 100) workforceRuntimeEvents.length = 100;
+  const payload = `data: ${JSON.stringify(getAIWorkforceRuntimeSnapshot())}\n\n`;
+  for (const client of workforceRuntimeClients) {
+    try { client.write(payload); } catch { workforceRuntimeClients.delete(client); }
+  }
+}
+
 export function getAIWorkforceDirectory() {
   const annotate = agent => {
     const githubTools = [...availableGitHubToolNames(agent.id)];
@@ -208,11 +256,26 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
   const agent = agentById.get(agentId);
   if (!agent) throw Object.assign(new Error("Unknown agent."), { statusCode: 404 });
   if (typeof task !== "string" || !task.trim() || task.length > registry.globalControls.maxInputCharacters) throw Object.assign(new Error(`Task is required and must be at most ${registry.globalControls.maxInputCharacters} characters.`), { statusCode: 400 });
-  console.log(JSON.stringify({ event: "workforce_run_started", agentId, at: new Date().toISOString(), inputCharacters: task.length }));
-  const context = sharedContext();
-  const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task, registry.globalControls.maxOutputTokens || 1200, availableToolNamesForAgent(agent.id), agent.id, options.deadlineAt);
-  console.log(JSON.stringify({ event: "workforce_run_completed", agentId, at: new Date().toISOString(), usage: result.usage }));
-  return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
+  const run = { runId: randomUUID(), agentId, taskSummary: task.trim().replace(/\s+/g, " ").slice(0, 220), startedAt: new Date().toISOString() };
+  activeWorkforceRuns.set(run.runId, run);
+  publishWorkforceRuntimeEvent("agent_started", run);
+  console.log(JSON.stringify({ event: "workforce_run_started", agentId, runId: run.runId, at: run.startedAt, inputCharacters: task.length }));
+  try {
+    const context = sharedContext();
+    const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task, registry.globalControls.maxOutputTokens || 1200, availableToolNamesForAgent(agent.id), agent.id, options.deadlineAt);
+    activeWorkforceRuns.delete(run.runId);
+    const previous = workforceAgentActivity.get(agentId) || { runCount: 0 };
+    workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "success", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+    publishWorkforceRuntimeEvent("agent_finished", run, "success");
+    console.log(JSON.stringify({ event: "workforce_run_completed", agentId, runId: run.runId, at: new Date().toISOString(), usage: result.usage }));
+    return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
+  } catch (error) {
+    activeWorkforceRuns.delete(run.runId);
+    const previous = workforceAgentActivity.get(agentId) || { runCount: 0 };
+    workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "failed", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+    publishWorkforceRuntimeEvent("agent_failed", run, "failed");
+    throw error;
+  }
 }
 export function registerAIWorkforceRoutes(app) {
   app.get("/api/workforce/status", (_req, res) => {
@@ -236,6 +299,18 @@ export function registerAIWorkforceRoutes(app) {
     });
   });
   app.get("/api/workforce/agents", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(getAIWorkforceDirectory()); });
+  app.get("/api/workforce/runtime", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(getAIWorkforceRuntimeSnapshot()); });
+  app.get("/api/workforce/stream", (req, res) => {
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+    workforceRuntimeClients.add(res);
+    res.write(`data: ${JSON.stringify(getAIWorkforceRuntimeSnapshot())}\n\n`);
+    const heartbeat = setInterval(() => { try { res.write(": keep-alive\n\n"); } catch { clearInterval(heartbeat); workforceRuntimeClients.delete(res); } }, 25000);
+    req.on("close", () => { clearInterval(heartbeat); workforceRuntimeClients.delete(res); });
+  });
   app.get("/api/workforce/group-context", (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false }); });
   app.post("/api/workforce/run", async (req, res) => {
     if (rateLimited(req)) return res.status(429).json({ error: "Too many agent requests. Wait one minute and try again." });
@@ -253,6 +328,9 @@ export function registerAIWorkforceRoutes(app) {
     const message = typeof req.body?.message === "string" ? req.body.message.trim() : "";
     if (!message || message.length > registry.globalControls.maxInputCharacters) return res.status(400).json({ error: `Message is required and must be at most ${registry.globalControls.maxInputCharacters} characters.` });
     sharedThread.push({ role: "Founder", name: "Founder", content: message, at: new Date().toISOString() });
+    const groupRun = { runId: randomUUID(), agentId: "ivy", taskSummary: message.replace(/\s+/g, " ").slice(0, 220), startedAt: new Date().toISOString() };
+    activeWorkforceRuns.set(groupRun.runId, groupRun);
+    publishWorkforceRuntimeEvent("group_started", groupRun);
     try {
       const roster = allAgents.map(a => `- ${a.name} (${a.id}), ${a.title}, ${a.department}; responsibilities: ${(a.responsibilities || []).join("; ")}`).join("\n");
       const result = await callClaude([
@@ -263,13 +341,21 @@ export function registerAIWorkforceRoutes(app) {
         "Group chat receives read-only GitHub tools only when the global toolsEnabled switch is true and the server GitHub connection is configured; it never receives write tools. Individual agent runs receive tools according to the global switches and server-side role policy. Controlled writes additionally require externalActionsEnabled, PRUDEN_GITHUB_WRITE_REPOS, feature branches, and pull requests. Repository creation is only exposed to Ivy and Forge and also requires PRUDEN_GITHUB_CREATE_REPOSITORIES=true. Never merge, write directly to the default branch, change permissions, expose secrets, send external messages, spend money, or deploy. Verify tool results and be honest about blockers.",
         "The shared history is in process memory and may be lost on restart; never describe it as durable storage."
       ].join("\n\n"), "Recent shared group thread:\n" + sharedContext() + "\n\nRespond to the latest Founder message: " + message, Math.min(2200, (registry.globalControls.maxOutputTokens || 1200) * 2), availableToolNamesForAgent("group"), "group");
+      activeWorkforceRuns.delete(groupRun.runId);
+      const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };
+      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: "success", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+      publishWorkforceRuntimeEvent("group_finished", groupRun, "success");
       sharedThread.push({ role: "Workforce", name: "AI Workforce", content: result.output, at: new Date().toISOString() });
       if (sharedThread.length > MAX_SHARED_MESSAGES) sharedThread.splice(0, sharedThread.length - MAX_SHARED_MESSAGES);
-      console.log(JSON.stringify({ event: "workforce_group_run_completed", at: new Date().toISOString(), usage: result.usage }));
+      console.log(JSON.stringify({ event: "workforce_group_run_completed", runId: groupRun.runId, at: new Date().toISOString(), usage: result.usage }));
       res.json({ status: "completed", output: result.output, messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false, usage: result.usage });
     } catch (error) {
+      activeWorkforceRuns.delete(groupRun.runId);
+      const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };
+      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: "failed", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+      publishWorkforceRuntimeEvent("group_failed", groupRun, "failed");
       sharedThread.pop();
-      console.error(JSON.stringify({ event: "workforce_group_run_failed", at: new Date().toISOString(), message: String(error?.message || error).slice(0, 200) }));
+      console.error(JSON.stringify({ event: "workforce_group_run_failed", runId: groupRun.runId, at: new Date().toISOString(), message: String(error?.message || error).slice(0, 200) }));
       res.status(error.statusCode || 502).json({ error: error.message || "Group chat failed." });
     }
   });

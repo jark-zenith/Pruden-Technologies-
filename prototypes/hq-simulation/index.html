@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>PRUDEN HQ: AI Workforce Simulation</title>
+<title>PRUDEN HQ · Live AI Workforce</title>
 <style>
 :root{--bg:#07101f;--panel:#0d1b33;--text:#e8eefc;--muted:#8fa3c4;--room:#10264a;--line:#2f5aa8;--gold:#f5c85e;--red:#e0414e;--ok:#63d8a8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef3fb;--panel:#ffffff;--text:#10203d;--muted:#52627f;--room:#dfe9fa;--line:#7a9bd1;--gold:#b8860b;--ok:#1a8a5f}}
@@ -36,29 +36,29 @@ h2{margin:12px 0 6px;font:600 14px/1.2 Georgia,serif;color:var(--gold)}h2:first-
 #v3{width:100%;aspect-ratio:1000/640;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);cursor:grab;touch-action:none}#v3[hidden],canvas[hidden]{display:none}#v3 canvas{display:block;border:0;border-radius:0;aspect-ratio:auto}
 @media (max-width:900px){main{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
-</style>
+.live-pill{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--ok);border:1px solid currentColor;border-radius:999px;padding:6px 9px}.live-pill.offline{color:var(--gold)}.task-launch{display:flex;gap:6px;margin-top:10px}.task-command{min-width:0;flex:1;padding:9px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--text)}.task-run{padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--room);color:var(--text);cursor:pointer}.task-run:disabled{opacity:.6}.run-result{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:220px;overflow:auto}</style>
 </head>
 <body>
 <header>
- <div><h1>PRUDEN HQ</h1><p class="sub">AI workforce simulation. Build. Learn. Invent. Evolve.</p></div>
- <div class="ctl"><span id="clock"></span><button id="vw">3D view</button><button id="pp">Pause</button><button id="sp">Speed 1×</button><button id="rs">Clear history</button></div>
+ <div><h1>PRUDEN HQ</h1><p class="sub">Live AI workforce · Founder command floor</p></div>
+ <div class="ctl"><span id="clock"></span><span id="live" class="live-pill">CONNECTING</span><button id="exit">Exit HQ</button><button id="vw">3D view</button><button id="pp">Pause motion</button><button id="sp">Motion 1×</button><button id="rs">Sync now</button></div>
 </header>
-<p class="note">Simulation mode: events are generated in this page from your PTMS agent registry, not read from live PTMS. History is saved in this browser, so a reload picks up where it left off.</p>
+<p class="note">Live PTMS feed · Agent runs from the secure workforce runtime · Tasks, approvals and audit events from Supabase. No simulated activity.</p>
 <main>
  <section>
   <canvas id="cv" aria-label="Floor plan of the PRUDEN headquarters with agents moving between rooms"></canvas><div id='v3' hidden></div>
-  <div class="stats"><span>Tasks completed <b id="s1">0</b></span><span>Events remembered <b id="s2">0</b></span><span>Awaiting Founder <b id="s3">0</b></span></div>
+  <div class="stats"><span>Completed tasks <b id="s1">0</b></span><span>Recent events <b id="s2">0</b></span><span>Pending approvals <b id="s3">0</b></span></div>
  </section>
  <aside>
   <h2>Founder approvals</h2><div id="ap"></div>
   <h2>Selected agent</h2><div id="sel"></div>
-  <h2>Event log</h2><ol id="log"></ol>
+  <h2>Live activity</h2><ol id="log"></ol><div id="run-result" class="run-result" hidden></div>
  </aside>
 </main>
 <div id='pop' hidden role='dialog' aria-modal='true' aria-labelledby='pt'><div class='pc'><button id='px'>Close</button><h3 id='pt'></h3><ul id='pl'></ul></div></div>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
 <script>
-const $=s=>document.querySelector(s),W=1000,H=640,KEY='pruden-hq-sim-v1';
+const $=s=>document.querySelector(s),W=1000,H=640;
 const cv=$('#cv'),cx=cv.getContext('2d');
 const R={
  ceo:{x:20,y:20,w:180,h:170,l:'CEO office',i:'👑'},
@@ -75,24 +75,9 @@ const R={
  ops:{x:590,y:430,w:180,h:190,l:'Operations and delivery',i:'📋'},
  rec:{x:780,y:430,w:200,h:190,l:'Reception',i:'🛎'}
 };
-const A=[
-['ivy','Ivy','AI Chief of Staff','#66aaff','ceo','the Founder',[['ceo','Prioritising approved work',8],['hol','Convening stand-up',9],['fin','Reviewing the finance snapshot (read-only)',7],['gro','Checking opportunity briefs',7]]],
-['atlas','Atlas','Opportunity Intelligence','#7c9cff','gro','Ivy',[['gro','Ranking tenders by fit and deadline',9],['trn','Studying a new opportunity source',8]]],
-['nova','Nova','Market Research Analyst','#d18cff','gro','Atlas',[['gro','Drafting a competitor brief',9],['trn','Checking source credibility',7]]],
-['echo','Echo','Business Development','#42d6c8','cli','Ivy',[['cli','Drafting tailored outreach',8,'Send outreach to approved prospects'],['cli','Qualifying a new lead',8]]],
-['mira','Mira','Client Intake Analyst','#ff9fcb','cli','Echo',[['cli','Structuring a client brief',8],['rec','Welcoming a client at reception',7]]],
-['forge','Forge','Software Engineering Director','#ff9b54','eng','Ivy',[['eng','Breaking a plan into engineering tasks',9],['eng','Reviewing architecture risks',8],['eng','Preparing a production release',9,'Production release of PTMS']]],
-['pixel','Pixel','Frontend Engineer','#f5c85e','eng','Forge',[['eng','Reviewing responsive layouts',8],['med','Aligning the UI with brand visuals',7]]],
-['stack','Stack','Backend Engineer','#53b6ff','eng','Forge',[['srv','Checking API data flow and auth',9],['eng','Documenting integration assumptions',8]]],
-['vector','Vector','AI and Automation Engineer','#b09bff','eng','Forge',[['srv','Bounding an agent automation',9],['trn','Evaluating an agent workflow',8]]],
-['sentinel','Sentinel','QA and Security Lead','#8da5b7','qa','Ivy',[['qa','Deriving tests from requirements',9],['eng','Verifying a fix independently',8],['dev','Checking device and service health',7]]],
-['lumi','Lumi','Creative Director','#ff8fc1','med','Ivy',[['med','Building a brand concept',9],['med','Generating a 1K image draft',8],['med','Publishing a campaign asset',7,'Publish a campaign asset']]],
-['motion','Motion','Video and Motion Specialist','#ff6d86','med','Lumi',[['med','Planning a promo cut',9],['med','Writing captions and export specs',7]]],
-['relay','Relay','Operations and Delivery Lead','#63d8a8','ops','Ivy',[['ops','Tracking milestones and blockers',9],['hol','Reporting status at stand-up',7]]],
-['vault','Vault','Documentation Manager','#b9c6d9','ops','Relay',[['ops','Writing handover notes',9],['ops','Recording a decision log entry',8]]]
-];
-const ag=A.map((d,i)=>({id:d[0],n:d[1],t:d[2],c:d[3],home:d[4],rep:d[5],tasks:d[6],i,x:0,y:0,room:d[4],state:'idle',task:null,left:0,tot:1,done:0,hist:[],wait:1+Math.random()*5,ph:Math.random()*6,tr:null,path:[],apOk:false}));
-let simMin=0,paused=false,speed=1,LOG=[],AP=[],apN=1,SEL=null,restored=false,armed=0,noSave=false,T={},POP=null;
+const A=[["ivy","Ivy","AI Chief of Staff","#66aaff","ceo","founder"],["atlas","Atlas","Director of Opportunity Intelligence","#7c9cff","gro","ivy"],["nova","Nova","Market Research & Strategy Analyst","#d18cff","gro","atlas"],["echo","Echo","Business Development & Outreach Lead","#42d6c8","cli","ivy"],["mira","Mira","Client Intake & Requirements Analyst","#ff9fcb","cli","echo"],["forge","Forge","Director of Software Engineering","#ff9b54","eng","ivy"],["pixel","Pixel","Frontend & Experience Engineer","#f5c85e","eng","forge"],["stack","Stack","Backend & Integrations Engineer","#53b6ff","eng","forge"],["vector","Vector","AI & Automation Engineer","#b09bff","eng","forge"],["sentinel","Sentinel","Quality Assurance & Security Lead","#8da5b7","qa","ivy"],["lumi","Lumi","Creative Director & Brand Designer","#ff8fc1","med","ivy"],["motion","Motion","Video & Motion Production Specialist","#ff6d86","med","lumi"],["relay","Relay","Project Operations & Delivery Lead","#63d8a8","ops","ivy"],["vault","Vault","Documentation & Knowledge Manager","#b9c6d9","ops","relay"]];
+const ag=A.map((d,i)=>({id:d[0],n:d[1],t:d[2],c:d[3],home:d[4],rep:d[5],tasks:[],i,x:0,y:0,room:d[4],state:'idle',liveStatus:'standby',targetRoom:d[4],task:null,left:1,tot:1,done:0,hist:[],wait:0,ph:i*.4,tr:null,path:[],apOk:false}));
+let paused=false,speed=1,LOG=[],AP=[],SEL=null,T={},POP=null,LIVE={},lastSnapshotAt=null;
 const DX={ceo:110,eng:325,srv:535,dev:715,fin:895,trn:170,hol:500,med:830,gro:110,cli:300,qa:490,ops:680,rec:880};
 const DY=k=>R[k].y<100?190:R[k].y<300?420:430;
 const IN=k=>({x:DX[k],y:DY(k)+(DY(k)===430?16:-16)});
@@ -107,17 +92,17 @@ function route(a,dest){const sl=slot(a,dest),w=a.state==='walking';if(!w&&a.room
 const SC=Object.keys(R).flatMap(k=>[{k,s:'l',x:R[k].x+4,y1:R[k].y+50,y2:R[k].y+110},{k,s:'r',x:R[k].x+R[k].w-4,y1:R[k].y+50,y2:R[k].y+110}]);
 const EQ=[['ceo','Sofa',.12,.8,.5,.09],['eng','Workbench',.4,.18,.5,.07],['dev','Test rig',.15,.2,.7,.08],['trn','Whiteboard',.3,.1,.4,.05],['trn','Training pods',.1,.86,.8,.07],['med','Green screen',.05,.15,.25,.05],['gro','Intel wall',.15,.14,.7,.05],['cli','Meeting table',.2,.84,.6,.08],['qa','Test bench',.15,.18,.7,.07],['ops','Kanban board',.15,.14,.7,.05],['rec','Reception counter',.15,.3,.7,.1]];
 const DEPT={ceo:['ivy'],eng:['forge','pixel','stack','vector'],gro:['atlas','nova'],cli:['echo','mira'],qa:['sentinel'],med:['lumi','motion'],ops:['relay','vault']};
-function board(k,side){const L=[];
- if(side==='t'){const w=ag.filter(a=>a.state==='working');L.push('Company view, '+fmt(simMin));L.push(ag.length+' agents on the floor, '+w.length+' working, '+ag.filter(a=>a.state==='waiting').length+' waiting on you.');L.push('Tasks completed: '+ag.reduce((s,a)=>s+a.done,0)+'. Approvals pending: '+AP.length+'.');w.slice(0,6).forEach(a=>L.push(a.n+': '+a.task[1]));const m=LOG.find(l=>/Stand-up/.test(l.m));if(m)L.push('Last stand-up: '+fmt(m.t));return{t:'Hologram table: live briefing',L}}
- if(side==='r'){LOG.filter(l=>l.r===k).slice(0,8).forEach(l=>L.push(fmt(l.t)+'  '+l.a+': '+l.m));if(!L.length)L.push('No activity here yet.');return{t:R[k].l+': activity feed',L}}
- if(DEPT[k])DEPT[k].forEach(id=>{const a=ag.find(x=>x.id===id);L.push(a.n+': '+statusText(a)+' ('+a.done+' done)')});
- else if(k==='srv'){['PTMS web app','Express API','Supabase database','Ivy runtime'].forEach(s=>L.push(s+': running (simulated)'));L.push('Live health needs the PTMS connection.')}
- else if(k==='dev'){['Founder laptop','Android build (Capacitor)','Cloud server'].forEach(s=>L.push(s+': healthy (simulated)'));L.push('Sentinel runs the real checks once connected.')}
- else if(k==='fin'){L.push('Read-only ledger view.');L.push('The simulation holds no real figures. Connect PTMS to show live finance.')}
- else if(k==='trn'){ag.slice().sort((p,q)=>q.done-p.done).slice(0,6).forEach(a=>L.push(a.n+': '+a.done+' tasks on record'))}
- else if(k==='hol'){LOG.filter(l=>/Stand-up/.test(l.m)).slice(0,5).forEach(l=>L.push(fmt(l.t)+'  '+l.m));if(!L.length)L.push('No stand-up held yet.')}
- else{L.push('Clients and visitors are greeted here.');ag.filter(a=>a.room==='rec').forEach(a=>L.push(a.n+' is at the desk.'))}
- return{t:R[k].l+': status board',L}}
+function board(k,side){const L=[],tasks=LIVE.tasks||[],system=LIVE.system||{},finance=LIVE.finance||{};
+ if(side==='t'){const working=ag.filter(a=>a.liveStatus==='working');L.push('PTMS live status · '+fmt(lastSnapshotAt));L.push(ag.length+' registered agents · '+working.length+' working · '+ag.filter(a=>a.liveStatus==='queued').length+' queued · '+ag.filter(a=>a.liveStatus==='blocked').length+' blocked.');L.push(tasks.filter(t=>String(t.status||'').toLowerCase()==='completed').length+' completed tasks · '+AP.length+' pending approvals.');working.slice(0,8).forEach(a=>L.push(a.n+': '+(a.task?.[1]||a.liveStatus)));}
+ else if(side==='r'){LOG.filter(l=>l.r===k).slice(0,10).forEach(l=>L.push(fmt(l.t)+' · '+l.a+': '+l.m));if(!L.length)L.push('No recorded activity for this room.');return{t:R[k].l+': live activity',L}}
+ if(DEPT[k])DEPT[k].forEach(id=>{const a=ag.find(x=>x.id===id);if(a)L.push(a.n+': '+statusText(a)+' · '+a.done+' completed')});
+ else if(k==='srv'){L.push('PTMS application: '+(system.health?.ok?'healthy':'not verified'));L.push('Ivy API: '+(system.ivy?'responding':'not verified'));L.push('Provider: '+(system.ivy?.provider||'not reported'));L.push('CPU and device telemetry: not connected');}
+ else if(k==='dev'){L.push('Runtime is served by the PTMS backend.');L.push('Device telemetry is not reported by the current backend.');L.push('No simulated device health is displayed.');}
+ else if(k==='fin'){if(finance.state==='ready'){const income=(finance.records||[]).filter(x=>x.kind==='income').reduce((n,x)=>n+Number(x.amount||0),0);const expenses=(finance.records||[]).filter(x=>x.kind==='expense').reduce((n,x)=>n+Number(x.amount||0),0);L.push('Recorded income: KSh '+income.toLocaleString('en-KE'));L.push('Recorded expenses: KSh '+expenses.toLocaleString('en-KE'));L.push('Savings goals: '+(finance.goals||[]).length);}else L.push('Finance data is not available in this session.');L.push('Read-only display · Open Finance in PTMS for the full ledger.');}
+ else if(k==='trn'){const providers=system.ivy?.modelProviders||{};Object.entries(providers).forEach(([name,value])=>L.push(name+': '+(value?.configured?'configured':'not configured')));if(!Object.keys(providers).length)L.push('Provider readiness has not been reported.');}
+ else if(k==='hol'){LOG.slice(0,8).forEach(l=>L.push(fmt(l.t)+' · '+l.a+': '+l.m));if(!L.length)L.push('No stand-up or coordination events recorded.');}
+ else if(k==='rec'){L.push('Client intake and delivery activity is shown only when recorded in PTMS.');L.push('Open the Website Inbox module to review submissions.');}
+ return{t:R[k].l+': live status board',L}}
 function renderPop(){const p=$('#pop');if(!POP){p.hidden=true;return}const b=board(POP.k,POP.s);p.hidden=false;$('#pt').textContent=b.t;const u=$('#pl');u.textContent='';b.L.forEach(x=>u.append(mk('li','',x)))}
 function openPop(k,s){POP={k,s};renderPop()}
 $('#px').onclick=()=>{POP=null;renderPop()};$('#pop').onclick=e=>{if(e.target.id==='pop'){POP=null;renderPop()}};addEventListener('keydown',e=>{if(e.key==='Escape'){POP=null;renderPop()}});
@@ -128,41 +113,35 @@ function rr(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r)
 function slot(a,k){const r=R[k];if(k==='hol'){const an=a.i/14*6.283;return{x:r.x+r.w/2+Math.cos(an)*r.w*.34,y:r.y+r.h/2+Math.sin(an)*r.h*.3}}
  const f=(a.i*.381)%1,g=(a.i*.618+.2)%1;return{x:r.x+r.w*(.18+.64*f),y:r.y+r.h*(.5+.3*g)}}
 function mk(tag,cls,txt){const e=document.createElement(tag);if(cls)e.className=cls;if(txt!==undefined)e.textContent=txt;return e}
-function fmt(m){const t=480+m,d=Math.floor(t/1440)+1,h=Math.floor(t%1440/60),mi=Math.floor(t%60);return 'Day '+d+' '+String(h).padStart(2,'0')+':'+String(mi).padStart(2,'0')}
-
-function log(a,m,k){LOG.unshift({t:simMin,a:a?a.n:'HQ',m,k:k||'info',r:a?a.room:null});if(LOG.length>300)LOG.length=300;renderLog();updStats()}
-function renderLog(){const o=$('#log');o.textContent='';LOG.slice(0,60).forEach(l=>{const li=mk('li',l.k,fmt(l.t)+'  '+l.a+': '+l.m);o.append(li)})}
-function updStats(){$('#s1').textContent=ag.reduce((s,a)=>s+a.done,0);$('#s2').textContent=LOG.length;$('#s3').textContent=AP.length}
-function updClock(){$('#clock').textContent=fmt(simMin)}
-function statusText(a){const t=a.task;return a.state==='idle'?'Idle at their desk':a.state==='walking'?'Heading to '+R[t[0]].l+': '+t[1]:a.state==='working'?'Working: '+t[1]:'Waiting for Founder approval'}
-function renderSel(){const e=$('#sel');e.textContent='';if(!SEL){e.append(mk('p','muted','Click an agent on the floor to see what they remember.'));return}
- const a=SEL;e.append(mk('div','selh',a.n+', '+a.t),mk('div','muted','Reports to '+a.rep+'. Now in the '+R[a.room].l.toLowerCase()+'.'),mk('div','',statusText(a)),mk('div','muted','Tasks completed: '+a.done));
- a.hist.slice(0,5).forEach(h=>e.append(mk('div','mem',fmt(h.t)+'  '+h.x)))}
-function renderAP(){const e=$('#ap');e.textContent='';
- if(!AP.length){e.append(mk('p','muted','Nothing waiting. Agents stop here before any consequential action.'))}
- AP.forEach(p=>{const a=ag.find(x=>x.id===p.a),d=mk('div','apr'),b1=mk('button','','Approve'),b2=mk('button','','Decline');
-  b1.onclick=()=>decide(p.id,true);b2.onclick=()=>decide(p.id,false);d.append(mk('span','',a.n+' asks: '+p.text),b1,b2);e.append(d)});updStats()}
-
-function pick(a){let t;do{t=a.tasks[Math.floor(Math.random()*a.tasks.length)]}while(a.tasks.length>1&&a.task&&t[1]===a.task[1]);return t}
-function go(a,t){const p=route(a,t[0]);a.task=t;a.state='walking';a.path=p;a.tr=slot(a,t[0]);a.left=t[2];a.tot=t[2];a.apOk=false;a.room=t[0]}
-function assign(a){const t=pick(a);go(a,t);log(a,'Heading to the '+R[t[0]].l.toLowerCase()+' to work on: '+t[1]);if(a.id==='ivy'&&t[1]==='Convening stand-up')convene()}
-function convene(){const n=ag.reduce((s,x)=>s+x.done,0);
- ['atlas','echo','forge','sentinel','lumi','relay'].forEach(id=>{const x=ag.find(q=>q.id===id);if(x.state!=='waiting')go(x,['hol','Stand-up with Ivy',9])});
- log(ag[0],'Stand-up called. Team memory holds '+n+' completed tasks'+(restored?', carried over from before the reload':'')+'.','sys')}
-function arrive(a){const t=a.task;
- if(t&&t[3]&&!a.apOk){a.state='waiting';const p={id:apN++,a:a.id,text:t[3],age:0};AP.push(p);log(a,'Approval required: '+t[3],'ap');renderAP()}else a.state='working'}
-function decide(id,ok,auto){const i=AP.findIndex(p=>p.id===id);if(i<0)return;const p=AP.splice(i,1)[0],a=ag.find(x=>x.id===p.a);
- if(ok){a.apOk=true;a.state='working';log(a,'Founder approved: '+p.text,'done')}
- else{a.state='idle';a.task=null;a.wait=6;log(a,(auto?'No Founder decision, deferred: ':'Founder declined: ')+p.text+'. Standing down.','ap')}
- renderAP();renderSel();save()}
-function finish(a){a.done++;a.hist.unshift({t:simMin,x:a.task[1],r:a.task[0]});if(a.hist.length>8)a.hist.length=8;
- log(a,'Completed: '+a.task[1],'done');a.state='idle';a.wait=3+Math.random()*6;a.apOk=false}
-function step(dt,rdt){simMin+=dt;
- for(const a of ag){a.ph+=rdt*1.6;
-  if(a.state==='idle'){a.wait-=dt;if(a.wait<=0)assign(a)}
-  else if(a.state==='walking'){let m=95*dt;while(m>0&&a.path.length){const q=a.path[0],dx=q.x-a.x,dy=q.y-a.y,d=Math.hypot(dx,dy);if(d<=m){a.x=q.x;a.y=q.y;m-=d;a.path.shift()}else{a.x+=dx/d*m;a.y+=dy/d*m;m=0}}if(!a.path.length)arrive(a)}
-  else if(a.state==='working'){a.left-=dt;if(a.left<=0)finish(a)}}
- AP.forEach(p=>p.age+=dt);AP.filter(p=>p.age>150).forEach(p=>decide(p.id,false,true))}
+function fmt(value){const d=value instanceof Date?value:new Date(value);return Number.isNaN(d.getTime())?'Time unavailable':d.toLocaleString()}
+function sendParent(type,payload={}){try{parent.postMessage({type,...payload},'*')}catch(e){}}
+function renderLog(){const o=$('#log');o.textContent='';LOG.slice(0,40).forEach(l=>{const li=mk('li',l.k||'info',fmt(l.t)+'  '+l.a+': '+l.m);o.append(li)});if(!LOG.length)o.append(mk('li','muted','No live activity has been recorded yet.'))}
+function updStats(){const tasks=LIVE.tasks||[];$('#s1').textContent=tasks.filter(t=>String(t.status||'').toLowerCase()==='completed').length;$('#s2').textContent=LOG.length;$('#s3').textContent=AP.length}
+function updClock(){$('#clock').textContent=new Date().toLocaleTimeString()}
+function statusText(a){if(a.state==='walking')return 'Moving to '+R[a.targetRoom||a.room].l;if(a.liveStatus==='working')return 'Working: '+(a.task?.[1]||'Active runtime request');if(a.liveStatus==='queued')return 'Queued: '+(a.task?.[1]||'Assigned task');if(a.liveStatus==='blocked')return 'Blocked: '+(a.task?.[1]||'Needs attention');return 'Standby · no active run'}
+function renderSel(){const e=$('#sel');const previousInput=e.querySelector('#task-command')?.value||'';e.textContent='';if(!SEL){e.append(mk('p','muted','Select an agent on the floor to inspect live status and assign a bounded task.'));return}
+ const a=SEL;e.append(mk('div','selh',a.n+', '+a.t),mk('div','muted','Reports to '+a.rep+'. Current room: '+R[a.room].l+'.'),mk('div','',statusText(a)),mk('div','muted','Completed tasks recorded in Supabase: '+a.done));
+ if(a.task)e.append(mk('div','mem','Current task: '+a.task[1]));
+ const input=mk('input','task-command');input.type='text';input.maxLength=4000;input.placeholder='Give '+a.n+' a task…';input.setAttribute('aria-label','Task for '+a.n);input.value=previousInput;
+ const button=mk('button','task-run','Run task');button.type='button';button.onclick=()=>{const task=input.value.trim();if(!task)return;$('#run-result').hidden=true;button.disabled=true;button.textContent='Sending…';sendParent('PTMS_RUN_AGENT',{agentId:a.id,task});input.value='';};
+ const wrap=mk('div','task-launch');wrap.append(input,button);e.append(wrap);}
+function renderAP(){const e=$('#ap');e.textContent='';if(!AP.length)e.append(mk('p','muted','No pending approval records in PTMS.'));
+ AP.forEach(p=>{const d=mk('div','apr');d.append(mk('span','',p.requestedBy+' · '+p.text),mk('small','muted','Risk: '+p.risk+' · '+p.status));const b=mk('button','','Open approvals');b.onclick=()=>sendParent('PTMS_NAVIGATE',{module:'Approvals'});d.append(b);e.append(d)});updStats()}
+function applyLiveSnapshot(snapshot){if(!snapshot||typeof snapshot!=='object')return;LIVE=snapshot;lastSnapshotAt=snapshot.updatedAt||new Date().toISOString();
+ const registry=snapshot.registry||{},source=[registry.ivy,...(registry.departments||[]).flatMap(d=>(d.agents||[]).map(a=>({...a,department:d.name})))].filter(Boolean);
+ source.forEach(item=>{const a=ag.find(x=>x.id===item.id);if(!a)return;a.n=item.name||a.n;a.t=item.title||a.t;a.c=item.orbColor||a.c;a.rep=item.reportsTo||a.rep;a.department=item.department||a.department;});
+ const tasks=snapshot.tasks||[],runtime=snapshot.runtime?.agents||[],approvals=snapshot.approvals||[];const homes={ivy:'ceo',atlas:'gro',nova:'gro',echo:'cli',mira:'cli',forge:'eng',pixel:'eng',stack:'eng',vector:'eng',sentinel:'qa',lumi:'med',motion:'med',relay:'ops',vault:'ops'};
+ const roomForTask=(title,id)=>{const t=String(title||'').toLowerCase();if(/server|infrastructure|backup|deploy|logs|monitor/.test(t))return 'srv';if(/research|opportunit|market|job|source|search/.test(t))return 'gro';if(/media|video|image|design|edit|creative/.test(t))return 'med';if(/client|sales|inbox|customer/.test(t))return 'cli';if(/security|audit|review|test|quality/.test(t))return 'qa';if(/training|learn|evaluation/.test(t))return 'trn';return homes[id]||'ops'};
+ ag.forEach(a=>{const assigned=tasks.filter(t=>[a.n,a.id].includes(String(t.assigned_to||t.owner||'').trim().toLowerCase()));const current=assigned.find(t=>String(t.status).toLowerCase()==='in_progress')||assigned.find(t=>String(t.status).toLowerCase()==='blocked')||assigned.find(t=>String(t.status).toLowerCase()==='planned');const live=runtime.find(r=>r.id===a.id);const title=live?.state==='working'?(live.currentTask||current?.title):current?.title;const target=title?roomForTask(title,a.id):(homes[a.id]||a.home);const status=live?.state==='working'?'working':String(current?.status||'').toLowerCase()==='in_progress'?'working':String(current?.status||'').toLowerCase()==='blocked'?'blocked':current?'queued':'standby';a.liveStatus=status;a.done=assigned.filter(t=>String(t.status).toLowerCase()==='completed').length;a.task=title?[target,title,1]:null;a.left=1;a.tot=1;if(a.targetRoom!==target){a.targetRoom=target;a.path=route(a,target);a.state='walking';}else if(!a.path.length){a.room=target;a.state=status==='working'?'working':status==='blocked'?'waiting':'idle';}});
+ AP=approvals.filter(p=>String(p.status||'').toLowerCase()==='pending').map(p=>({id:String(p.id),a:ag.find(a=>a.n.toLowerCase()===String(p.requested_by||'').toLowerCase())?.id||'ivy',requestedBy:p.requested_by||'Founder',text:p.summary||p.action_type||'Approval requested',risk:p.risk_level||'medium',status:p.status||'pending'}));
+ const audit=(snapshot.audit||[]).map(e=>({t:e.created_at,a:e.details?.agent_name||e.details?.agentId||e.action||'PTMS',m:(e.action||'Audit event')+' · '+(e.entity_type||'record')+' · '+(e.outcome||'recorded'),k:e.outcome==='failure'?'ap':'info',r:null}));
+ const runtimeLog=(snapshot.runtime?.events||[]).map(e=>({t:e.occurredAt,a:e.agentName||e.agentId,m:e.type.replace(/_/g,' ')+' · '+(e.taskSummary||e.outcome||''),k:['agent_failed','group_failed'].includes(e.type)?'ap':['agent_finished','group_finished'].includes(e.type)?'done':'info',r:homes[e.agentId]||null}));
+ LOG=[...runtimeLog,...audit].filter(e=>e.t).sort((a,b)=>new Date(b.t)-new Date(a.t)).slice(0,50);
+ $('#live').textContent=snapshot.connectionState==='offline'?'RECONNECTING':'LIVE · '+fmt(lastSnapshotAt);$('#live').className='live-pill '+(snapshot.connectionState==='offline'?'offline':'');
+ if(SEL)SEL=ag.find(a=>a.id===SEL.id)||null;renderAP();renderSel();renderLog();updClock();updStats();if(POP)renderPop();}
+function handleParentMessage(event){if(event.source!==parent)return;const data=event.data||{};if(data.type==='PTMS_LIVE_SNAPSHOT')applyLiveSnapshot(data.payload);if(data.type==='PTMS_AGENT_RESULT'){const box=$('#run-result');box.hidden=false;box.textContent=(data.success?'Agent response: ':'Agent run failed: ')+(data.output||'No details returned.');const buttons=$('#sel').querySelectorAll('button');buttons.forEach(b=>{b.disabled=false;b.textContent='Run task'});}if(data.type==='PTMS_AGENT_BUSY'){const buttons=$('#sel').querySelectorAll('button');buttons.forEach(b=>{b.disabled=true;b.textContent='Running…'});}}
+addEventListener('message',handleParentMessage);
+function step(dt,rdt){for(const a of ag){a.ph+=rdt*1.6;if(a.state==='walking'){let m=95*dt*speed;while(m>0&&a.path.length){const q=a.path[0],dx=q.x-a.x,dy=q.y-a.y,d=Math.hypot(dx,dy);if(d<=m){a.x=q.x;a.y=q.y;m-=d;a.path.shift()}else{a.x+=dx/d*m;a.y+=dy/d*m;m=0}}if(!a.path.length){a.room=a.targetRoom||a.home;a.state=a.liveStatus==='working'?'working':a.liveStatus==='blocked'?'waiting':'idle';}}}}
 
 function drawRooms(n){
  for(const k in R){const r=R[k];cx.fillStyle=T.room;rr(r.x,r.y,r.w,r.h,10);cx.strokeStyle=T.line;cx.lineWidth=1.5;cx.stroke();
@@ -194,29 +173,17 @@ function drawAg(a){const x=a.x,y=a.y,walk=a.state==='walking',sw=walk?Math.sin(a
  if(a===SEL){cx.strokeStyle=T.gold;cx.lineWidth=2;cx.beginPath();cx.arc(x,y-6,22,0,7);cx.stroke()}}
 function draw(n){cx.clearRect(0,0,W,H);drawRooms(n);[...ag].sort((p,q)=>p.y-q.y).forEach(drawAg)}
 
-function save(){if(noSave)return;try{localStorage.setItem(KEY,JSON.stringify({simMin,log:LOG.slice(0,300),ap:AP,ag:ag.map(a=>({id:a.id,x:a.x,y:a.y,room:a.room,state:a.state,task:a.task,left:a.left,done:a.done,hist:a.hist,apOk:a.apOk,wait:a.wait}))}))}catch(e){}}
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(!s||!Array.isArray(s.ag))return false;
- simMin=+s.simMin||0;LOG=(s.log||[]).slice(0,300);AP=(s.ap||[]).filter(p=>ag.some(a=>a.id===p.a));apN=AP.reduce((m,p)=>Math.max(m,p.id+1),1);
- s.ag.forEach(o=>{const a=ag.find(x=>x.id===o.id);if(!a||!R[o.room])return;
-  a.x=isFinite(+o.x)?+o.x:slot(a,o.room).x;a.y=isFinite(+o.y)?+o.y:slot(a,o.room).y;a.room=o.room;
-  a.task=Array.isArray(o.task)&&R[o.task[0]]?o.task:null;a.state=a.task&&['walking','working','waiting'].includes(o.state)?o.state:'idle';
-  a.left=+o.left||0;a.tot=a.task?a.task[2]:1;a.done=+o.done||0;a.hist=(o.hist||[]).filter(h=>R[h.r]).slice(0,8);a.apOk=!!o.apOk;a.wait=+o.wait||2;
-  if(a.state==='walking'){a.tr=slot(a,a.task[0]);a.path=route(a,a.task[0])}});
- ag.forEach(a=>{if(a.state==='waiting'&&!AP.some(p=>p.a===a.id))a.state='idle'});return true}catch(e){return false}}
-
 cv.addEventListener('click',e=>{const b=cv.getBoundingClientRect(),x=(e.clientX-b.left)/b.width*W,y=(e.clientY-b.top)/b.height*H;const hx=R.hol.x+R.hol.w/2,hy=R.hol.y+R.hol.h/2;if(((x-hx)/(R.hol.w*.2))**2+((y-hy)/(R.hol.h*.17))**2<1){openPop('hol','t');return}
 const sc=SC.find(s=>Math.abs(x-s.x)<10&&y>s.y1-8&&y<s.y2+8);if(sc){openPop(sc.k,sc.s);return}let best=null,bd=28;
  ag.forEach(a=>{const d=Math.hypot(a.x-x,a.y-8-y);if(d<bd){bd=d;best=a}});SEL=best;renderSel()});
-$('#pp').onclick=e=>{paused=!paused;e.target.textContent=paused?'Resume':'Pause'};
-$('#sp').onclick=e=>{speed=speed===1?2:speed===2?4:1;e.target.textContent='Speed '+speed+'×'};
-$('#rs').onclick=e=>{if(Date.now()-armed<4000){noSave=true;try{localStorage.removeItem(KEY)}catch(x){}location.reload()}else{armed=Date.now();e.target.textContent='Click again to confirm'}};
-addEventListener('pagehide',save);document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
-matchMedia('(prefers-color-scheme:dark)').addEventListener('change',theme);
+$('#exit').onclick=()=>sendParent('PTMS_EXIT');
+ $('#pp').onclick=e=>{paused=!paused;e.target.textContent=paused?'Resume motion':'Pause motion'};
+ $('#sp').onclick=e=>{speed=speed===1?2:speed===2?4:1;e.target.textContent='Motion '+speed+'×'};
+ $('#rs').onclick=()=>sendParent('PTMS_REFRESH');
+ matchMedia('(prefers-color-scheme:dark)').addEventListener('change',theme);
 
-theme();fit();restored=load();
-if(restored){log(null,'HQ restored: '+LOG.length+' events and '+ag.reduce((s,a)=>s+a.done,0)+' completed tasks recalled. Nothing was reset.','sys')}
-else{ag.forEach(a=>{const s=slot(a,a.home);a.x=s.x;a.y=s.y});log(null,'PTMS headquarters online with 14 agents on the floor. First run, so history starts now.','sys')}
-renderAP();renderSel();renderLog();updClock();updStats();
+theme();fit();ag.forEach(a=>{const q=slot(a,a.home);a.x=q.x;a.y=q.y;a.targetRoom=a.home;a.liveStatus='standby';a.state='idle';});
+ renderAP();renderSel();renderLog();updClock();updStats();
 let V3=false,TH=null;
 function lab(t){const k=document.createElement('canvas');k.width=128;k.height=32;const g=k.getContext('2d');g.font='bold 20px sans-serif';g.textAlign='center';g.fillStyle='#fff';g.fillText(t,64,22);const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(k),transparent:true,depthTest:false}));s.scale.set(4,1,1);return s}
 function init3(){const box=$('#v3');
@@ -258,7 +225,7 @@ $('#vw').onclick=e=>{if(typeof THREE==='undefined'){e.target.textContent='3D una
 addEventListener('resize',()=>{if(V3&&TH)TH.fit()});
 let last=performance.now(),saveT=0,selT=0;
 function frame(n){const rdt=Math.min(.1,(n-last)/1000);last=n;if(!paused)step(rdt*speed,rdt);draw(n/1000);if(V3&&TH)TH.r(n/1000);
- saveT+=rdt;if(saveT>4){saveT=0;save()}selT+=rdt;if(selT>.4){selT=0;renderSel();updClock();if(POP)renderPop()}requestAnimationFrame(frame)}
+ saveT+=rdt;if(saveT>4){saveT=0;save()}selT+=rdt;if(selT>.4){selT=0;updClock();if(POP)renderPop()}requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 </script>
 </body>

@@ -108,6 +108,13 @@ app.use(express.static(dist, { index: false, maxAge: "1h" }));
 // Twilio callbacks must be reachable without the browser session; the module verifies Twilio signatures and per-call HMAC tokens.
 registerIvyTwilioWebhookRoutes(app);
 app.use("/api", (req, res, next) => isExternalFinancialWebhookPath(req.path) || isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
+app.use("/hq-simulation", (req, res, next) => {
+  if (!isUnlocked(req)) return res.status(401).send("Unlock PRUDEN Command to view headquarters.");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'none'; object-src 'none'");
+  res.setHeader("Cache-Control", "no-store");
+  next();
+}, express.static(path.join(here, "prototypes/hq-simulation"), { index: "index.html", maxAge: 0 }));
 registerIvyTwilioRoutes(app);
 registerFinancialIntegrationRoutes(app);
 registerProjectIntelligenceRoutes(app);

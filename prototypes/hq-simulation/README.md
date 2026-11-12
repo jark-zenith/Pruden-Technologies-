@@ -1,27 +1,24 @@
-# PRUDEN HQ: AI workforce simulation (prototype)
+# PRUDEN HQ: live AI workforce headquarters
 
-A standalone, single-file prototype of the AI Headquarters Home view. It is not wired into the PTMS app and changes nothing in `src/` or `server/`.
+The HQ floor is the interactive Home view for PTMS. The floor plan and optional 3D scene are rendered in this page, while PTMS remains the source of truth for workforce and company state.
 
-## Open it
+## Live data sources
 
-Open `index.html` in a browser. The only external request is three.js (r128) from cdnjs, used by the 3D view.
+- Agent identities and departments: `/api/workforce/agents` (authoritative `ai-workforce/agents.json` registry).
+- Current individual agent runs: authenticated `/api/workforce/stream` Server-Sent Events, backed by the PTMS server runtime.
+- Tasks, approvals and audit events: owner-scoped Supabase tables (`pruden_tasks`, `pruden_approvals`, `pruden_audit_events`) delivered through Supabase Realtime.
+- Application/provider health and read-only finance summary: existing PTMS endpoints and authenticated Supabase queries.
 
-## What it shows
+## 2D / 3D controls
 
-- The 14 agents from the AI Workforce registry (Ivy plus 13 specialists) walking a floor plan with rooms, doors, corridors, desks and equipment.
-- A 2D / 3D toggle. 3D supports drag to rotate and scroll to zoom.
-- Clickable wall screens in every room and a glass table in the meeting area, each opening a live status popup.
-- A Founder approvals queue. Forge, Echo and Lumi stop and ask before consequential actions.
-- History that survives a reload (browser `localStorage`).
+- 2D canvas floor plan is the low-resource default.
+- 3D view uses Three.js r128 from cdnjs; if the library or WebGL is unavailable, the 2D floor plan remains usable.
+- Click agents, room boards, and the central coordination table to inspect live state.
+- Agent tasks are submitted to the existing authenticated `/api/workforce/run` route. Approval cards navigate to PTMS Approvals; this view does not bypass approval policy.
 
-## Honest limits
+## Data integrity and limitations
 
-- Simulation mode: events are generated in the page from the registry, not read from live PTMS.
-- Server, device and finance screens show simulated or empty content. No real figures are used.
-- Memory is per browser. A shared, durable history needs Supabase tables for runs, handoffs, approvals and events.
-
-## Suggested next steps
-
-1. Add durable event tables in Supabase (agent runs, handoffs, approvals, events) so history survives restarts.
-2. Stream real events from the server to this view instead of generating them locally.
-3. Port the view into the React app once the event feed exists.
+- No local random task generation or browser-local activity history is used.
+- Runtime run events are in process memory and reset when the PTMS server restarts; durable audit events and task/approval records remain in Supabase.
+- Agent positions are a visual representation of the current assignment or active run, not physical telemetry. CPU, device and location telemetry are not claimed.
+- Supabase Realtime changes are protected by the existing owner-scoped RLS policies.
