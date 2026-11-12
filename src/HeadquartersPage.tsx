@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabase";
+import type { User } from "@supabase/supabase-js";
+import { createWorkforceTask, setWorkforceTaskStatus, recordTaskAgentRun } from "./lib/operations";
 import "./headquarters.css";
 
 type Task = { id: string; title: string; project: string; priority: string; owner: string; state: string };
@@ -27,8 +29,8 @@ const fallbackApprovals = (approvals: Approval[]): LiveApproval[] => approvals.m
   risk_level: approval.risk, status: approval.status === "Awaiting decision" ? "pending" : approval.status.toLowerCase(), requested_by: "Founder", created_at: new Date().toISOString()
 }));
 
-export default function HeadquartersPage({ tasks, projects = [], approvals = [], onExit, onNavigate }: {
-  tasks: Task[]; projects?: Project[]; approvals?: Approval[]; onExit: () => void; onNavigate?: (module: string) => void;
+export default function HeadquartersPage({ user, tasks, projects = [], approvals = [], onExit, onNavigate }: {
+  user: User; tasks: Task[]; projects?: Project[]; approvals?: Approval[]; onExit: () => void; onNavigate?: (module: string) => void;
 }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const refreshRef = useRef<() => Promise<void>>(async () => undefined);
@@ -161,15 +163,39 @@ export default function HeadquartersPage({ tasks, projects = [], approvals = [],
 
   const runAgent = useCallback(async (agentId: string, task: string) => {
     sendToFrame("PTMS_AGENT_BUSY");
+    let taskId: string | null = null;
+    let runId: string | null = null;
+    let toolCalls = 0;
+    let auditWarning = false;
     try {
-      const response = await fetch("/api/workforce/run", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agentId, task }) });
-      const data = await response.json().catch(() => ({})) as { output?: string; error?: string };
+      const request = task.trim();
+      if (!request) throw new Error("Enter a task before starting an agent run.");
+      const created = await createWorkforceTask(user, { title: request.replace(/\s+/g, " ").slice(0, 200), description: request, project_id: null, status: "planned", priority: "medium", assigned_to: agentId, due_date: null });
+      taskId = created.task.id;
+      auditWarning ||= !created.auditRecorded;
+      const started = await setWorkforceTaskStatus(user, taskId, "in_progress");
+      auditWarning ||= !started.auditRecorded;
+      const response = await fetch("/api/workforce/run", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agentId, task: request }) });
+      const data = await response.json().catch(() => ({})) as { output?: string; error?: string; runId?: string; toolCalls?: number };
+      runId = data.runId || null;
+      toolCalls = Number.isFinite(data.toolCalls) ? Number(data.toolCalls) : 0;
       if (!response.ok) throw new Error(data.error || "The agent run did not complete.");
-      sendToFrame("PTMS_AGENT_RESULT", { success: true, output: data.output || "The agent returned no text output." });
+      const output = data.output || "The agent returned no text output.";
+      const finished = await setWorkforceTaskStatus(user, taskId, "completed");
+      auditWarning ||= !finished.auditRecorded;
+      auditWarning ||= !(await recordTaskAgentRun(user, taskId, agentId, runId, "completed", toolCalls, output));
+      sendToFrame("PTMS_AGENT_RESULT", { success: true, output: output + `\n\nRun ${runId || "recorded"} · ${toolCalls} external tool calls · ${toolCalls > 0 ? "tool-assisted" : "text-only (no external tools were executed)"}.${auditWarning ? "\nAudit note: one or more activity audit writes could not be saved; the task status itself is saved." : ""}` });
     } catch (error) {
-      sendToFrame("PTMS_AGENT_RESULT", { success: false, output: error instanceof Error ? error.message : "Agent request failed." });
+      const message = error instanceof Error ? error.message : "Agent request failed.";
+      if (taskId) {
+        await setWorkforceTaskStatus(user, taskId, "blocked").catch(() => undefined);
+        await recordTaskAgentRun(user, taskId, agentId, runId, "failed", toolCalls, message);
+      }
+      sendToFrame("PTMS_AGENT_RESULT", { success: false, output: message + (taskId ? `\nTask ${taskId} is saved as blocked for review.` : "") });
+    } finally {
+      void refreshRef.current();
     }
-  }, [sendToFrame]);
+  }, [sendToFrame, user]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

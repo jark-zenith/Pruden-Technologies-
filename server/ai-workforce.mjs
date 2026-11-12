@@ -268,12 +268,13 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
     workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "success", at: new Date().toISOString(), runCount: previous.runCount + 1 });
     publishWorkforceRuntimeEvent("agent_finished", run, "success");
     console.log(JSON.stringify({ event: "workforce_run_completed", agentId, runId: run.runId, at: new Date().toISOString(), usage: result.usage }));
-    return { status: "completed", agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
+    return { status: "completed", runId: run.runId, agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
   } catch (error) {
     activeWorkforceRuns.delete(run.runId);
     const previous = workforceAgentActivity.get(agentId) || { runCount: 0 };
     workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "failed", at: new Date().toISOString(), runCount: previous.runCount + 1 });
     publishWorkforceRuntimeEvent("agent_failed", run, "failed");
+    if (error && typeof error === "object") error.runId = run.runId;
     throw error;
   }
 }
@@ -320,7 +321,7 @@ export function registerAIWorkforceRoutes(app) {
       res.json(await runAIWorkforceAgent(agentId, task));
     } catch (error) {
       console.error(JSON.stringify({ event: "workforce_run_failed", at: new Date().toISOString(), message: String(error?.message || error).slice(0, 200) }));
-      res.status(error.statusCode || 502).json({ error: error.message || "Agent request failed." });
+      res.status(error.statusCode || 502).json({ error: error.message || "Agent request failed.", runId: error.runId || null });
     }
   });
   app.post("/api/workforce/group-run", async (req, res) => {
