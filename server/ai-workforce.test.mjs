@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allowedGitHubToolNames, availableToolNamesForAgent } from "./ai-workforce.mjs";
+import { allowedGitHubToolNames, availableToolNamesForAgent, createUnverifiedWorkforceResponseState } from "./ai-workforce.mjs";
 
 const readOnlyControls = { toolsEnabled: true, externalActionsEnabled: false };
 const writeEnabledControls = { toolsEnabled: true, externalActionsEnabled: true };
@@ -122,4 +122,13 @@ test("the global tools switch still disables research even when Tavily is config
     const tools = availableToolNamesForAgent(agentId, { toolsEnabled: false, externalActionsEnabled: false }, true);
     assert.equal(tools.size, 0, agentId);
   }
+});
+
+test("a model response is not represented as a completed or verified mission", () => {
+  assert.deepEqual(createUnverifiedWorkforceResponseState(), {
+    status: "response_ready",
+    completionKind: "agent_response_only",
+    missionStatus: "not_created",
+    verificationStatus: "not_performed"
+  });
 });

@@ -252,6 +252,14 @@ export function getAIWorkforceDirectory() {
   };
   return { ivy: annotate(registry.ivy), departments: registry.departments.map(({ id, name, lead, independent, agents }) => ({ id, name, lead, independent: Boolean(independent), agents: agents.map(annotate) })), controls: registry.globalControls };
 }
+export function createUnverifiedWorkforceResponseState() {
+  return {
+    status: "response_ready",
+    completionKind: "agent_response_only",
+    missionStatus: "not_created",
+    verificationStatus: "not_performed"
+  };
+}
 export async function runAIWorkforceAgent(agentId, task, options = {}) {
   const agent = agentById.get(agentId);
   if (!agent) throw Object.assign(new Error("Unknown agent."), { statusCode: 404 });
@@ -265,10 +273,10 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
     const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task, registry.globalControls.maxOutputTokens || 1200, availableToolNamesForAgent(agent.id), agent.id, options.deadlineAt);
     activeWorkforceRuns.delete(run.runId);
     const previous = workforceAgentActivity.get(agentId) || { runCount: 0 };
-    workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "success", at: new Date().toISOString(), runCount: previous.runCount + 1 });
-    publishWorkforceRuntimeEvent("agent_finished", run, "success");
-    console.log(JSON.stringify({ event: "workforce_run_completed", agentId, runId: run.runId, at: new Date().toISOString(), usage: result.usage }));
-    return { status: "completed", runId: run.runId, agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
+    workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "response_ready", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+    publishWorkforceRuntimeEvent("agent_response_ready", run, "response_ready");
+    console.log(JSON.stringify({ event: "workforce_run_response_ready", agentId, runId: run.runId, at: new Date().toISOString(), usage: result.usage }));
+    return { ...createUnverifiedWorkforceResponseState(), runId: run.runId, agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
   } catch (error) {
     activeWorkforceRuns.delete(run.runId);
     const previous = workforceAgentActivity.get(agentId) || { runCount: 0 };
@@ -344,12 +352,12 @@ export function registerAIWorkforceRoutes(app) {
       ].join("\n\n"), "Recent shared group thread:\n" + sharedContext() + "\n\nRespond to the latest Founder message: " + message, Math.min(2200, (registry.globalControls.maxOutputTokens || 1200) * 2), availableToolNamesForAgent("group"), "group");
       activeWorkforceRuns.delete(groupRun.runId);
       const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };
-      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: "success", at: new Date().toISOString(), runCount: previous.runCount + 1 });
-      publishWorkforceRuntimeEvent("group_finished", groupRun, "success");
+      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: "response_ready", at: new Date().toISOString(), runCount: previous.runCount + 1 });
+      publishWorkforceRuntimeEvent("group_response_ready", groupRun, "response_ready");
       sharedThread.push({ role: "Workforce", name: "AI Workforce", content: result.output, at: new Date().toISOString() });
       if (sharedThread.length > MAX_SHARED_MESSAGES) sharedThread.splice(0, sharedThread.length - MAX_SHARED_MESSAGES);
-      console.log(JSON.stringify({ event: "workforce_group_run_completed", runId: groupRun.runId, at: new Date().toISOString(), usage: result.usage }));
-      res.json({ status: "completed", output: result.output, messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false, usage: result.usage });
+      console.log(JSON.stringify({ event: "workforce_group_run_response_ready", runId: groupRun.runId, at: new Date().toISOString(), usage: result.usage }));
+      res.json({ ...createUnverifiedWorkforceResponseState(), output: result.output, messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false, usage: result.usage });
     } catch (error) {
       activeWorkforceRuns.delete(groupRun.runId);
       const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };

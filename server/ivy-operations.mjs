@@ -27,7 +27,7 @@ const modules = [
 const allowedTables = new Set(["pruden_projects", "pruden_tasks", "pruden_approvals", "pruden_customers"]);
 const allowedStatuses = {
   pruden_projects: new Set(["planned","active","blocked","completed","archived"]),
-  pruden_tasks: new Set(["planned","in_progress","blocked","completed","cancelled"]),
+  pruden_tasks: new Set(["planned","in_progress","awaiting_verification","blocked","completed","cancelled"]),
   pruden_approvals: new Set(["pending","approved","rejected","cancelled","executed"]),
   pruden_customers: new Set(["lead","active","inactive","archived"])
 };

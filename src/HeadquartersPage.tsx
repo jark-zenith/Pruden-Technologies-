@@ -21,7 +21,7 @@ type FinanceSnapshot = { state: "loading" | "ready" | "error" | "unavailable"; r
 
 const emptyRuntime: RuntimeSnapshot = { agents: [], events: [], updatedAt: new Date().toISOString(), persistence: "process-memory" };
 const fallbackTasks = (tasks: Task[]): LiveTask[] => tasks.map((task) => ({
-  id: task.id, title: task.title, status: task.state === "In progress" ? "in_progress" : task.state === "Completed" ? "completed" : task.state === "Blocked" ? "blocked" : task.state === "Cancelled" ? "cancelled" : "planned",
+  id: task.id, title: task.title, status: task.state === "In progress" ? "in_progress" : task.state === "Awaiting verification" ? "awaiting_verification" : task.state === "Completed" ? "completed" : task.state === "Blocked" ? "blocked" : task.state === "Cancelled" ? "cancelled" : "planned",
   priority: task.priority.toLowerCase(), assigned_to: task.owner, description: task.project
 }));
 const fallbackApprovals = (approvals: Approval[]): LiveApproval[] => approvals.map((approval) => ({
@@ -176,15 +176,18 @@ export default function HeadquartersPage({ user, tasks, projects = [], approvals
       const started = await setWorkforceTaskStatus(user, taskId, "in_progress");
       auditWarning ||= !started.auditRecorded;
       const response = await fetch("/api/workforce/run", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agentId, task: request }) });
-      const data = await response.json().catch(() => ({})) as { output?: string; error?: string; runId?: string; toolCalls?: number };
+      const data = await response.json().catch(() => ({})) as { status?: string; completionKind?: string; missionStatus?: string; verificationStatus?: string; output?: string; error?: string; runId?: string; toolCalls?: number };
       runId = data.runId || null;
       toolCalls = Number.isFinite(data.toolCalls) ? Number(data.toolCalls) : 0;
       if (!response.ok) throw new Error(data.error || "The agent run did not complete.");
+      if (data.status !== "response_ready" || data.completionKind !== "agent_response_only" || data.missionStatus !== "not_created" || data.verificationStatus !== "not_performed" || !runId) {
+        throw new Error("The agent response was not explicitly marked as unverified. The task is blocked for review.");
+      }
       const output = data.output || "The agent returned no text output.";
-      const finished = await setWorkforceTaskStatus(user, taskId, "completed");
-      auditWarning ||= !finished.auditRecorded;
-      auditWarning ||= !(await recordTaskAgentRun(user, taskId, agentId, runId, "completed", toolCalls, output));
-      sendToFrame("PTMS_AGENT_RESULT", { success: true, output: output + `\n\nRun ${runId || "recorded"} · ${toolCalls} external tool calls · ${toolCalls > 0 ? "tool-assisted" : "text-only (no external tools were executed)"}.${auditWarning ? "\nAudit note: one or more activity audit writes could not be saved; the task status itself is saved." : ""}` });
+      const awaitingVerification = await setWorkforceTaskStatus(user, taskId, "awaiting_verification");
+      auditWarning ||= !awaitingVerification.auditRecorded;
+      auditWarning ||= !(await recordTaskAgentRun(user, taskId, agentId, runId, "awaiting_verification", toolCalls, output));
+      sendToFrame("PTMS_AGENT_RESULT", { success: true, output: output + `\n\nRun ${runId} · response ready · awaiting independent verification · ${toolCalls} external tool calls · ${toolCalls > 0 ? "tool-assisted" : "text-only (no external tools were executed)"}.${auditWarning ? "\nAudit note: one or more activity audit writes could not be saved; the task status itself is saved." : ""}` });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Agent request failed.";
       if (taskId) {
