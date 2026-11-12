@@ -31,6 +31,8 @@ export const MISSION_EVENT_TYPES = Object.freeze([
   "mission_note"
 ]);
 
+const INTERNAL_TERMINAL_EVENT = Symbol("internal terminal transition event");
+
 const TRANSITIONS = Object.freeze({
   queued: ["running", "awaiting_approval", "blocked", "failed"],
   running: ["awaiting_approval", "blocked", "failed", "awaiting_verification"],
@@ -158,9 +160,9 @@ export function createMissionRecord(input, options = {}) {
   assertObject(input, "mission input");
   const idFactory = typeof options.idFactory === "function" ? options.idFactory : randomUUID;
   const at = readClock(options);
-  const assignedAgentIds = textList(input.assignedAgentIds ?? [], "assignedAgentIds", { maxItems: 14, itemMaxLength: 80 });
+  const assignedAgentIds = textList(input.assignedAgentIds ?? [], "assignedAgentIds", { minItems: 1, maxItems: 14, itemMaxLength: 80 });
   const executorAgentIds = textList(input.executorAgentIds ?? [], "executorAgentIds", { maxItems: 14, itemMaxLength: 80 });
-  if (assignedAgentIds.length && executorAgentIds.some(id => !assignedAgentIds.includes(id))) {
+  if (executorAgentIds.some(id => !assignedAgentIds.includes(id))) {
     throw new TypeError("executorAgentIds must be a subset of assignedAgentIds.");
   }
 
@@ -197,6 +199,9 @@ export function appendMissionEvent(record, event, options = {}) {
   assertObject(event, "mission event");
   const type = requiredText(event.type, "event.type", 80);
   if (!MISSION_EVENT_TYPES.includes(type)) throw new TypeError("Unsupported mission event type: " + type);
+  if ([MISSION_STATUS.FAILED, MISSION_STATUS.VERIFIED_COMPLETE].includes(record.status) && options[INTERNAL_TERMINAL_EVENT] !== true) {
+    throw new Error("Cannot append mission events after a terminal state.");
+  }
   const actorId = requiredText(event.actorId, "event.actorId", 160);
   const agentId = optionalText(event.agentId, "event.agentId", 80);
   const toolName = optionalText(event.toolName, "event.toolName", 120);
@@ -207,8 +212,14 @@ export function appendMissionEvent(record, event, options = {}) {
   if (["tool_started", "tool_succeeded", "tool_failed"].includes(type) && !toolName) {
     throw new TypeError(type + " events require toolName.");
   }
-  if (type === "agent_started" && record.assignedAgentIds.length && !record.assignedAgentIds.includes(agentId)) {
+  if (type === "agent_started" && !record.assignedAgentIds.includes(agentId)) {
     throw new Error("Agent is not assigned to this mission.");
+  }
+
+  if (type === "agent_finished") {
+    const starts = record.events.filter(item => item.type === "agent_started" && item.agentId === agentId).length;
+    const finishes = record.events.filter(item => item.type === "agent_finished" && item.agentId === agentId).length;
+    if (starts <= finishes) throw new Error("agent_finished requires an unmatched preceding agent_started event.");
   }
 
   const occurredAt = event.occurredAt ? isoTimestamp(event.occurredAt, "event.occurredAt") : readClock(options);
@@ -326,5 +337,7 @@ export function transitionMissionStatus(record, nextStatus, details = {}, option
     outcome: details.outcome || nextStatus,
     summary,
     occurredAt: at
-  }, options);
+  }, nextStatus === MISSION_STATUS.FAILED || nextStatus === MISSION_STATUS.VERIFIED_COMPLETE
+    ? { ...options, [INTERNAL_TERMINAL_EVENT]: true }
+    : options);
 }

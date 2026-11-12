@@ -44,6 +44,47 @@ test("mission creation rejects missing ownership, objective, or acceptance crite
   assert.throws(() => makeMission({ acceptanceCriteria: [] }), /acceptanceCriteria/);
 });
 
+test("mission creation requires at least one assigned agent", () => {
+  assert.throws(() => makeMission({ assignedAgentIds: [] }), /assignedAgentIds/);
+});
+
+test("agent completion requires a matching start and cannot finish twice", () => {
+  const mission = makeMission();
+  assert.throws(() => appendMissionEvent(mission, {
+    type: "agent_finished", actorId: "atlas", agentId: "atlas"
+  }), /unmatched preceding agent_started/);
+  const started = appendMissionEvent(mission, {
+    type: "agent_started", actorId: "ivy", agentId: "atlas"
+  });
+  const finished = appendMissionEvent(started, {
+    type: "agent_finished", actorId: "atlas", agentId: "atlas"
+  });
+  assert.deepEqual(finished.executorAgentIds, ["atlas"]);
+  assert.throws(() => appendMissionEvent(finished, {
+    type: "agent_finished", actorId: "atlas", agentId: "atlas"
+  }), /unmatched preceding agent_started/);
+});
+
+test("terminal mission states reject later activity events", () => {
+  const running = transitionMissionStatus(makeMission(), MISSION_STATUS.RUNNING, { actorId: "ivy" });
+  const failed = transitionMissionStatus(running, MISSION_STATUS.FAILED, { actorId: "atlas", error: "Provider timed out." });
+  assert.throws(() => appendMissionEvent(failed, { type: "mission_note", actorId: "ivy" }), /terminal state/);
+
+  const pending = transitionMissionStatus(running, MISSION_STATUS.AWAITING_VERIFICATION, { actorId: "atlas", outputSummary: "Output ready." });
+  const evidence = [
+    { kind: "source", ref: "https://example.com/a" },
+    { kind: "verification", ref: "github://checks/mission" }
+  ];
+  const verified = transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    actorId: "sentinel", verifierId: "sentinel", evidence,
+    criteriaResults: [
+      { criterion: "Original source URLs are recorded", passed: true, evidenceRefs: ["https://example.com/a"] },
+      { criterion: "Sentinel independently verifies the result", passed: true, evidenceRefs: ["github://checks/mission"] }
+    ]
+  });
+  assert.throws(() => appendMissionEvent(verified, { type: "mission_note", actorId: "ivy" }), /terminal state/);
+});
+
 test("mission creation rejects executor identities outside the assigned-agent scope", () => {
   assert.throws(() => makeMission({ executorAgentIds: ["vault"] }), /subset of assignedAgentIds/);
 });
