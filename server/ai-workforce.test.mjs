@@ -145,5 +145,7 @@ test("task status migration preserves existing states and adds awaiting_verifica
   for (const status of ["planned", "in_progress", "blocked", "completed", "cancelled", "awaiting_verification"]) {
     assert.ok(taskStatusMigration.includes("'" + status + "'"), "missing task status: " + status);
   }
-  assert.doesNotMatch(taskStatusMigration, /\\b(drop table|delete from|truncate)\\b/i);
+  for (const forbidden of ["drop table", "delete from", "truncate"]) {
+    assert.equal(taskStatusMigration.toLowerCase().includes(forbidden), false, "unexpected destructive statement: " + forbidden);
+  }
 });
