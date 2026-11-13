@@ -63,8 +63,8 @@ The contract does not store raw provider responses, secrets, credentials, custom
 
 - \`server/mission-contract.mjs\` remains a pure lifecycle/evidence contract; it is not yet backed by dedicated mission/run tables.
 - Home HQ tasks, approvals and audit events use the existing owner-scoped Supabase tables and Realtime feed. Active run state and the recent workforce event buffer remain process-memory-only and reset on server restart.
-- The live \`pruden_tasks.status\` column is text with no status CHECK constraint, so \`awaiting_verification\` is supported without a schema migration. The audit outcome constraint permits only \`success\`, \`failure\` and \`blocked\`; the new awaiting-verification event uses \`blocked\` plus a specific action/details payload.
-- The current migration inventory is divergent: 21 SQL migration files in GitHub versus 27 applied Supabase entries, with six exact version/name matches and one additional shared version whose recorded migration name differs. Do not reset, rewrite or reapply applied history. Reconcile it before adding the dedicated mission/run tables.
+- The checked-in baseline migration constrains \`pruden_tasks.status\` to \`planned\`, \`in_progress\`, \`blocked\`, \`completed\` and \`cancelled\`. This PR adds a forward-only migration that preserves those states and includes \`awaiting_verification\`. The live PTMS project currently has no task-status CHECK constraint and its five existing task rows are only \`blocked\` or \`planned\`; this repository migration has not been applied to production.
+- The current migration inventory is divergent: 21 SQL migration files in GitHub versus 27 applied Supabase entries, with six exact version/name matches and one additional shared version whose recorded migration name differs. Do not reset, rewrite or reapply applied history. Do not apply this status migration or any new production migration until the divergence is reconciled and reviewed; reconcile it before adding the dedicated mission/run tables.
 - No Composio SDK or PTMS-owned Composio runtime adapter is present in the PTMS server package. ChatGPT-side Composio connections are not PTMS server connections.
 
 ## Next implementation steps
@@ -77,4 +77,4 @@ The contract does not store raw provider responses, secrets, credentials, custom
 6. Require Sentinel to verify stored evidence before setting \`verified_complete\`.
 7. Update Mission Control only after persistence and execution APIs are tested.
 
-No production data, settings, secrets, migrations, permissions, or deployments are changed by this feature-branch change.
+No production data, settings, secrets, applied migrations, permissions, or deployments are changed by this feature-branch change. A new, unapplied migration file is included for review.

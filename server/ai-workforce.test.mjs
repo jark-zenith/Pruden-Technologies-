@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { allowedGitHubToolNames, availableToolNamesForAgent, createUnverifiedWorkforceResponseState } from "./ai-workforce.mjs";
 
 const readOnlyControls = { toolsEnabled: true, externalActionsEnabled: false };
@@ -131,4 +132,18 @@ test("a model response is not represented as a completed or verified mission", (
     missionStatus: "not_created",
     verificationStatus: "not_performed"
   });
+});
+
+const taskStatusMigration = await readFile(
+  new URL("../supabase/migrations/20261113204800_allow_awaiting_verification_task_status.sql", import.meta.url),
+  "utf8"
+);
+
+test("task status migration preserves existing states and adds awaiting_verification", () => {
+  assert.match(taskStatusMigration, /drop constraint if exists pruden_tasks_status_check/i);
+  assert.match(taskStatusMigration, /add constraint pruden_tasks_status_check/i);
+  for (const status of ["planned", "in_progress", "blocked", "completed", "cancelled", "awaiting_verification"]) {
+    assert.ok(taskStatusMigration.includes("'" + status + "'"), "missing task status: " + status);
+  }
+  assert.doesNotMatch(taskStatusMigration, /\\b(drop table|delete from|truncate)\\b/i);
 });
