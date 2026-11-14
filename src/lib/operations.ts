@@ -27,19 +27,20 @@ export async function setWorkforceTaskStatus(user: User, id: string, status: Tas
   try { await writeAudit(user, "task.status_changed", "task", id, { status, source: "hq_workforce" }); } catch { auditRecorded = false; }
   return { task: data as Task, auditRecorded };
 }
-export async function recordTaskAgentRun(user: User, taskId: string, agentId: string, runId: string | null, outcome: "awaiting_verification" | "failed", toolCalls: number, output: string) {
+export async function recordTaskAgentRun(user: User, taskId: string, agentId: string, runId: string | null, outcome: "awaiting_verification" | "partial" | "failed", toolCalls: number, output: string) {
   try {
     const failed = outcome === "failed";
+    const partial = outcome === "partial";
     await writeAudit(
       user,
-      failed ? "agent_run.failed" : "agent_run.awaiting_verification",
+      failed ? "agent_run.failed" : partial ? "agent_run.partial" : "agent_run.awaiting_verification",
       "task",
       taskId,
       {
         agent_id: agentId,
         run_id: runId,
         outcome,
-        verification_status: failed ? "not_applicable" : "awaiting_verification",
+        verification_status: failed ? "not_applicable" : partial ? "not_performed" : "awaiting_verification",
         tool_calls: Math.max(0, Math.floor(toolCalls)),
         execution_mode: toolCalls > 0 ? "tool_assisted" : "text_only",
         output_excerpt: output.slice(0, 1800)
