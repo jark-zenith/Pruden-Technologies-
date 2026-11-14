@@ -1,4 +1,5 @@
 import express from "express";
+import { executeServerDiagnostic } from "./server/server-terminal.mjs";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -28,6 +29,7 @@ const secret = process.env.COMMAND_ACCESS_SECRET || "";
 const cookieName = "pruden_command_session";
 const lifetime = 8 * 60 * 60 * 1000;
 const attempts = new Map();
+const terminalRequests = new Map();
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -108,6 +110,26 @@ app.use(express.static(dist, { index: false, maxAge: "1h" }));
 // Twilio callbacks must be reachable without the browser session; the module verifies Twilio signatures and per-call HMAC tokens.
 registerIvyTwilioWebhookRoutes(app);
 app.use("/api", (req, res, next) => isExternalFinancialWebhookPath(req.path) || isUnlocked(req) ? next() : res.status(401).json({ error: "Unlock PRUDEN Command to continue." }));
+app.post("/api/server-terminal/execute", async (req, res) => {
+  const origin = req.get("origin");
+  if (origin && origin !== `${req.protocol}://${req.get("host")}`) return res.status(403).json({ error: "Cross-origin terminal requests are not allowed." });
+  const ip = req.ip || "unknown";
+  const now = Date.now();
+  const recent = (terminalRequests.get(ip) || []).filter((time) => now - time < 60000);
+  if (recent.length >= 20) return res.status(429).json({ error: "Terminal rate limit reached. Wait one minute." });
+  recent.push(now); terminalRequests.set(ip, recent);
+  const command = typeof req.body?.command === "string" ? req.body.command : "";
+  try {
+    const result = await executeServerDiagnostic(command);
+    res.setHeader("Cache-Control", "no-store");
+    console.log(JSON.stringify({ event: "server_terminal_command", command: result.command, ip, at: new Date().toISOString() }));
+    return res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Command could not be executed.";
+    return res.status(400).json({ error: message });
+  }
+});
+
 app.use("/hq-simulation", (req, res, next) => {
   if (!isUnlocked(req)) return res.status(401).send("Unlock PRUDEN Command to view headquarters.");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");

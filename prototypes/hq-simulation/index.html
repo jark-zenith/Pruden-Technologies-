@@ -36,7 +36,9 @@ h2{margin:12px 0 6px;font:600 14px/1.2 Georgia,serif;color:var(--gold)}h2:first-
 #v3{width:100%;aspect-ratio:1000/640;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel);cursor:grab;touch-action:none}#v3[hidden],canvas[hidden]{display:none}#v3 canvas{display:block;border:0;border-radius:0;aspect-ratio:auto}
 @media (max-width:900px){main{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
-.live-pill{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--ok);border:1px solid currentColor;border-radius:999px;padding:6px 9px}.live-pill.offline{color:var(--gold)}.task-launch{display:flex;gap:6px;margin-top:10px}.task-command{min-width:0;flex:1;padding:9px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--text)}.task-run{padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--room);color:var(--text);cursor:pointer}.task-run:disabled{opacity:.6}.run-result{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:220px;overflow:auto}</style>
+.live-pill{font-size:10px;font-weight:800;letter-spacing:.08em;color:var(--ok);border:1px solid currentColor;border-radius:999px;padding:6px 9px}.live-pill.offline{color:var(--gold)}.task-launch{display:flex;gap:6px;margin-top:10px}.task-command{min-width:0;flex:1;padding:9px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--text)}.task-run{padding:9px 12px;border:1px solid var(--line);border-radius:7px;background:var(--room);color:var(--text);cursor:pointer}.task-run:disabled{opacity:.6}.run-result{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:220px;overflow:auto}
+#terminal-modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:14px}#terminal-modal[hidden]{display:none}.terminal-window{width:min(900px,100%);height:min(680px,92vh);display:flex;flex-direction:column;background:#07100f;border:1px solid #2c7869;border-radius:12px;box-shadow:0 24px 90px #000b;overflow:hidden;color:#d8f7e9;font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}.terminal-top{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#10221f;border-bottom:1px solid #28594f}.terminal-top strong{color:#8de0bd;letter-spacing:.06em}.terminal-top small{display:block;color:#8fa3a0}.terminal-body{flex:1;overflow:auto;padding:14px;white-space:pre-wrap;overflow-wrap:anywhere}.terminal-line{margin:0 0 8px}.terminal-prompt{color:#72d9aa}.terminal-output{color:#d4e8df}.terminal-error{color:#ff9d9d}.terminal-input-row{display:flex;gap:8px;padding:10px 14px;border-top:1px solid #28594f}.terminal-input-row label{color:#72d9aa;align-self:center}.terminal-input-row input{min-width:0;flex:1;background:#0b1916;border:1px solid #28594f;border-radius:6px;color:#e8fff3;padding:10px;font:inherit}.terminal-input-row button{background:#163d32;border-color:#347e68;color:#d8f7e9}.terminal-warning{padding:7px 14px;color:#a6bdb5;background:#0c1916;font:11px/1.4 system-ui,sans-serif;border-top:1px solid #1d3a33}
+</style>
 </head>
 <body>
 <header>
@@ -56,6 +58,8 @@ h2{margin:12px 0 6px;font:600 14px/1.2 Georgia,serif;color:var(--gold)}h2:first-
  </aside>
 </main>
 <div id='pop' hidden role='dialog' aria-modal='true' aria-labelledby='pt'><div class='pc'><button id='px'>Close</button><h3 id='pt'></h3><ul id='pl'></ul></div></div>
+
+<div id="terminal-modal" hidden role="dialog" aria-modal="true" aria-labelledby="terminal-title"><section class="terminal-window"><header class="terminal-top"><div><strong id="terminal-title">PRUDEN SERVER TERMINAL</strong><small>Connected target: PTMS application host · read-only diagnostics</small></div><button id="terminal-close" type="button">Close terminal</button></header><div id="terminal-output" class="terminal-body" aria-live="polite"><p class="terminal-line terminal-output">PTMS diagnostic console ready. Type help to list available commands.</p></div><form id="terminal-form" class="terminal-input-row"><label for="terminal-command">ptms $</label><input id="terminal-command" autocomplete="off" spellcheck="false" maxlength="40" aria-label="Terminal command"><button type="submit">Run</button></form><div class="terminal-warning">Restricted command runner. Commands execute on the PTMS server using a fixed allowlist; shell operators, scripts, file writes and arbitrary commands are disabled.</div></section></div>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
 <script>
 const $=s=>document.querySelector(s),W=1000,H=640;
@@ -104,7 +108,17 @@ function board(k,side){const L=[],tasks=LIVE.tasks||[],system=LIVE.system||{},fi
  else if(k==='rec'){L.push('Client intake and delivery activity is shown only when recorded in PTMS.');L.push('Open the Website Inbox module to review submissions.');}
  return{t:R[k].l+': live status board',L}}
 function renderPop(){const p=$('#pop');if(!POP){p.hidden=true;return}const b=board(POP.k,POP.s);p.hidden=false;$('#pt').textContent=b.t;const u=$('#pl');u.textContent='';b.L.forEach(x=>u.append(mk('li','',x)))}
-function openPop(k,s){POP={k,s};renderPop()}
+function openPop(k,s){if(k==='srv'&&s!=='r'){openTerminal();return}POP={k,s};renderPop()}
+
+const terminalModal=$('#terminal-modal'),terminalOutput=$('#terminal-output'),terminalInput=$('#terminal-command');
+const terminalCommands=['help','whoami','hostname','uptime','memory','disk','processes','node','os','date','pwd','clear'];
+function terminalWrite(text,kind='output'){const p=mk('p','terminal-line terminal-'+kind,text);terminalOutput.append(p);terminalOutput.scrollTop=terminalOutput.scrollHeight}
+function openTerminal(){terminalModal.hidden=false;terminalInput.focus()}
+function closeTerminal(){terminalModal.hidden=true}
+$('#terminal-close').addEventListener('click',closeTerminal);
+terminalModal.addEventListener('click',e=>{if(e.target===terminalModal)closeTerminal()});
+$('#terminal-form').addEventListener('submit',async e=>{e.preventDefault();const command=terminalInput.value.trim().toLowerCase();if(!command)return;terminalInput.value='';terminalWrite('ptms $ '+command,'prompt');if(command==='clear'){terminalOutput.textContent='';return}if(!terminalCommands.includes(command)){terminalWrite('Command not recognised. Type help for the supported diagnostics.','error');return}try{const response=await fetch('/api/server-terminal/execute',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({command})});const data=await response.json();if(!response.ok)throw new Error(data.error||'Terminal request failed.');terminalWrite(data.output||'(no output)');}catch(error){terminalWrite(error.message||'Unable to reach the PTMS server.','error')}});
+
 $('#px').onclick=()=>{POP=null;renderPop()};$('#pop').onclick=e=>{if(e.target.id==='pop'){POP=null;renderPop()}};addEventListener('keydown',e=>{if(e.key==='Escape'){POP=null;renderPop()}});
 
 function theme(){const s=getComputedStyle(document.documentElement);['bg','panel','text','muted','room','line','gold','red'].forEach(k=>T[k]=s.getPropertyValue('--'+k).trim())}
