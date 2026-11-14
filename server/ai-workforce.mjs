@@ -370,9 +370,10 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
     const result = await callClaude(promptFor(agent), (context ? "RECENT SHARED GROUP THREAD (context only):\n" + context + "\n\n" : "") + task, registry.globalControls.maxOutputTokens || 1200, availableToolNamesForAgent(agent.id), agent.id, options.deadlineAt);
     activeWorkforceRuns.delete(run.runId);
     const previous = workforceAgentActivity.get(agentId) || { runCount: 0 };
-    workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "response_ready", at: new Date().toISOString(), runCount: previous.runCount + 1 });
-    publishWorkforceRuntimeEvent("agent_response_ready", run, "response_ready");
-    console.log(JSON.stringify({ event: "workforce_run_response_ready", agentId, runId: run.runId, at: new Date().toISOString(), usage: result.usage }));
+    const responseOutcome = result.partial ? "partial_response" : "response_ready";
+    workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: responseOutcome, at: new Date().toISOString(), runCount: previous.runCount + 1 });
+    publishWorkforceRuntimeEvent(result.partial ? "agent_partial_response" : "agent_response_ready", run, responseOutcome);
+    console.log(JSON.stringify({ event: result.partial ? "workforce_run_partial_response" : "workforce_run_response_ready", agentId, runId: run.runId, responseKind: result.responseKind || "model_text", partial: result.partial === true, at: new Date().toISOString(), usage: result.usage }));
     return {
       ...createUnverifiedWorkforceResponseState(),
       runId: run.runId,
@@ -383,7 +384,9 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
       toolSummary: result.toolSummary || { attempted: result.toolCalls || 0, succeeded: 0, failed: 0, denied: 0 },
       partial: result.partial === true,
       responseKind: result.responseKind || "model_text",
-      providerStopReason: result.providerStopReason || null
+      providerStopReason: result.providerStopReason || null,
+      contentBlockTypes: result.contentBlockTypes || [],
+      executionStatus: result.partial ? "partial" : "response_ready"
     };
   } catch (error) {
     activeWorkforceRuns.delete(run.runId);
@@ -460,11 +463,12 @@ export function registerAIWorkforceRoutes(app) {
       ].join("\n\n"), "Recent shared group thread:\n" + sharedContext() + "\n\nRespond to the latest Founder message: " + message, Math.min(2200, (registry.globalControls.maxOutputTokens || 1200) * 2), availableToolNamesForAgent("group"), "group");
       activeWorkforceRuns.delete(groupRun.runId);
       const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };
-      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: "response_ready", at: new Date().toISOString(), runCount: previous.runCount + 1 });
-      publishWorkforceRuntimeEvent("group_response_ready", groupRun, "response_ready");
+      const groupOutcome = result.partial ? "partial_response" : "response_ready";
+      workforceAgentActivity.set("ivy", { taskSummary: groupRun.taskSummary, outcome: groupOutcome, at: new Date().toISOString(), runCount: previous.runCount + 1 });
+      publishWorkforceRuntimeEvent(result.partial ? "group_partial_response" : "group_response_ready", groupRun, groupOutcome);
       sharedThread.push({ role: "Workforce", name: "AI Workforce", content: result.output, at: new Date().toISOString() });
       if (sharedThread.length > MAX_SHARED_MESSAGES) sharedThread.splice(0, sharedThread.length - MAX_SHARED_MESSAGES);
-      console.log(JSON.stringify({ event: "workforce_group_run_response_ready", runId: groupRun.runId, at: new Date().toISOString(), usage: result.usage }));
+      console.log(JSON.stringify({ event: result.partial ? "workforce_group_run_partial_response" : "workforce_group_run_response_ready", runId: groupRun.runId, responseKind: result.responseKind || "model_text", partial: result.partial === true, at: new Date().toISOString(), usage: result.usage }));
       res.json({
         ...createUnverifiedWorkforceResponseState(),
         output: result.output,
@@ -475,7 +479,9 @@ export function registerAIWorkforceRoutes(app) {
         toolSummary: result.toolSummary || { attempted: result.toolCalls || 0, succeeded: 0, failed: 0, denied: 0 },
         partial: result.partial === true,
         responseKind: result.responseKind || "model_text",
-        providerStopReason: result.providerStopReason || null
+        providerStopReason: result.providerStopReason || null,
+        contentBlockTypes: result.contentBlockTypes || [],
+        executionStatus: result.partial ? "partial" : "response_ready"
       });
     } catch (error) {
       activeWorkforceRuns.delete(groupRun.runId);
