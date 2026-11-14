@@ -97,6 +97,80 @@ function promptFor(agent) {
     "Escalate sensitive data, costs, external commitments, access changes, and releases to the Founder via Ivy. Draft outreach only; never send."
   ].join("\n");
 }
+export function buildClaudeResponseResult({
+  response,
+  toolCalls = 0,
+  successfulToolCalls = 0,
+  failedToolCalls = 0,
+  deniedToolCalls = 0,
+  budgetStopReason = ""
+} = {}) {
+  const content = Array.isArray(response?.content) ? response.content : [];
+  const output = content
+    .filter(block => block?.type === "text" && typeof block.text === "string")
+    .map(block => block.text)
+    .join("\n")
+    .slice(0, 20000);
+  const providerStopReason = typeof response?.stop_reason === "string" ? response.stop_reason : null;
+  const contentBlockTypes = [...new Set(content.map(block => typeof block?.type === "string" ? block.type : "unknown"))];
+  const count = value => Number.isFinite(Number(value)) ? Math.max(0, Math.floor(Number(value))) : 0;
+  const toolSummary = {
+    attempted: count(toolCalls),
+    succeeded: count(successfulToolCalls),
+    failed: count(failedToolCalls),
+    denied: count(deniedToolCalls)
+  };
+  const metadata = {
+    usage: response?.usage || null,
+    toolCalls: toolSummary.attempted,
+    toolSummary,
+    providerStopReason,
+    contentBlockTypes
+  };
+
+  if (output.trim()) {
+    return {
+      ...metadata,
+      output: budgetStopReason ? output + "\n\nBudget note: " + budgetStopReason : output,
+      budgetStopReason,
+      partial: Boolean(budgetStopReason),
+      responseKind: budgetStopReason ? "budget_limited_text" : "model_text"
+    };
+  }
+
+  if (budgetStopReason) {
+    return {
+      ...metadata,
+      output: "Execution stopped at the configured budget boundary. Partial tool activity is summarized below; start a follow-up task to continue. " + budgetStopReason,
+      budgetStopReason,
+      partial: true,
+      responseKind: "budget_limited"
+    };
+  }
+
+  if (toolSummary.attempted + toolSummary.denied > 0) {
+    const outcome = toolSummary.succeeded > 0
+      ? `${toolSummary.succeeded} authorized tool call(s) succeeded`
+      : toolSummary.failed > 0
+        ? `${toolSummary.failed} authorized tool call(s) failed`
+        : "No authorized tool call succeeded";
+    const denied = toolSummary.denied > 0 ? `; ${toolSummary.denied} tool call(s) were denied by server policy or deadline` : "";
+    return {
+      ...metadata,
+      output: `${outcome}${denied}, but Anthropic returned no final text (stop reason: ${providerStopReason || "not provided"}). This is a partial execution result; no mission was created or independently verified. Continue with a follow-up request.`,
+      budgetStopReason: "",
+      partial: true,
+      responseKind: "tool_only_without_final_text"
+    };
+  }
+
+  throw Object.assign(new Error("Claude returned no text output and no tool execution result."), {
+    statusCode: 502,
+    providerStopReason,
+    contentBlockTypes
+  });
+}
+
 async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200, allowedToolNames = new Set(), agentId = "group", parentDeadlineAt = null) {
   const key = process.env.ANTHROPIC_API_KEY;
   const messages = [{ role: "user", content: task }];
@@ -124,6 +198,9 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
   }
   let lastData = null;
   let toolCalls = 0;
+  let successfulToolCalls = 0;
+  let failedToolCalls = 0;
+  let deniedToolCalls = 0;
   const budget = agentId === "group" ? GROUP_RUNTIME_BUDGET : SPECIALIST_RUNTIME_BUDGET;
   const startedAt = Date.now();
   const absoluteDeadline = Math.min(startedAt + budget.maxExecutionMsPerRequest, Number.isFinite(parentDeadlineAt) ? parentDeadlineAt : Number.POSITIVE_INFINITY);
@@ -165,28 +242,48 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     for (const call of calls) {
       if (Date.now() >= absoluteDeadline) {
         budgetStopReason = "The execution deadline was reached; remaining tools were not executed.";
+        deniedToolCalls += 1;
         results.push({ type: "tool_result", tool_use_id: call.id, content: "Denied: task execution deadline reached. Stop and report partial findings." });
         continue;
       }
       if (!allowedToolNames.has(call.name) || !tools.some(tool => tool.name === call.name) || toolCalls >= budget.maxToolCallsPerRun) {
+        deniedToolCalls += 1;
         results.push({ type: "tool_result", tool_use_id: call.id, content: "Tool denied: it is not enabled for this agent or the four-call per-agent limit was reached. Server-side permissions remain enforced." });
         continue;
       }
       toolCalls += 1;
       try {
         const result = call.name.startsWith("research_") ? await executeResearchTool(call.name, call.input || {}) : await executeIvyGitHubTool(call.name, call.input || {});
+        successfulToolCalls += 1;
         console.log(JSON.stringify({ event: "workforce_tool_completed", tool: call.name, agentId, at: new Date().toISOString() }));
         results.push({ type: "tool_result", tool_use_id: call.id, content: JSON.stringify(result).slice(0, 12000) });
       } catch (error) {
+        failedToolCalls += 1;
         results.push({ type: "tool_result", tool_use_id: call.id, content: (call.name.startsWith("research_") ? "Research tool failed: " : "GitHub tool failed: ") + String(error?.message || error).slice(0, 300) });
       }
     }
     messages.push({ role: "user", content: results });
   }
-  const output = Array.isArray(lastData?.content) ? lastData.content.filter(p => p.type === "text").map(p => p.text).join("\n").slice(0, 20000) : "";
-  if (!output && budgetStopReason) return { output: "Execution stopped at the configured budget boundary. Partial tool results may be available; start a follow-up task to continue. " + budgetStopReason, usage: lastData?.usage || null, toolCalls, budgetStopReason };
-  if (!output) throw Object.assign(new Error("Claude returned no text output."), { statusCode: 502 });
-  return { output: budgetStopReason ? output + "\n\nBudget note: " + budgetStopReason : output, usage: lastData?.usage || null, toolCalls, budgetStopReason };
+  const result = buildClaudeResponseResult({
+    response: lastData,
+    toolCalls,
+    successfulToolCalls,
+    failedToolCalls,
+    deniedToolCalls,
+    budgetStopReason
+  });
+  if (result.responseKind !== "model_text") {
+    console.warn(JSON.stringify({
+      event: "anthropic_response_partial",
+      agentId,
+      responseKind: result.responseKind,
+      providerStopReason: result.providerStopReason,
+      contentBlockTypes: result.contentBlockTypes,
+      toolSummary: result.toolSummary,
+      at: new Date().toISOString()
+    }));
+  }
+  return result;
 }
 function sharedContext() { return sharedThread.slice(-MAX_SHARED_MESSAGES).map(m => `[${m.role}] ${m.name}: ${m.content}`).join("\n"); }
 
@@ -276,7 +373,18 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
     workforceAgentActivity.set(agentId, { taskSummary: run.taskSummary, outcome: "response_ready", at: new Date().toISOString(), runCount: previous.runCount + 1 });
     publishWorkforceRuntimeEvent("agent_response_ready", run, "response_ready");
     console.log(JSON.stringify({ event: "workforce_run_response_ready", agentId, runId: run.runId, at: new Date().toISOString(), usage: result.usage }));
-    return { ...createUnverifiedWorkforceResponseState(), runId: run.runId, agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department }, output: result.output, usage: result.usage, toolCalls: result.toolCalls || 0 };
+    return {
+      ...createUnverifiedWorkforceResponseState(),
+      runId: run.runId,
+      agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department },
+      output: result.output,
+      usage: result.usage,
+      toolCalls: result.toolCalls || 0,
+      toolSummary: result.toolSummary || { attempted: result.toolCalls || 0, succeeded: 0, failed: 0, denied: 0 },
+      partial: result.partial === true,
+      responseKind: result.responseKind || "model_text",
+      providerStopReason: result.providerStopReason || null
+    };
   } catch (error) {
     activeWorkforceRuns.delete(run.runId);
     const previous = workforceAgentActivity.get(agentId) || { runCount: 0 };
@@ -357,7 +465,18 @@ export function registerAIWorkforceRoutes(app) {
       sharedThread.push({ role: "Workforce", name: "AI Workforce", content: result.output, at: new Date().toISOString() });
       if (sharedThread.length > MAX_SHARED_MESSAGES) sharedThread.splice(0, sharedThread.length - MAX_SHARED_MESSAGES);
       console.log(JSON.stringify({ event: "workforce_group_run_response_ready", runId: groupRun.runId, at: new Date().toISOString(), usage: result.usage }));
-      res.json({ ...createUnverifiedWorkforceResponseState(), output: result.output, messages: sharedThread.slice(-MAX_SHARED_MESSAGES), persistent: false, usage: result.usage });
+      res.json({
+        ...createUnverifiedWorkforceResponseState(),
+        output: result.output,
+        messages: sharedThread.slice(-MAX_SHARED_MESSAGES),
+        persistent: false,
+        usage: result.usage,
+        toolCalls: result.toolCalls || 0,
+        toolSummary: result.toolSummary || { attempted: result.toolCalls || 0, succeeded: 0, failed: 0, denied: 0 },
+        partial: result.partial === true,
+        responseKind: result.responseKind || "model_text",
+        providerStopReason: result.providerStopReason || null
+      });
     } catch (error) {
       activeWorkforceRuns.delete(groupRun.runId);
       const previous = workforceAgentActivity.get("ivy") || { runCount: 0 };
