@@ -162,7 +162,7 @@ export default function App({ user, onSignOut }: { user: User; onSignOut: () => 
           id: t.id, title: t.title, project: t.project_id ? (projectNames.get(t.project_id) || "Project") : "PRUDEN Command",
           priority: t.priority.charAt(0).toUpperCase() + t.priority.slice(1),
           owner: t.assigned_to || "Unassigned",
-          state: t.status === "completed" ? "Completed" : t.status === "in_progress" ? "In progress" : t.status === "blocked" ? "Blocked" : t.status === "cancelled" ? "Cancelled" : "Planned",
+          state: t.status === "awaiting_verification" ? "Awaiting verification" : t.status === "completed" ? "Completed" : t.status === "in_progress" ? "In progress" : t.status === "blocked" ? "Blocked" : t.status === "cancelled" ? "Cancelled" : "Planned",
         })));
         setApprovals(approvalRows.map((a) => ({
           id: a.id, title: a.summary, detail: a.action_type.replace(/[._-]/g, " "), risk: a.risk_level,

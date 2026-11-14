@@ -1,7 +1,7 @@
 import type { User } from "@supabase/supabase-js";
 import { requireSupabase } from "./supabase";
 export type ProjectStatus = "planned" | "active" | "blocked" | "completed" | "archived";
-export type TaskStatus = "planned" | "in_progress" | "blocked" | "completed" | "cancelled";
+export type TaskStatus = "planned" | "in_progress" | "awaiting_verification" | "blocked" | "completed" | "cancelled";
 export type Priority = "low" | "medium" | "high" | "critical";
 export type Project = { id:string; owner_id:string; name:string; description:string; status:ProjectStatus; priority:Priority; due_date:string|null; created_at:string; updated_at:string };
 export type Task = { id:string; owner_id:string; project_id:string|null; title:string; description:string; status:TaskStatus; priority:Priority; assigned_to:string; due_date:string|null; created_at:string; updated_at:string };
@@ -27,9 +27,25 @@ export async function setWorkforceTaskStatus(user: User, id: string, status: Tas
   try { await writeAudit(user, "task.status_changed", "task", id, { status, source: "hq_workforce" }); } catch { auditRecorded = false; }
   return { task: data as Task, auditRecorded };
 }
-export async function recordTaskAgentRun(user: User, taskId: string, agentId: string, runId: string | null, outcome: "completed" | "failed", toolCalls: number, output: string) {
+export async function recordTaskAgentRun(user: User, taskId: string, agentId: string, runId: string | null, outcome: "awaiting_verification" | "failed", toolCalls: number, output: string) {
   try {
-    await writeAudit(user, outcome === "completed" ? "agent_run.completed" : "agent_run.failed", "task", taskId, { agent_id: agentId, run_id: runId, outcome, tool_calls: Math.max(0, Math.floor(toolCalls)), execution_mode: toolCalls > 0 ? "tool_assisted" : "text_only", output_excerpt: output.slice(0, 1800) });
+    const failed = outcome === "failed";
+    await writeAudit(
+      user,
+      failed ? "agent_run.failed" : "agent_run.awaiting_verification",
+      "task",
+      taskId,
+      {
+        agent_id: agentId,
+        run_id: runId,
+        outcome,
+        verification_status: failed ? "not_applicable" : "awaiting_verification",
+        tool_calls: Math.max(0, Math.floor(toolCalls)),
+        execution_mode: toolCalls > 0 ? "tool_assisted" : "text_only",
+        output_excerpt: output.slice(0, 1800)
+      },
+      failed ? "failure" : "blocked"
+    );
     return true;
   } catch { return false; }
 }
@@ -44,4 +60,4 @@ export async function deleteTask(user: User,id:string) {
  await writeAudit(user,"task.deleted","task",id);
 }
 export async function listApprovals(user: User) { const {data,error}=await requireSupabase().from("pruden_approvals").select("*").eq("owner_id",ownerId(user)).order("created_at",{ascending:false}); if(error) throw error; return data??[]; }
-async function writeAudit(user:User,action:string,entityType:string,entityId:string,details:Record<string,unknown>={}) { const {error}=await requireSupabase().from("pruden_audit_events").insert({owner_id:ownerId(user),actor_id:user.id,action,entity_type:entityType,entity_id:entityId,details}); if(error) throw error; }
+async function writeAudit(user:User,action:string,entityType:string,entityId:string,details:Record<string,unknown>={},outcome:"success"|"failure"|"blocked"="success") { const {error}=await requireSupabase().from("pruden_audit_events").insert({owner_id:ownerId(user),actor_id:user.id,action,entity_type:entityType,entity_id:entityId,outcome,details}); if(error) throw error; }

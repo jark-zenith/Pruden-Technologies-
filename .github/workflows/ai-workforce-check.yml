@@ -26,6 +26,7 @@ jobs:
         run: |
           node --check server.mjs
           node --check server/ai-workforce.mjs
+          node --check server/ivy-operations.mjs
           node --check server/ivy-github.mjs
           node --check server/ivy-capabilities.mjs
           node --check server/ivy-memory.mjs

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { allowedGitHubToolNames, availableToolNamesForAgent } from "./ai-workforce.mjs";
+import { readFile } from "node:fs/promises";
+import { allowedGitHubToolNames, availableToolNamesForAgent, createUnverifiedWorkforceResponseState } from "./ai-workforce.mjs";
 
 const readOnlyControls = { toolsEnabled: true, externalActionsEnabled: false };
 const writeEnabledControls = { toolsEnabled: true, externalActionsEnabled: true };
@@ -121,5 +122,30 @@ test("the global tools switch still disables research even when Tavily is config
   for (const agentId of ["atlas", "nova"]) {
     const tools = availableToolNamesForAgent(agentId, { toolsEnabled: false, externalActionsEnabled: false }, true);
     assert.equal(tools.size, 0, agentId);
+  }
+});
+
+test("a model response is not represented as a completed or verified mission", () => {
+  assert.deepEqual(createUnverifiedWorkforceResponseState(), {
+    status: "response_ready",
+    completionKind: "agent_response_only",
+    missionStatus: "not_created",
+    verificationStatus: "not_performed"
+  });
+});
+
+const taskStatusMigration = await readFile(
+  new URL("../supabase/migrations/20261113204800_allow_awaiting_verification_task_status.sql", import.meta.url),
+  "utf8"
+);
+
+test("task status migration preserves existing states and adds awaiting_verification", () => {
+  assert.match(taskStatusMigration, /drop constraint if exists pruden_tasks_status_check/i);
+  assert.match(taskStatusMigration, /add constraint pruden_tasks_status_check/i);
+  for (const status of ["planned", "in_progress", "blocked", "completed", "cancelled", "awaiting_verification"]) {
+    assert.ok(taskStatusMigration.includes("'" + status + "'"), "missing task status: " + status);
+  }
+  for (const forbidden of ["drop table", "delete from", "truncate"]) {
+    assert.equal(taskStatusMigration.toLowerCase().includes(forbidden), false, "unexpected destructive statement: " + forbidden);
   }
 });
