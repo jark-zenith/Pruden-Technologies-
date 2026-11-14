@@ -128,13 +128,25 @@ export function buildClaudeResponseResult({
     contentBlockTypes
   };
 
+  const providerTruncated = providerStopReason === "max_tokens";
+
   if (output.trim()) {
+    const partial = Boolean(budgetStopReason || providerTruncated);
+    const partialNote = budgetStopReason
+      ? "\n\nBudget note: " + budgetStopReason
+      : providerTruncated
+        ? "\n\nPartial response note: Anthropic stopped at max_tokens; the response may be incomplete."
+        : "";
     return {
       ...metadata,
-      output: budgetStopReason ? output + "\n\nBudget note: " + budgetStopReason : output,
+      output: output + partialNote,
       budgetStopReason,
-      partial: Boolean(budgetStopReason),
-      responseKind: budgetStopReason ? "budget_limited_text" : "model_text"
+      partial,
+      responseKind: budgetStopReason
+        ? "budget_limited_text"
+        : providerTruncated
+          ? "provider_truncated_text"
+          : "model_text"
     };
   }
 
@@ -145,6 +157,16 @@ export function buildClaudeResponseResult({
       budgetStopReason,
       partial: true,
       responseKind: "budget_limited"
+    };
+  }
+
+  if (providerTruncated) {
+    return {
+      ...metadata,
+      output: "Anthropic stopped at the max_tokens output limit without returning final text. This is a partial execution result; no mission was created or independently verified. Continue with a follow-up request.",
+      budgetStopReason: "",
+      partial: true,
+      responseKind: "provider_truncated"
     };
   }
 

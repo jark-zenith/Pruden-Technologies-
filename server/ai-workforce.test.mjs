@@ -167,6 +167,24 @@ test("Anthropic text responses remain normal unverified model responses", () => 
   assert.deepEqual(result.toolSummary, { attempted: 0, succeeded: 0, failed: 0, denied: 0 });
 });
 
+test("provider-truncated Anthropic text responses are marked partial", () => {
+  const result = buildClaudeResponseResult({
+    response: { stop_reason: "max_tokens", content: [{ type: "text", text: "Incomplete answer" }] }
+  });
+  assert.equal(result.partial, true);
+  assert.equal(result.responseKind, "provider_truncated_text");
+  assert.match(result.output, /Anthropic stopped at max_tokens/);
+});
+
+test("empty provider-truncated responses are partial instead of generic provider failures", () => {
+  const result = buildClaudeResponseResult({
+    response: { stop_reason: "max_tokens", content: [] }
+  });
+  assert.equal(result.partial, true);
+  assert.equal(result.responseKind, "provider_truncated");
+  assert.match(result.output, /no mission was created or independently verified/i);
+});
+
 test("tool-only Anthropic responses return partial status instead of a false provider failure", () => {
   const result = buildClaudeResponseResult({
     response: { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tool-1", name: "research_search_web", input: { query: "private query must not be echoed" } }] },
