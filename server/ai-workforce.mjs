@@ -171,6 +171,10 @@ export function buildClaudeResponseResult({
   });
 }
 
+export function countToolCallsSkippedByDeadline(calls) {
+  return Array.isArray(calls) ? calls.length : 0;
+}
+
 async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200, allowedToolNames = new Set(), agentId = "group", parentDeadlineAt = null) {
   const key = process.env.ANTHROPIC_API_KEY;
   const messages = [{ role: "user", content: task }];
@@ -234,6 +238,7 @@ async function callClaude(system, task, maxTokens = registry.globalControls.maxO
     const calls = (data.content || []).filter(p => p.type === "tool_use");
     if (Date.now() >= absoluteDeadline) {
       budgetStopReason = "The execution deadline was reached before additional tools could run.";
+      deniedToolCalls += countToolCallsSkippedByDeadline(calls);
       break;
     }
     if (!calls.length) break;
@@ -357,6 +362,14 @@ export function createUnverifiedWorkforceResponseState() {
     verificationStatus: "not_performed"
   };
 }
+export function createWorkforceExecutionResponseState(partial = false) {
+  return {
+    ...createUnverifiedWorkforceResponseState(),
+    status: partial ? "partial" : "response_ready",
+    executionStatus: partial ? "partial" : "response_ready",
+    partial: partial === true
+  };
+}
 export async function runAIWorkforceAgent(agentId, task, options = {}) {
   const agent = agentById.get(agentId);
   if (!agent) throw Object.assign(new Error("Unknown agent."), { statusCode: 404 });
@@ -375,18 +388,16 @@ export async function runAIWorkforceAgent(agentId, task, options = {}) {
     publishWorkforceRuntimeEvent(result.partial ? "agent_partial_response" : "agent_response_ready", run, responseOutcome);
     console.log(JSON.stringify({ event: result.partial ? "workforce_run_partial_response" : "workforce_run_response_ready", agentId, runId: run.runId, responseKind: result.responseKind || "model_text", partial: result.partial === true, at: new Date().toISOString(), usage: result.usage }));
     return {
-      ...createUnverifiedWorkforceResponseState(),
+      ...createWorkforceExecutionResponseState(result.partial === true),
       runId: run.runId,
       agent: { id: agent.id, name: agent.name, title: agent.title, department: agent.department },
       output: result.output,
       usage: result.usage,
       toolCalls: result.toolCalls || 0,
       toolSummary: result.toolSummary || { attempted: result.toolCalls || 0, succeeded: 0, failed: 0, denied: 0 },
-      partial: result.partial === true,
       responseKind: result.responseKind || "model_text",
       providerStopReason: result.providerStopReason || null,
-      contentBlockTypes: result.contentBlockTypes || [],
-      executionStatus: result.partial ? "partial" : "response_ready"
+      contentBlockTypes: result.contentBlockTypes || []
     };
   } catch (error) {
     activeWorkforceRuns.delete(run.runId);
@@ -470,18 +481,16 @@ export function registerAIWorkforceRoutes(app) {
       if (sharedThread.length > MAX_SHARED_MESSAGES) sharedThread.splice(0, sharedThread.length - MAX_SHARED_MESSAGES);
       console.log(JSON.stringify({ event: result.partial ? "workforce_group_run_partial_response" : "workforce_group_run_response_ready", runId: groupRun.runId, responseKind: result.responseKind || "model_text", partial: result.partial === true, at: new Date().toISOString(), usage: result.usage }));
       res.json({
-        ...createUnverifiedWorkforceResponseState(),
+        ...createWorkforceExecutionResponseState(result.partial === true),
         output: result.output,
         messages: sharedThread.slice(-MAX_SHARED_MESSAGES),
         persistent: false,
         usage: result.usage,
         toolCalls: result.toolCalls || 0,
         toolSummary: result.toolSummary || { attempted: result.toolCalls || 0, succeeded: 0, failed: 0, denied: 0 },
-        partial: result.partial === true,
         responseKind: result.responseKind || "model_text",
         providerStopReason: result.providerStopReason || null,
-        contentBlockTypes: result.contentBlockTypes || [],
-        executionStatus: result.partial ? "partial" : "response_ready"
+        contentBlockTypes: result.contentBlockTypes || []
       });
     } catch (error) {
       activeWorkforceRuns.delete(groupRun.runId);
