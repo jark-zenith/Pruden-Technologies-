@@ -162,6 +162,7 @@ test("tool-only Anthropic responses return partial status instead of a false pro
 test("tool-only responses preserve denied and failed tool counts without claiming success", () => {
   const result = buildClaudeResponseResult({
     response: { stop_reason: "tool_use", content: [{ type: "tool_use", id: "tool-2", name: "github_create_pull_request", input: {} }] },
+    toolCalls: 1,
     failedToolCalls: 1,
     deniedToolCalls: 1
   });
