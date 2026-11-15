@@ -176,10 +176,21 @@ export default function HeadquartersPage({ user, tasks, projects = [], approvals
       const started = await setWorkforceTaskStatus(user, taskId, "in_progress");
       auditWarning ||= !started.auditRecorded;
       const response = await fetch("/api/workforce/run", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ agentId, task: request }) });
-      const data = await response.json().catch(() => ({})) as { status?: string; completionKind?: string; missionStatus?: string; verificationStatus?: string; output?: string; error?: string; runId?: string; toolCalls?: number };
+      const data = await response.json().catch(() => ({})) as { status?: string; completionKind?: string; missionStatus?: string; verificationStatus?: string; output?: string; error?: string; runId?: string; toolCalls?: number; partial?: boolean; executionStatus?: string; responseKind?: string };
       runId = data.runId || null;
       toolCalls = Number.isFinite(data.toolCalls) ? Number(data.toolCalls) : 0;
       if (!response.ok) throw new Error(data.error || "The agent run did not complete.");
+      if (data.status === "partial" || data.executionStatus === "partial" || data.partial === true) {
+        if (data.completionKind !== "agent_response_only" || data.missionStatus !== "not_created" || data.verificationStatus !== "not_performed" || !runId) {
+          throw new Error("The partial agent response did not include the required unverified execution envelope. The task is blocked for review.");
+        }
+        const output = data.output || "The agent run returned a partial execution result.";
+        const blocked = await setWorkforceTaskStatus(user, taskId, "blocked");
+        auditWarning ||= !blocked.auditRecorded;
+        auditWarning ||= !(await recordTaskAgentRun(user, taskId, agentId, runId, "partial", toolCalls, output));
+        sendToFrame("PTMS_AGENT_RESULT", { success: false, output: output + "\n\nRun " + runId + " · partial execution · task blocked for review · no mission completion or independent verification was recorded." + (auditWarning ? "\nAudit note: the task is blocked, but one or more activity audit writes could not be saved." : "") });
+        return;
+      }
       if (data.status !== "response_ready" || data.completionKind !== "agent_response_only" || data.missionStatus !== "not_created" || data.verificationStatus !== "not_performed" || !runId) {
         throw new Error("The agent response was not explicitly marked as unverified. The task is blocked for review.");
       }

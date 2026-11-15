@@ -78,3 +78,14 @@ The contract does not store raw provider responses, secrets, credentials, custom
 7. Update Mission Control only after persistence and execution APIs are tested.
 
 No production data, settings, secrets, applied migrations, permissions, or deployments are changed by this feature-branch change. A new, unapplied migration file is included for review.
+
+## Provider tool activity without final text
+
+The Anthropic adapter now distinguishes a tool-only response from an empty provider failure:
+
+- If authorized tool calls were attempted but the final response contains no text block, the runtime returns a partial response instead of converting the entire run into a generic HTTP 502.
+- The response includes aggregate attempted/succeeded/failed/denied counts, the provider stop reason, and content-block type names. Tool arguments and raw tool results are not copied into this diagnostic summary.
+- A budget-limited response remains explicitly partial. An Anthropic `stop_reason: "max_tokens"` also marks text and empty responses as partial, because provider output may be truncated before a complete response. An empty response with neither text nor tool activity and no truncation signal remains a provider failure.
+- A normal final-text response uses the `response_ready` envelope with `missionStatus: "not_created"` and `verificationStatus: "not_performed"`.
+- A tool-only or budget-limited response uses `status: "partial"` and `executionStatus: "partial"` with the same not-created/not-performed mission fields. Home HQ saves its task as `blocked` and records `agent_run.partial` with audit outcome `blocked` and `verification_status: "not_performed"`; it does not move the task to `awaiting_verification`.
+- Partial tool activity is not a mission completion and is not durable evidence; the dedicated mission/run ledger and independent Sentinel verification remain outstanding.
