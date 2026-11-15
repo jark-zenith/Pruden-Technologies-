@@ -29,5 +29,9 @@ jobs:
         run: node --test server/project-intelligence-bridge.test.mjs
       - name: Atlas web research tool tests
         run: node --test server/research-web.test.mjs
+      - name: Read-only migration history audit tests
+        run: |
+          node --check scripts/migration-history-audit.mjs
+          node --test scripts/migration-history-audit.test.mjs
       - name: Backend infrastructure smoke test
         run: node scripts/smoke-test.mjs
