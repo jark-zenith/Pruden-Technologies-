@@ -124,7 +124,7 @@ export function reconcileMigrationHistory({ repositoryFiles, appliedMigrations }
       repositorySqlFileCount: sqlFiles.length,
       validRepositoryMigrationCount: validRepository.length,
       appliedMigrationCount: normalizedApplied.length,
-      sharedVersionCount: validRepository.filter((entry) => appliedByVersion.has(entry.version)).length,
+      sharedVersionCount: new Set(validRepository.filter((entry) => appliedByVersion.has(entry.version)).map((entry) => entry.version)).size,
       repositoryOnlyCount: repositoryOnly.length,
       databaseOnlyCount: databaseOnly.length,
       nameMismatchCount: nameMismatches.length,
