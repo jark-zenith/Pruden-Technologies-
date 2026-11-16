@@ -50,6 +50,7 @@ test("reports duplicate versions and invalid SQL filenames", () => {
   });
   assert.equal(report.summary.duplicateRepositoryVersionCount, 1);
   assert.equal(report.summary.duplicateAppliedVersionCount, 1);
+  assert.equal(report.summary.sharedVersionCount, 1);
   assert.equal(report.summary.invalidRepositoryFilenameCount, 1);
   assert.equal(report.status, "review_required");
 });
