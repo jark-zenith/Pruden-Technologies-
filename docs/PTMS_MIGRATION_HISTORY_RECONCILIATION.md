@@ -94,7 +94,12 @@ The 12 same-name/different-version candidates above were compared read-only agai
 - The only token-level difference is `pruden_social_monitoring` (repository version `20261023093000`, applied version `20261023092001`). The repository RLS `WITH CHECK` expression calls `auth.uid()` directly for the owner checks; the applied statement wraps those calls as `(select auth.uid())`. The ownership predicates remain equivalent. This is consistent with the Supabase RLS scalar-subselect optimization, but it remains a recorded source difference rather than permission to overwrite either version.
 - The other nine pairs match after the same normalization.
 
-This comparison does not establish full schema equivalence, and it does not resolve the 15 repository-only or 20 database-only version entries. No SQL, migration-history record, production schema, or production data was changed. Do not repair or rewrite migration history automatically.
+After accounting for the 12 same-name/version-drift pairs, the remaining unpaired entries are:
+
+- **Repository-only (3):** `phase_two_company_operations` (`20261017000100`), `ivy_persistent_memory` (`20261024190000`), and `allow_awaiting_verification_task_status` (`20261113204800`).
+- **Database-only (8):** `pruden_management_backend` (`20261018173306`), `pruden_command_projects` (`20261018181414`), `pruden_command_tasks_table` (`20261018181521`), `pruden_tasks_owner_policy` (`20261018181637`), `pruden_customers_table` (`20261018181724`), `create_central_website_inbox` (`20261019135223`), `moviemax_catalogue` (`20261019195809`), and `restrict_ivy_website_notification_trigger` (`20261107080223`).
+
+The SQL comparison does not establish full schema equivalence for these unpaired entries. No SQL, migration-history record, production schema, or production data was changed. Do not repair or rewrite migration history automatically.
 
 ## Read-only audit utility
 
