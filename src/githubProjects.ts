@@ -29,17 +29,17 @@ export const githubProjects: GitHubProject[] = [
     "visibility": "public",
     "archived": false,
     "defaultBranch": "main",
-    "deploymentUrl": "https://arc-africa-recruitment.onrender.com",
-    "deploymentName": "arc-africa-recruitment",
+    "deploymentUrl": "https://arc-africa.onrender.com",
+    "deploymentName": "arc-africa",
     "deploymentType": "static_site",
     "deploymentBranch": "main",
     "deploymentServices": [
       {
-        "name": "arc-africa-recruitment",
-        "url": "https://arc-africa-recruitment.onrender.com",
+        "name": "arc-africa",
+        "url": "https://arc-africa.onrender.com",
         "type": "static_site",
         "branch": "main",
-        "serviceId": "srv-dbai28nbtjjs73f8de30",
+        "serviceId": "srv-dbtcu06k1f9s73c6snn0",
         "suspended": "not_suspended"
       }
     ]
