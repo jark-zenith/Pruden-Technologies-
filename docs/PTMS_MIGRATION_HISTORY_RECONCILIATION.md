@@ -85,6 +85,17 @@ The following names occur in both sources but under different version keys. They
 | lock_financial_account_connection_state | 20261031200000 | 20261031173456 |
 | ivy_website_inbox_notifications | 20261031210000 | 20261031195951 |
 
+## SQL content comparison (16 November 2026)
+
+The 12 same-name/different-version candidates above were compared read-only against the SQL statements returned for the corresponding applied versions in the exact `Pruden Technologies` project. Comparison normalized CRLF line endings, removed full-line `--` comments, and collapsed whitespace; it did not rewrite SQL tokens.
+
+- **11 of 12 pairs match** after that normalization.
+- `project_operations_center` and `project_operations_fk_indexes` differ in raw text only because the applied statements omit repository comments and blank lines; normalized SQL matches.
+- The only token-level difference is `pruden_social_monitoring` (repository version `20261023093000`, applied version `20261023092001`). The repository RLS `WITH CHECK` expression calls `auth.uid()` directly for the owner checks; the applied statement wraps those calls as `(select auth.uid())`. The ownership predicates remain equivalent. This is consistent with the Supabase RLS scalar-subselect optimization, but it remains a recorded source difference rather than permission to overwrite either version.
+- The other nine pairs match after the same normalization.
+
+This comparison does not establish full schema equivalence, and it does not resolve the 15 repository-only or 20 database-only version entries. No SQL, migration-history record, production schema, or production data was changed. Do not repair or rewrite migration history automatically.
+
 ## Read-only audit utility
 
 The script at scripts/migration-history-audit.mjs compares repository filenames with a JSON export of applied migration history. The input can be either an array of migration objects or an object containing a migrations array.
