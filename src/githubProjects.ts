@@ -95,6 +95,27 @@ export const githubProjects: GitHubProject[] = [
     ]
   },
   {
+    "name": "teravex-website",
+    "repoUrl": "https://github.com/jark-zenith/teravex-website",
+    "visibility": "public",
+    "archived": false,
+    "defaultBranch": "main",
+    "deploymentUrl": "https://teravex.onrender.com",
+    "deploymentName": "teravex",
+    "deploymentType": "static_site",
+    "deploymentBranch": "main",
+    "deploymentServices": [
+      {
+        "name": "teravex",
+        "url": "https://teravex.onrender.com",
+        "type": "static_site",
+        "branch": "main",
+        "serviceId": "srv-dbu72ug8v5cc73c4cjsg",
+        "suspended": "not_suspended"
+      }
+    ]
+  },
+  {
     "name": "Atlas-CRM",
     "repoUrl": "https://github.com/jark-zenith/Atlas-CRM",
     "visibility": "public",
@@ -409,18 +430,6 @@ export const githubProjects: GitHubProject[] = [
   {
     "name": "teravex-ai",
     "repoUrl": "https://github.com/jark-zenith/teravex-ai",
-    "visibility": "public",
-    "archived": false,
-    "defaultBranch": "main",
-    "deploymentUrl": null,
-    "deploymentName": null,
-    "deploymentType": null,
-    "deploymentBranch": null,
-    "deploymentServices": []
-  },
-  {
-    "name": "teravex-website",
-    "repoUrl": "https://github.com/jark-zenith/teravex-website",
     "visibility": "public",
     "archived": false,
     "defaultBranch": "main",
