@@ -11,6 +11,14 @@ export function ivyCapabilityStatus() {
     workspaceDatabase: { status: supabaseConfigured ? "configured_unverified" : "not_connected", scope: "signed-in founder's row-level-security-protected workspace tables" },
     email: { status: gmailConfigured ? "configured_unverified" : "setup_required", provider: "Gmail OAuth", note: "Gmail has a separate connection/status panel; confirm its connected status before use." },
     github: githubCapabilityStatus(),
+    composio: {
+      status: "not_implemented",
+      provider: "Composio",
+      serverSideAdapterInstalled: false,
+      toolExecutionEnabled: false,
+      ptmsOwnedConnectionRequired: true,
+      note: "ChatGPT-side Composio connections are not inherited by PTMS. No server-side Composio adapter is installed; PTMS requires its own API key and authorized connection context before agents can execute Composio tools."
+    },
     whatsapp: { ...ivyTwilioCapabilityStatus().whatsapp, writeToolsEnabled: false },
     ownerContact: {
       email: process.env.IVY_OWNER_EMAIL || null,
