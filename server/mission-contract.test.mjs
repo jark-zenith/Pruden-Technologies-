@@ -255,3 +255,52 @@ test("verified completion must pass every acceptance criterion and cite stored e
     ]
   }), /must reference evidence stored/);
 });
+
+test("subtask dependencies accept an acyclic graph within the assigned-agent scope", () => {
+  const mission = makeMission({
+    subtasks: [
+      { subtaskId: "research", title: "Collect original sources", assignedAgentId: "atlas" },
+      { subtaskId: "verify", title: "Verify source evidence", assignedAgentId: "sentinel", dependsOn: ["research"] }
+    ]
+  });
+  assert.deepEqual(mission.subtasks.map(item => item.subtaskId), ["research", "verify"]);
+  assert.deepEqual(mission.subtasks[1].dependsOn, ["research"]);
+});
+
+test("subtask dependencies reject duplicate IDs and unknown references", () => {
+  assert.throws(() => makeMission({
+    subtasks: [
+      { subtaskId: "research", title: "First task" },
+      { subtaskId: "research", title: "Duplicate task" }
+    ]
+  }), /subtaskId must be unique/);
+
+  assert.throws(() => makeMission({
+    subtasks: [
+      { subtaskId: "verify", title: "Verify evidence", dependsOn: ["missing"] }
+    ]
+  }), /unknown subtaskId/);
+});
+
+test("subtask dependencies reject self-references and dependency cycles", () => {
+  assert.throws(() => makeMission({
+    subtasks: [
+      { subtaskId: "research", title: "Research", dependsOn: ["research"] }
+    ]
+  }), /cannot depend on itself/);
+
+  assert.throws(() => makeMission({
+    subtasks: [
+      { subtaskId: "research", title: "Research", dependsOn: ["verify"] },
+      { subtaskId: "verify", title: "Verify", dependsOn: ["research"] }
+    ]
+  }), /acyclic graph/);
+});
+
+test("subtask assignments must use an agent assigned to the mission", () => {
+  assert.throws(() => makeMission({
+    subtasks: [
+      { subtaskId: "build", title: "Build", assignedAgentId: "vault" }
+    ]
+  }), /must be included in assignedAgentIds/);
+});

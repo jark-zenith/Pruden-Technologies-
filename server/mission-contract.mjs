@@ -103,6 +103,47 @@ function normalizeSubtasks(value, idFactory) {
   });
 }
 
+function validateSubtaskGraph(subtasks, assignedAgentIds) {
+  const byId = new Map();
+
+  subtasks.forEach((subtask, index) => {
+    if (byId.has(subtask.subtaskId)) {
+      throw new TypeError("subtasks[" + index + "].subtaskId must be unique.");
+    }
+    if (subtask.assignedAgentId && !assignedAgentIds.includes(subtask.assignedAgentId)) {
+      throw new TypeError("subtasks[" + index + "].assignedAgentId must be included in assignedAgentIds.");
+    }
+    byId.set(subtask.subtaskId, subtask);
+  });
+
+  subtasks.forEach((subtask, index) => {
+    for (const dependencyId of subtask.dependsOn) {
+      if (!byId.has(dependencyId)) {
+        throw new TypeError("subtasks[" + index + "].dependsOn references an unknown subtaskId: " + dependencyId + ".");
+      }
+      if (dependencyId === subtask.subtaskId) {
+        throw new TypeError("subtasks[" + index + "] cannot depend on itself.");
+      }
+    }
+  });
+
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = subtaskId => {
+    if (visiting.has(subtaskId)) {
+      throw new Error("Subtask dependencies must form an acyclic graph.");
+    }
+    if (visited.has(subtaskId)) return;
+
+    visiting.add(subtaskId);
+    for (const dependencyId of byId.get(subtaskId).dependsOn) visit(dependencyId);
+    visiting.delete(subtaskId);
+    visited.add(subtaskId);
+  };
+
+  for (const subtaskId of byId.keys()) visit(subtaskId);
+}
+
 function normalizeEvidence(value) {
   if (!Array.isArray(value) || value.length === 0 || value.length > 100) {
     throw new TypeError("evidence must contain between 1 and 100 evidence references.");
@@ -165,6 +206,8 @@ export function createMissionRecord(input, options = {}) {
   if (executorAgentIds.some(id => !assignedAgentIds.includes(id))) {
     throw new TypeError("executorAgentIds must be a subset of assignedAgentIds.");
   }
+  const subtasks = normalizeSubtasks(input.subtasks ?? [], idFactory);
+  validateSubtaskGraph(subtasks, assignedAgentIds);
 
   return {
     schemaVersion: 1,
@@ -179,7 +222,7 @@ export function createMissionRecord(input, options = {}) {
     executorAgentIds,
     acceptanceCriteria: textList(input.acceptanceCriteria, "acceptanceCriteria", { minItems: 1, maxItems: 50, itemMaxLength: 1000 }),
     dependencies: textList(input.dependencies ?? [], "dependencies", { maxItems: 100, itemMaxLength: 160 }),
-    subtasks: normalizeSubtasks(input.subtasks ?? [], idFactory),
+    subtasks,
     outputs: [],
     errors: [],
     evidence: [],

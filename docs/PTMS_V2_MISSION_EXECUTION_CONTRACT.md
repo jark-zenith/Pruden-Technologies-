@@ -48,6 +48,15 @@ Version 1 records:
 
 The contract does not store raw provider responses, secrets, credentials, customer records, or financial record contents in activity events. Evidence is represented by a bounded kind/reference/summary tuple.
 
+## Subtask dependency safety
+
+- Each `subtaskId` must be unique within its mission.
+- `subtasks[].dependsOn` references other `subtaskId` values in the same mission; every reference must exist and self-dependencies are rejected.
+- The subtask dependency graph must be acyclic so a scheduler cannot deadlock on a circular handoff.
+- A subtask's optional `assignedAgentId` must be included in the mission's `assignedAgentIds` allowlist.
+- Callers that create linked subtasks should supply explicit `subtaskId` values. Generated IDs remain suitable for independent subtasks.
+- Mission-level `dependencies` refer to other mission records and are not resolved by this pure contract; the future persistent repository must verify their existence and owner scope before execution.
+
 ## Permission and verification rules
 
 - A mission can only be assigned to a bounded list of agents; agent-start events must match that list.
