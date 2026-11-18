@@ -5,7 +5,7 @@
 **Target activation window:** 7 days from approval  
 **Primary rule:** A listed integration is a recommended assignment, not proof that PTMS can call it. Only server-side adapters with verified credentials, scoped permissions, tests, audit events, and post-action verification count as live tools.
 
-**2026-11-07 activation checkpoint:** The registry currently keeps both global tool switches off. A feature-branch change is enforcing `toolsEnabled` as the master switch and `externalActionsEnabled` as the additional GitHub write/admin gate. This is a fail-closed policy correction only; it does not enable tools, add credentials, or change production.
+**2026-11-18 registry checkpoint:** `main` currently declares `toolsEnabled: true` and `externalActionsEnabled: true`. These are policy switches, not proof of credentials or usable integrations. GitHub writes still require a server-side token, an exact repository write allowlist, and non-default feature branches; repository creation has a separate environment gate. Atlas/Nova research still requires `TAVILY_API_KEY`. This snapshot does not grant new permissions or change production.
 
 **Research exposure rule:** Atlas/Nova research tool definitions are exposed only when the global `toolsEnabled` switch is on and `TAVILY_API_KEY` is present. Missing research credentials must remove the tools from the model-visible allowlist and appear as `blocked_missing_TAVILY_API_KEY`; a configured key still requires a live smoke test before the capability is marked verified.
 
@@ -20,34 +20,55 @@ Verified from the repository:
 - Agent role definitions and bounded model-run budgets exist.
 - Atlas and Nova have a read-only research tool path when `TAVILY_API_KEY` is configured.
 - GitHub tools exist for Ivy, engineering specialists, and Sentinel, subject to `GITHUB_TOKEN`, repository allowlists, and write allowlists.
-- Lumi has a dedicated server-side image-generation capability when the Gemini image provider is configured.
+- Ivy has a separate media/image-generation route family, but those routes are not exposed as specialist tools through `availableToolNamesForAgent`; do not count them as Lumi execution access.
 - Ivy has separate PTMS operations, Gmail, journal, memory, media, and GitHub modules.
 - The specialist runtime does not currently have a general Composio adapter. The Node package manifest does not include a Composio SDK/runtime dependency.
-- `agents.json` currently declares `toolsEnabled: false` and `externalActionsEnabled: false`; runtime code has narrower, environment-gated capabilities. The registry flag and runtime capability reporting should be reconciled before enabling new grants.
+- `agents.json` on `main` declares `toolsEnabled: true` and `externalActionsEnabled: true`. Effective access is still narrower: GitHub requires `GITHUB_TOKEN`, `PRUDEN_GITHUB_REPOS`, and (for writes) `PRUDEN_GITHUB_WRITE_REPOS` plus feature-branch checks; research requires `TAVILY_API_KEY`. Render environment values were not inspected.
 - The workforce shared thread is in process memory and is not durable task history.
 - PTMS database tables already include tasks, projects, approvals, audit events, ideas, journal, CRM, finance, and notifications. These are not automatically exposed as specialist tools.
 
-Verified Composio-side connection snapshot — 2026-11-09 (ChatGPT session only):
+Verified Composio-side connection snapshot — 2026-11-18 (ChatGPT session only):
 
 | Toolkit | Session connection | Scope / limitation observed |
 |---|---|---|
-| GitHub | Active private connection | Repository, PR, commit and CI tools discovered |
-| Supabase MCP | Active private connection | Two connected accounts; account selection is required |
-| Supabase | Active private connection | Two connected accounts; account selection is required |
-| Render | Active private connection | Read-only service, deploy, event, log and metric tools discovered |
-| Parallel | Instant-account tools only | `PARALLEL_SEARCH_WEB` and `PARALLEL_MAKE_DECISIONS` are allowlisted |
-| Gmail | Active private connection | Message search/read and draft tools discovered; send tools exist but are not approved for autonomous use |
-| Slack | Active private connection | Search/history/thread-read tools discovered; posting is not approved |
-| Google Drive | Active private connection | File/folder search, download and draft-creation tools discovered; sharing is not approved |
-| Canva | No active connection | Do not assign Canva execution to Pixel or Lumi until a connection is established |
-| Descript MCP | Active private connection | Project listing and draft-oriented project tools discovered; publishing remains prohibited |
-| ElevenLabs | Instant-account tools only | Speech/audio tools are allowlisted; text-to-speech is listed at $0.08 per 1,000 input characters with no displayed discount |
-| Notion | Active private connection | Page/database search and internal draft tools discovered |
-| Twilio | Active private connection | Account, number, messaging-service and call-inspection tools discovered; sending remains prohibited |
+| GitHub | Active private connection | Repository, branch, tree, file, PR and commit tools discovered |
+| Supabase | Two active private accounts; account selection required | Exact PTMS ref `imvseouxtstgcbizwolm` was verified on one account; the other account returned 403. Use only the verified account for PTMS reads |
+| Render | Active private connection | Service, deploy, event and log inspection tools discovered; no production mutation |
+| Gmail | Active private connection | Profile and message search/read tools discovered; external sending remains approval-gated |
+| Slack | Active private connection | Authentication and identity tools discovered; message search/posting coverage must be verified separately |
+| Google Drive | Active private connection | File search, metadata and download tools discovered; sharing is not approved |
+| Notion | Active private connection | Page search and retrieval tools discovered; publishing is not approved |
+| Canva | Active private connection | Design listing/creation tools discovered; publishing remains prohibited |
+| Canva MCP | Active private connection | Design generation/creation tools discovered; draft/preview only |
+| Descript MCP | Active private connection | Project listing and project-agent workflows discovered; publishing remains prohibited |
+| ElevenLabs | Instant-account tools only | Only the session allowlist is available: text-to-speech, speech-to-speech, audio isolation and related listed tools. Recheck price/quota before generation |
+| Firecrawl | Instant-account tools only | Search/scrape tools are allowlisted; current listing showed $0.007 per basic search and $0.003 per basic page scrape (79% discount). Calls may incur spend |
+| Parallel | Instant-account tools only | `PARALLEL_SEARCH_WEB` and `PARALLEL_MAKE_DECISIONS` are allowlisted; current listing showed $0.001 per Fast search (up to 10 results) with a 100% discount. Recheck terms before use |
+| Discord | Active private connection | Connection/identity tools discovered; not assigned to a PTMS agent |
+| Mistral AI | Instant-account tools only | OCR tool only |
 
-Connection status is time-sensitive and must be rechecked before execution. An active ChatGPT-side connection does not prove that the same account, scopes, or tools are available to the PTMS server.
+Connection status is time-sensitive and must be rechecked before execution. These connections are available to this ChatGPT/Composio session only. They are not verified as available to the PTMS Render server.
 
-**Important boundary:** These connections are available to this ChatGPT/Composio session. They are not yet verified as available to the PTMS Render server or its specialist agents. PTMS needs a separate server-side Composio integration and its own authenticated connection context. Never copy a ChatGPT connector token into PTMS or expose credentials to browser code.
+**Important boundary:** The checked PTMS source has no Composio SDK/runtime dependency or server-side adapter. The Render environment was not inspected for secrets, and a ChatGPT-side connection or API key must never be reused as a PTMS credential. PTMS needs its own server-side Composio project key and authorized connection context. The `/api/ivy/capabilities` response now reports Composio as `not_implemented` until that adapter exists.
+
+## 1.1 Verified PTMS runtime access by role
+
+- **Ivy:** Native PTMS operation tools (owner-scoped projects/tasks/approvals and read-only customer/finance views), memory/journal, capability reporting, and a separate read-only GitHub tool set in Ivy chat. Individual workforce runs can receive additional GitHub tools only when server credentials and repository policies allow them. Native Gmail, Twilio and media routes are separate integrations, not Composio tools; their live configuration remains unverified.
+- **Atlas and Nova:** Read-only Tavily search and public-page inspection only when `toolsEnabled` and `TAVILY_API_KEY` are present. A configured key is not a live verification; no PTMS-side search was run in this check.
+- **Forge, Pixel, Stack and Vector:** GitHub read tools; feature-branch and PR write tools only with `GITHUB_TOKEN`, `PRUDEN_GITHUB_REPOS`, `PRUDEN_GITHUB_WRITE_REPOS`, both registry switches enabled, and server-side branch validation. Repository creation is separately gated and only exposed to Ivy/Forge.
+- **Sentinel:** GitHub read-only tools; independent review remains separate from implementation.
+- **Echo, Mira, Lumi, Motion, Relay and Vault:** No specialist tool definitions are currently returned by `availableToolNamesForAgent`; these agents are model-only in the workforce runtime. The existence of Ivy's separate Gmail/media routes or ChatGPT-side Drive/Notion/Canva/Descript/ElevenLabs connections does not grant those agents access.
+
+## 1.2 Verified PTMS mission persistence boundary
+
+The exact `Pruden Technologies` Supabase project is `ACTIVE_HEALTHY`. Its public schema contains 36 tables. The relevant owner-scoped tables are:
+
+- `pruden_tasks`: basic task identity, owner/project, title/description, status/priority, assignee and due date; no mission ID, run ID, subtask/dependency graph or structured acceptance/evidence columns.
+- `pruden_approvals`: owner-scoped approval requests and review status; approval rows do not execute actions.
+- `pruden_audit_events`: append-oriented event records with JSONB details; RLS exposes owner-scoped SELECT and INSERT only, with no update/delete policy.
+
+The mission contract module validates lifecycle transitions in application memory, while workforce responses still identify `missionStatus: not_created` and `verificationStatus: not_performed`. No dedicated persistent mission/run ledger was found. The live project reports 27 applied migrations (latest version `20261112095508`), while the repository contains 22 SQL migration files and the migration-history reconciliation PR remains open. Do not add or apply another production migration until that drift is reconciled.
+
 
 ## 2. Agent responsibilities and recommended tools
 
@@ -274,7 +295,7 @@ Every tool call must be checked against agent ID, tool name, resource allowlist,
 
 - PTMS requires its own Composio server-side API credential and authorized connection configuration before PTMS agents can call the Composio-connected accounts. Official Composio docs recommend session-based tool execution for new agents and identify the project API key as the server credential. The current TypeScript SDK documentation requires Node.js 22.22.3 or newer; verify the actual Render Node runtime before choosing the SDK. If the service remains on Node 20, use the documented REST API/session interface or deliberately upgrade the runtime with tests rather than installing an incompatible SDK.
 - Existing GitHub, Tavily, Gemini, Gmail OAuth, Render, and Supabase integrations must be tested independently; configured environment variables do not prove live operation.
-- Parallel instant web search reports a rate of $0.001 per Fast search; use a low request budget and verify current account terms before scaling.
-- ElevenLabs instant text-to-speech reports $0.08 per 1,000 input characters; keep generation opt-in and usage-bounded.
-- Canva, Descript, Notion, Drive, Slack, GitHub, Supabase, and Render access is subject to each connected account's scopes, plan, rate limits, and resource permissions.
+- Parallel instant search was listed at $0.001 per Fast search (up to 10 results) with a 100% discount in this snapshot; verify current account terms before scaling.
+- ElevenLabs is connected through an instant account with a restricted tool allowlist; the current search response did not provide a fresh price, so treat generation as cost-bearing and recheck the quote/quota before use.
+- Firecrawl instant search/scrape was listed at $0.007 per basic search and $0.003 per basic page scrape (79% discount); usage may still incur spend. Canva, Descript, Notion, Drive, Slack, GitHub, Supabase, Render, and media access remain subject to account scopes, plans, rate limits, and resource permissions.
 - No new paid service or expanded permission should be enabled without founder approval.
