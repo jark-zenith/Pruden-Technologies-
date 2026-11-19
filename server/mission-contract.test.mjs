@@ -210,6 +210,7 @@ test("mission activity is append-only, sequenced, and scoped to assigned agents"
     actorId: "atlas",
     agentId: "atlas",
     toolName: "research_search_web",
+    resourceRef: "public-web",
     outcome: "timeout",
     summary: "Provider timed out."
   });
@@ -222,6 +223,75 @@ test("mission activity is append-only, sequenced, and scoped to assigned agents"
     actorId: "ivy",
     agentId: "vault"
   }), /not assigned/);
+});
+
+test("tool results require a matching unmatched start for the same agent, tool, and resource", () => {
+  const mission = makeMission();
+  const resultEvent = {
+    actorId: "atlas",
+    agentId: "atlas",
+    toolName: "research_search_web",
+    resourceRef: "public-web"
+  };
+  assert.throws(() => appendMissionEvent(mission, { type: "tool_succeeded", ...resultEvent }), /unmatched preceding tool_started/);
+  assert.throws(() => appendMissionEvent(mission, { type: "tool_failed", ...resultEvent }), /unmatched preceding tool_started/);
+
+  const started = appendMissionEvent(mission, { type: "tool_started", ...resultEvent });
+  assert.throws(() => appendMissionEvent(started, {
+    type: "tool_succeeded",
+    ...resultEvent,
+    agentId: "sentinel"
+  }), /unmatched preceding tool_started/);
+  assert.throws(() => appendMissionEvent(started, {
+    type: "tool_succeeded",
+    ...resultEvent,
+    toolName: "research_open_page"
+  }), /unmatched preceding tool_started/);
+  assert.throws(() => appendMissionEvent(started, {
+    type: "tool_succeeded",
+    ...resultEvent,
+    resourceRef: "different-resource"
+  }), /unmatched preceding tool_started/);
+
+  const succeeded = appendMissionEvent(started, { type: "tool_succeeded", ...resultEvent });
+  assert.equal(succeeded.events.at(-1).type, "tool_succeeded");
+  assert.throws(() => appendMissionEvent(succeeded, { type: "tool_failed", ...resultEvent }), /unmatched preceding tool_started/);
+});
+
+test("tool activity requires an assigned agent and explicit attribution", () => {
+  const mission = makeMission();
+  assert.throws(() => appendMissionEvent(mission, {
+    type: "tool_started", actorId: "ivy", toolName: "research_search_web"
+  }), /require agentId/);
+  assert.throws(() => appendMissionEvent(mission, {
+    type: "tool_started", actorId: "ivy", agentId: "vault", toolName: "research_search_web"
+  }), /not assigned/);
+});
+
+test("mission event IDs are unique and existing event sequences and references are validated", () => {
+  const mission = makeMission();
+  const first = appendMissionEvent(mission, {
+    eventId: "event-1", type: "mission_note", actorId: "ivy", summary: "First note."
+  });
+  assert.throws(() => appendMissionEvent(first, {
+    eventId: "event-1", type: "mission_note", actorId: "ivy", summary: "Duplicate ID."
+  }), /event IDs must be unique/);
+
+  const corruptSequence = {
+    ...first,
+    events: first.events.map(event => ({ ...event, sequence: 2 }))
+  };
+  assert.throws(() => appendMissionEvent(corruptSequence, {
+    type: "mission_note", actorId: "ivy"
+  }), /sequence must be contiguous/);
+
+  const corruptReference = {
+    ...first,
+    events: first.events.map(event => ({ ...event, runId: "another-run" }))
+  };
+  assert.throws(() => appendMissionEvent(corruptReference, {
+    type: "mission_note", actorId: "ivy"
+  }), /containing missionId and runId/);
 });
 
 test("verified completion must pass every acceptance criterion and cite stored evidence", () => {

@@ -51,7 +51,8 @@ The contract does not store raw provider responses, secrets, credentials, custom
 ## Permission and verification rules
 
 - A mission can only be assigned to a bounded list of agents; agent-start events must match that list.
-- Tool activity events require an explicit tool name.
+- Tool activity events require an assigned agent and an explicit tool name; success/failure must close an unmatched start for the same agent, tool, and resource.
+- Event IDs must be unique, and every appended event must preserve contiguous sequence numbers and the containing mission/run references.
 - \`awaiting_approval\` requires an approval ID. Re-queueing from that state requires the same approval ID and an explicit \`approved\` decision.
 - \`blocked\` and \`failed\` require a reason.
 - A model output moves the record to \`awaiting_verification\`, not \`verified_complete\`.
