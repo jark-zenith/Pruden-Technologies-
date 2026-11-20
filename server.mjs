@@ -10,13 +10,15 @@ import { registerAIWorkforceRoutes, getAIWorkforceDirectory, runAIWorkforceAgent
 import { registerImageGenerationRoutes } from "./server/image-generation.mjs";
 import { ivyOperationTools, executeIvyOperation } from "./server/ivy-operations.mjs";
 import { IVY_ALLOWED_OPERATION_NAMES } from "./server/ivy-operation-policy.mjs";
-import { ivyGitHubTools, executeIvyGitHubTool } from "./server/ivy-github.mjs";
+import { ivyGitHubTools, executeIvyGitHubTool, githubCapabilityStatus } from "./server/ivy-github.mjs";
 import { ivyCapabilityStatus, ivyCapabilityTool } from "./server/ivy-capabilities.mjs";
 import { ivyMemoryTools, executeIvyMemory, getIvyMemoryContext } from "./server/ivy-memory.mjs";
 import { IVY_RUNTIME_BUDGET } from "./server/ivy-runtime-policy.mjs";
 import { callGeminiText, getModelProviderStatus } from "./server/model-providers.mjs";
 import { ivyJournalTools, executeIvyJournalTool } from "./server/ivy-journal.mjs";
-import { registerProjectIntelligenceRoutes } from "./server/project-intelligence-bridge.mjs";
+import { getProjectIntelligenceStatus, registerProjectIntelligenceRoutes } from "./server/project-intelligence-bridge.mjs";
+import { getResearchStatus } from "./server/research-web.mjs";
+import { buildOperationalHealthSnapshot } from "./server/operational-health.mjs";
 import { registerIvyTwilioWebhookRoutes, registerIvyTwilioRoutes, inspectIvyTwilioAccount, createIvyOwnerCall, sendIvyOwnerSms } from "./server/ivy-twilio.mjs";
 import { registerFinancialIntegrationRoutes, isExternalFinancialWebhookPath } from "./server/financial-integrations.mjs";
 
@@ -143,6 +145,15 @@ registerProjectIntelligenceRoutes(app);
 registerIvyGmailRoutes(app);
 registerIvyMediaRoutes(app);
 registerAIWorkforceRoutes(app);
+app.get("/api/operations/health", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json(buildOperationalHealthSnapshot({
+    workforceDirectory: getAIWorkforceDirectory(),
+    githubCapability: githubCapabilityStatus(),
+    researchCapability: getResearchStatus(),
+    projectIntelligence: getProjectIntelligenceStatus()
+  }));
+});
 registerImageGenerationRoutes(app);
 app.post("/api/workforce/provider-test", async (req, res) => {
   const ip = req.ip || "unknown";
