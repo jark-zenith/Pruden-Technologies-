@@ -471,6 +471,20 @@ app.post("/api/ivy/chat", async (req, res) => {
       : "I couldn't produce a text report for this request. The operation may be incomplete. Please retry; if this happens again, check the private server logs and Claude API status.");
     return res.json({ reply: budgetStopReason ? safeReply + "\n\nBudget note: " + budgetStopReason : safeReply, actions });
   } catch (error) {
-    console.error(JSON.stringify({ event: "anthropic_ivy_chat_request_error", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", errorName: error instanceof Error ? error.name : "UnknownErr
-... (output truncated, full output saved to: /mnt/files/.composio/output/bash_dirt_stdout.txt)
-Run 'cat /mnt/files/.composio/output/bash_dirt_stdout.txt' to view the full output, or use 'head -n 100 /mnt/files/.composio/output/bash_dirt_stdout.txt' / 'tail -n 100 /mnt/files/.composio/output/bash_dirt_stdout.txt' to view parts of it.
+    console.error(JSON.stringify({ event: "anthropic_ivy_chat_request_error", model: process.env.ANTHROPIC_MODEL || "claude-opus-5", errorName: error instanceof Error ? error.name : "UnknownError", errorMessage: (error instanceof Error ? error.message : "Unknown request error").slice(0, 200), timedOut: error?.name === "TimeoutError" || error?.name === "AbortError", at: new Date().toISOString() }));
+    return res.status(502).json({ error: "Ivy could not reach Claude. Check the private service's network and server logs." });
+  }
+});
+
+app.get("/", async (req, res) => {
+  if (!isUnlocked(req)) return res.type("html").send(gatePage(secret.length >= 24));
+  try { res.type("html").send(await readFile(path.join(dist, "index.html"), "utf8")); }
+  catch { res.status(503).send("PRUDEN Command is building. Try again shortly."); }
+});
+app.get("*", async (req, res) => {
+  if (req.path.startsWith("/api/")) return res.status(404).json({ error: "Not found." });
+  if (!isUnlocked(req)) return res.redirect("/");
+  try { res.type("html").send(await readFile(path.join(dist, "index.html"), "utf8")); }
+  catch { res.status(503).send("PRUDEN Command is building. Try again shortly."); }
+});
+app.listen(port, "0.0.0.0", () => console.log("PRUDEN Command listening; master-secret gate " + (secret.length >= 24 ? "configured" : "NOT CONFIGURED") + "."));
