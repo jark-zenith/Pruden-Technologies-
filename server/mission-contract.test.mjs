@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   MISSION_STATUS,
   MISSION_STATUSES,
+  MISSION_VERIFIER_AGENT_ID,
   appendMissionEvent,
   createMissionRecord,
   transitionMissionStatus
@@ -324,4 +325,45 @@ test("verified completion must pass every acceptance criterion and cite stored e
       { criterion: "Sentinel independently verifies the result", passed: true, evidenceRefs: ["github://checks/mission-43"] }
     ]
   }), /must reference evidence stored/);
+});
+
+
+test("Sentinel is reserved for independent verification and cannot execute a mission", () => {
+  assert.equal(MISSION_VERIFIER_AGENT_ID, "sentinel");
+  assert.throws(() => makeMission({ executorAgentIds: ["sentinel"] }), /reserved for independent verification/);
+  assert.throws(() => appendMissionEvent(makeMission(), {
+    type: "agent_started", actorId: "ivy", agentId: "sentinel"
+  }), /cannot be started as a mission executor/);
+});
+
+test("verified completion requires assigned Sentinel to record its own verification", () => {
+  const running = transitionMissionStatus(makeMission(), MISSION_STATUS.RUNNING, { actorId: "ivy" });
+  const pending = transitionMissionStatus(running, MISSION_STATUS.AWAITING_VERIFICATION, {
+    actorId: "atlas",
+    outputSummary: "Evidence is ready for Sentinel's independent review."
+  });
+  const evidence = [
+    { kind: "source_page", ref: "https://example.com/source-b" },
+    { kind: "verification", ref: "github://checks/sentinel-review" }
+  ];
+  const criteriaResults = [
+    { criterion: "Original source URLs are recorded", passed: true, evidenceRefs: ["https://example.com/source-b"] },
+    { criterion: "Sentinel independently verifies the result", passed: true, evidenceRefs: ["github://checks/sentinel-review"] }
+  ];
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    actorId: "ivy", verifierId: "ivy", evidence, criteriaResults
+  }), /Sentinel must be the independent mission verifier/);
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    actorId: "ivy", verifierId: "sentinel", evidence, criteriaResults
+  }), /actor recording the verification/);
+
+  const withoutSentinel = makeMission({ assignedAgentIds: ["atlas"] });
+  const noSentinelRunning = transitionMissionStatus(withoutSentinel, MISSION_STATUS.RUNNING, { actorId: "ivy" });
+  const noSentinelPending = transitionMissionStatus(noSentinelRunning, MISSION_STATUS.AWAITING_VERIFICATION, {
+    actorId: "atlas",
+    outputSummary: "Evidence is ready but no independent reviewer was assigned."
+  });
+  assert.throws(() => transitionMissionStatus(noSentinelPending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    actorId: "sentinel", verifierId: "sentinel", evidence, criteriaResults
+  }), /Sentinel must be assigned to the mission/);
 });
