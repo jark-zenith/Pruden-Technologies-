@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { allowedGitHubToolNames, availableToolNamesForAgent, buildClaudeResponseResult, countToolCallsSkippedByDeadline, createUnverifiedWorkforceResponseState, createWorkforceExecutionResponseState } from "./ai-workforce.mjs";
+import { buildOperationalHealthSnapshot } from "./operational-health.mjs";
 
 const readOnlyControls = { toolsEnabled: true, externalActionsEnabled: false };
 const writeEnabledControls = { toolsEnabled: true, externalActionsEnabled: true };
@@ -243,6 +244,10 @@ const operationsSource = await readFile(
   new URL("../src/lib/operations.ts", import.meta.url),
   "utf8"
 );
+const serverSource = await readFile(
+  new URL("../server.mjs", import.meta.url),
+  "utf8"
+);
 
 test("task status migration preserves existing states and adds awaiting_verification", () => {
   assert.match(taskStatusMigration, /drop constraint if exists pruden_tasks_status_check/i);
@@ -262,4 +267,61 @@ test("Home HQ routes partial workforce responses to blocked tasks and a partial 
   assert.match(headquartersPageSource, /recordTaskAgentRun\(user, taskId, agentId, runId, "partial"/);
   assert.match(operationsSource, /agent_run\.partial/);
   assert.match(operationsSource, /partial \? "not_performed"/);
+});
+
+
+test("operational health separates live service status from persistent mission readiness", () => {
+  const workforceDirectory = {
+    ivy: { id: "ivy" },
+    departments: [{ agents: Array.from({ length: 13 }, (_, index) => ({ id: "agent-" + index })) }],
+    controls: { toolsEnabled: true, externalActionsEnabled: true }
+  };
+  const snapshot = buildOperationalHealthSnapshot({
+    workforceDirectory,
+    githubCapability: { status: "configured_unverified", writeToolsEnabled: true },
+    researchCapability: { status: "setup_required", liveSearchTested: false },
+    projectIntelligence: { sources: [
+      { id: "render", status: "configured_unverified", configured: true, verified: false },
+      { id: "supabase", status: "adapter_not_implemented", configured: true, verified: false }
+    ] },
+    now: () => new Date("2026-11-20T16:00:00.000Z")
+  });
+
+  assert.equal(snapshot.generatedAt, "2026-11-20T16:00:00.000Z");
+  assert.equal(snapshot.service.status, "alive");
+  assert.equal(snapshot.readiness.readyForPersistentMissionExecution, false);
+  assert.equal(snapshot.workforce.registeredAgents, 14);
+  assert.equal(snapshot.workforce.policySwitches.toolsEnabled, true);
+  assert.equal(snapshot.workforce.persistentRunHistory, false);
+  assert.equal(snapshot.missionExecution.status, "not_ready");
+  assert.equal(snapshot.missionExecution.persistentStore, "not_implemented");
+  assert.equal(snapshot.integrations.github.verified, false);
+  assert.equal(snapshot.integrations.github.writePolicyConfigured, true);
+  assert.equal(snapshot.integrations.render.verified, false);
+  assert.equal(snapshot.integrations.supabase.status, "adapter_not_implemented");
+  assert.equal(snapshot.integrations.composio.status, "not_implemented");
+  assert.equal(snapshot.integrations.composio.toolExecutionEnabled, false);
+});
+
+test("operational health never returns credentials, contact details, or raw provider metadata", () => {
+  const snapshot = buildOperationalHealthSnapshot({
+    workforceDirectory: { ivy: { id: "ivy" }, departments: [], controls: {}, ownerEmail: "private@example.com" },
+    githubCapability: { status: "configured_unverified", writeToolsEnabled: false, token: "do-not-return-token", approvedRepositories: ["private/repository"] },
+    projectIntelligence: { sources: [
+      { id: "render", status: "configured_unverified", configured: true, apiKey: "do-not-return-render-key" },
+      { id: "supabase", status: "adapter_not_implemented", configured: true, serviceRoleKey: "do-not-return-service-key" }
+    ] },
+    composioCapability: { status: "not_implemented", serverSideAdapterInstalled: false, toolExecutionEnabled: false, apiKey: "do-not-return-composio-key" }
+  });
+  const serialized = JSON.stringify(snapshot);
+  for (const secret of ["do-not-return-token", "do-not-return-render-key", "do-not-return-service-key", "do-not-return-composio-key", "private@example.com", "private/repository"]) {
+    assert.equal(serialized.includes(secret), false, "snapshot leaked " + secret);
+  }
+});
+
+test("operational health endpoint is registered behind the existing authenticated API gate", () => {
+  const gateIndex = serverSource.indexOf('app.use("/api"');
+  const routeIndex = serverSource.indexOf('app.get("/api/operations/health"');
+  assert.ok(gateIndex >= 0, "existing API authentication gate must exist");
+  assert.ok(routeIndex > gateIndex, "operations health route must remain behind the API authentication gate");
 });
