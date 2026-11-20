@@ -11,6 +11,7 @@ export const MISSION_STATUS = Object.freeze({
 });
 
 export const MISSION_STATUSES = Object.freeze(Object.values(MISSION_STATUS));
+export const MISSION_VERIFIER_AGENT_ID = "sentinel";
 
 export const MISSION_EVENT_TYPES = Object.freeze([
   "mission_queued",
@@ -154,6 +155,18 @@ function assertMissionRecord(record) {
   if (!MISSION_STATUSES.includes(record.status)) throw new TypeError("Mission record has an unknown status.");
   if (!Array.isArray(record.events)) throw new TypeError("Mission record events must be an array.");
   if (!Array.isArray(record.executorAgentIds)) throw new TypeError("Mission record executorAgentIds must be an array.");
+
+  const eventIds = new Set();
+  record.events.forEach((event, index) => {
+    assertObject(event, "mission events[" + index + "]");
+    const eventId = requiredText(event.eventId, "mission events[" + index + "].eventId", 160);
+    if (eventIds.has(eventId)) throw new Error("Mission event IDs must be unique.");
+    eventIds.add(eventId);
+    if (event.sequence !== index + 1) throw new Error("Mission event sequence must be contiguous and start at 1.");
+    if (event.missionId !== record.missionId || event.runId !== record.runId) {
+      throw new Error("Mission events must reference the containing missionId and runId.");
+    }
+  });
 }
 
 export function createMissionRecord(input, options = {}) {
@@ -164,6 +177,9 @@ export function createMissionRecord(input, options = {}) {
   const executorAgentIds = textList(input.executorAgentIds ?? [], "executorAgentIds", { maxItems: 14, itemMaxLength: 80 });
   if (executorAgentIds.some(id => !assignedAgentIds.includes(id))) {
     throw new TypeError("executorAgentIds must be a subset of assignedAgentIds.");
+  }
+  if (executorAgentIds.includes(MISSION_VERIFIER_AGENT_ID)) {
+    throw new TypeError("Sentinel is reserved for independent verification and cannot be listed as a mission executor.");
   }
 
   return {
@@ -206,14 +222,25 @@ export function appendMissionEvent(record, event, options = {}) {
   const agentId = optionalText(event.agentId, "event.agentId", 80);
   const toolName = optionalText(event.toolName, "event.toolName", 120);
 
-  if (["agent_started", "agent_finished"].includes(type) && !agentId) {
+  if (["agent_started", "agent_finished", "tool_started", "tool_succeeded", "tool_failed"].includes(type) && !agentId) {
     throw new TypeError(type + " events require agentId.");
   }
   if (["tool_started", "tool_succeeded", "tool_failed"].includes(type) && !toolName) {
     throw new TypeError(type + " events require toolName.");
   }
-  if (type === "agent_started" && !record.assignedAgentIds.includes(agentId)) {
+  if (["agent_started", "tool_started", "tool_succeeded", "tool_failed"].includes(type) && !record.assignedAgentIds.includes(agentId)) {
     throw new Error("Agent is not assigned to this mission.");
+  }
+  if (type === "agent_started" && agentId === MISSION_VERIFIER_AGENT_ID) {
+    throw new Error("Sentinel is reserved for independent verification and cannot be started as a mission executor.");
+  }
+
+  const resourceRef = optionalText(event.resourceRef, "event.resourceRef", 500);
+  if (["tool_succeeded", "tool_failed"].includes(type)) {
+    const sameToolActivity = item => item.agentId === agentId && item.toolName === toolName && (item.resourceRef ?? null) === resourceRef;
+    const starts = record.events.filter(item => item.type === "tool_started" && sameToolActivity(item)).length;
+    const results = record.events.filter(item => ["tool_succeeded", "tool_failed"].includes(item.type) && sameToolActivity(item)).length;
+    if (starts <= results) throw new Error(type + " requires an unmatched preceding tool_started event for the same agent, tool, and resource.");
   }
 
   if (type === "agent_finished") {
@@ -223,8 +250,10 @@ export function appendMissionEvent(record, event, options = {}) {
   }
 
   const occurredAt = event.occurredAt ? isoTimestamp(event.occurredAt, "event.occurredAt") : readClock(options);
+  const eventId = event.eventId ? requiredText(event.eventId, "event.eventId", 160) : createId(options.idFactory || randomUUID, "eventId");
+  if (record.events.some(item => item.eventId === eventId)) throw new Error("Mission event IDs must be unique.");
   const entry = {
-    eventId: event.eventId ? requiredText(event.eventId, "event.eventId", 160) : createId(options.idFactory || randomUUID, "eventId"),
+    eventId,
     missionId: record.missionId,
     runId: record.runId,
     sequence: record.events.length + 1,
@@ -232,7 +261,7 @@ export function appendMissionEvent(record, event, options = {}) {
     actorId,
     agentId,
     toolName,
-    resourceRef: optionalText(event.resourceRef, "event.resourceRef", 500),
+    resourceRef,
     outcome: optionalText(event.outcome, "event.outcome", 80),
     summary: optionalText(event.summary, "event.summary", 1000),
     evidenceRef: optionalText(event.evidenceRef, "event.evidenceRef", 2000),
@@ -307,8 +336,17 @@ export function transitionMissionStatus(record, nextStatus, details = {}, option
 
   if (nextStatus === MISSION_STATUS.VERIFIED_COMPLETE) {
     const verifierId = requiredText(details.verifierId, "verifierId", 80);
+    if (verifierId !== MISSION_VERIFIER_AGENT_ID) {
+      throw new Error("Sentinel must be the independent mission verifier.");
+    }
+    if (!record.assignedAgentIds.includes(verifierId)) {
+      throw new Error("Sentinel must be assigned to the mission before verification.");
+    }
+    if (actorId !== verifierId) {
+      throw new Error("The verifier must be the actor recording the verification.");
+    }
     if (record.executorAgentIds.includes(verifierId)) {
-      throw new Error("The verifier must be independent of the mission executors.");
+      throw new Error("Sentinel must remain independent of the mission executors.");
     }
     const evidence = normalizeEvidence(details.evidence);
     const criteriaResults = normalizeCriteriaResults(record.acceptanceCriteria, details.criteriaResults, evidence);

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   MISSION_STATUS,
   MISSION_STATUSES,
+  MISSION_VERIFIER_AGENT_ID,
   appendMissionEvent,
   createMissionRecord,
   transitionMissionStatus
@@ -210,6 +211,7 @@ test("mission activity is append-only, sequenced, and scoped to assigned agents"
     actorId: "atlas",
     agentId: "atlas",
     toolName: "research_search_web",
+    resourceRef: "public-web",
     outcome: "timeout",
     summary: "Provider timed out."
   });
@@ -222,6 +224,75 @@ test("mission activity is append-only, sequenced, and scoped to assigned agents"
     actorId: "ivy",
     agentId: "vault"
   }), /not assigned/);
+});
+
+test("tool results require a matching unmatched start for the same agent, tool, and resource", () => {
+  const mission = makeMission();
+  const resultEvent = {
+    actorId: "atlas",
+    agentId: "atlas",
+    toolName: "research_search_web",
+    resourceRef: "public-web"
+  };
+  assert.throws(() => appendMissionEvent(mission, { type: "tool_succeeded", ...resultEvent }), /unmatched preceding tool_started/);
+  assert.throws(() => appendMissionEvent(mission, { type: "tool_failed", ...resultEvent }), /unmatched preceding tool_started/);
+
+  const started = appendMissionEvent(mission, { type: "tool_started", ...resultEvent });
+  assert.throws(() => appendMissionEvent(started, {
+    type: "tool_succeeded",
+    ...resultEvent,
+    agentId: "sentinel"
+  }), /unmatched preceding tool_started/);
+  assert.throws(() => appendMissionEvent(started, {
+    type: "tool_succeeded",
+    ...resultEvent,
+    toolName: "research_open_page"
+  }), /unmatched preceding tool_started/);
+  assert.throws(() => appendMissionEvent(started, {
+    type: "tool_succeeded",
+    ...resultEvent,
+    resourceRef: "different-resource"
+  }), /unmatched preceding tool_started/);
+
+  const succeeded = appendMissionEvent(started, { type: "tool_succeeded", ...resultEvent });
+  assert.equal(succeeded.events.at(-1).type, "tool_succeeded");
+  assert.throws(() => appendMissionEvent(succeeded, { type: "tool_failed", ...resultEvent }), /unmatched preceding tool_started/);
+});
+
+test("tool activity requires an assigned agent and explicit attribution", () => {
+  const mission = makeMission();
+  assert.throws(() => appendMissionEvent(mission, {
+    type: "tool_started", actorId: "ivy", toolName: "research_search_web"
+  }), /require agentId/);
+  assert.throws(() => appendMissionEvent(mission, {
+    type: "tool_started", actorId: "ivy", agentId: "vault", toolName: "research_search_web"
+  }), /not assigned/);
+});
+
+test("mission event IDs are unique and existing event sequences and references are validated", () => {
+  const mission = makeMission();
+  const first = appendMissionEvent(mission, {
+    eventId: "event-1", type: "mission_note", actorId: "ivy", summary: "First note."
+  });
+  assert.throws(() => appendMissionEvent(first, {
+    eventId: "event-1", type: "mission_note", actorId: "ivy", summary: "Duplicate ID."
+  }), /event IDs must be unique/);
+
+  const corruptSequence = {
+    ...first,
+    events: first.events.map(event => ({ ...event, sequence: 2 }))
+  };
+  assert.throws(() => appendMissionEvent(corruptSequence, {
+    type: "mission_note", actorId: "ivy"
+  }), /sequence must be contiguous/);
+
+  const corruptReference = {
+    ...first,
+    events: first.events.map(event => ({ ...event, runId: "another-run" }))
+  };
+  assert.throws(() => appendMissionEvent(corruptReference, {
+    type: "mission_note", actorId: "ivy"
+  }), /containing missionId and runId/);
 });
 
 test("verified completion must pass every acceptance criterion and cite stored evidence", () => {
@@ -254,4 +325,45 @@ test("verified completion must pass every acceptance criterion and cite stored e
       { criterion: "Sentinel independently verifies the result", passed: true, evidenceRefs: ["github://checks/mission-43"] }
     ]
   }), /must reference evidence stored/);
+});
+
+
+test("Sentinel is reserved for independent verification and cannot execute a mission", () => {
+  assert.equal(MISSION_VERIFIER_AGENT_ID, "sentinel");
+  assert.throws(() => makeMission({ executorAgentIds: ["sentinel"] }), /reserved for independent verification/);
+  assert.throws(() => appendMissionEvent(makeMission(), {
+    type: "agent_started", actorId: "ivy", agentId: "sentinel"
+  }), /cannot be started as a mission executor/);
+});
+
+test("verified completion requires assigned Sentinel to record its own verification", () => {
+  const running = transitionMissionStatus(makeMission(), MISSION_STATUS.RUNNING, { actorId: "ivy" });
+  const pending = transitionMissionStatus(running, MISSION_STATUS.AWAITING_VERIFICATION, {
+    actorId: "atlas",
+    outputSummary: "Evidence is ready for Sentinel's independent review."
+  });
+  const evidence = [
+    { kind: "source_page", ref: "https://example.com/source-b" },
+    { kind: "verification", ref: "github://checks/sentinel-review" }
+  ];
+  const criteriaResults = [
+    { criterion: "Original source URLs are recorded", passed: true, evidenceRefs: ["https://example.com/source-b"] },
+    { criterion: "Sentinel independently verifies the result", passed: true, evidenceRefs: ["github://checks/sentinel-review"] }
+  ];
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    actorId: "ivy", verifierId: "ivy", evidence, criteriaResults
+  }), /Sentinel must be the independent mission verifier/);
+  assert.throws(() => transitionMissionStatus(pending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    actorId: "ivy", verifierId: "sentinel", evidence, criteriaResults
+  }), /actor recording the verification/);
+
+  const withoutSentinel = makeMission({ assignedAgentIds: ["atlas"] });
+  const noSentinelRunning = transitionMissionStatus(withoutSentinel, MISSION_STATUS.RUNNING, { actorId: "ivy" });
+  const noSentinelPending = transitionMissionStatus(noSentinelRunning, MISSION_STATUS.AWAITING_VERIFICATION, {
+    actorId: "atlas",
+    outputSummary: "Evidence is ready but no independent reviewer was assigned."
+  });
+  assert.throws(() => transitionMissionStatus(noSentinelPending, MISSION_STATUS.VERIFIED_COMPLETE, {
+    actorId: "sentinel", verifierId: "sentinel", evidence, criteriaResults
+  }), /Sentinel must be assigned to the mission/);
 });
