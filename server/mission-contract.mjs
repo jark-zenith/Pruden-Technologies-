@@ -11,6 +11,7 @@ export const MISSION_STATUS = Object.freeze({
 });
 
 export const MISSION_STATUSES = Object.freeze(Object.values(MISSION_STATUS));
+export const MISSION_VERIFIER_AGENT_ID = "sentinel";
 
 export const MISSION_EVENT_TYPES = Object.freeze([
   "mission_queued",
@@ -177,6 +178,9 @@ export function createMissionRecord(input, options = {}) {
   if (executorAgentIds.some(id => !assignedAgentIds.includes(id))) {
     throw new TypeError("executorAgentIds must be a subset of assignedAgentIds.");
   }
+  if (executorAgentIds.includes(MISSION_VERIFIER_AGENT_ID)) {
+    throw new TypeError("Sentinel is reserved for independent verification and cannot be listed as a mission executor.");
+  }
 
   return {
     schemaVersion: 1,
@@ -226,6 +230,9 @@ export function appendMissionEvent(record, event, options = {}) {
   }
   if (["agent_started", "tool_started", "tool_succeeded", "tool_failed"].includes(type) && !record.assignedAgentIds.includes(agentId)) {
     throw new Error("Agent is not assigned to this mission.");
+  }
+  if (type === "agent_started" && agentId === MISSION_VERIFIER_AGENT_ID) {
+    throw new Error("Sentinel is reserved for independent verification and cannot be started as a mission executor.");
   }
 
   const resourceRef = optionalText(event.resourceRef, "event.resourceRef", 500);
@@ -329,8 +336,17 @@ export function transitionMissionStatus(record, nextStatus, details = {}, option
 
   if (nextStatus === MISSION_STATUS.VERIFIED_COMPLETE) {
     const verifierId = requiredText(details.verifierId, "verifierId", 80);
+    if (verifierId !== MISSION_VERIFIER_AGENT_ID) {
+      throw new Error("Sentinel must be the independent mission verifier.");
+    }
+    if (!record.assignedAgentIds.includes(verifierId)) {
+      throw new Error("Sentinel must be assigned to the mission before verification.");
+    }
+    if (actorId !== verifierId) {
+      throw new Error("The verifier must be the actor recording the verification.");
+    }
     if (record.executorAgentIds.includes(verifierId)) {
-      throw new Error("The verifier must be independent of the mission executors.");
+      throw new Error("Sentinel must remain independent of the mission executors.");
     }
     const evidence = normalizeEvidence(details.evidence);
     const criteriaResults = normalizeCriteriaResults(record.acceptanceCriteria, details.criteriaResults, evidence);
