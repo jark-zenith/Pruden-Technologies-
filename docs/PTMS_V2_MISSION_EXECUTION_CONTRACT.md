@@ -56,8 +56,9 @@ The contract does not store raw provider responses, secrets, credentials, custom
 - \`awaiting_approval\` requires an approval ID. Re-queueing from that state requires the same approval ID and an explicit \`approved\` decision.
 - \`blocked\` and \`failed\` require a reason.
 - A model output moves the record to \`awaiting_verification\`, not \`verified_complete\`.
-- \`verified_complete\` requires at least one evidence reference, one passing result for every acceptance criterion, evidence references attached to each criterion, and an independent verifier not present in \`executorAgentIds\`.
-- This pure helper does not authenticate actor IDs, fetch or authorize Supabase approval records, check approval owner/target/scope/expiry/one-time-use, or confirm that a verifier is the registered Sentinel. The future server gateway must perform those checks using trusted server-side data before calling these transitions.
+- `verified_complete` requires at least one evidence reference, one passing result for every acceptance criterion, evidence references attached to each criterion, and Sentinel (`verifierId: "sentinel"`) assigned to the mission, recording its own verification, and absent from `executorAgentIds`.
+- Sentinel is reserved for independent review and cannot be recorded as a mission executor. Its actual tool scope must remain read-only.
+- The pure contract enforces the Sentinel identifier, assignment, actor match, and executor separation. It does not authenticate actor IDs, fetch or authorize Supabase approval records, check approval owner/target/scope/expiry/one-time-use, or prove that Sentinel used only read-only tools. The future server gateway must validate identity and enforce Sentinel's read-only tool scope using trusted server-side data.
 - Failed and verified-complete states are terminal for a run. A retry should create a new run ID rather than rewriting prior activity.
 
 ## Current integration boundary
@@ -75,7 +76,7 @@ The contract does not store raw provider responses, secrets, credentials, custom
 3. Add a server-side repository using the existing Supabase client and owner-scoped server boundary.
 4. Wrap Ivy delegation and specialist execution in mission/run lifecycle transitions.
 5. Add a PTMS-owned Composio adapter only after a PTMS Composio project key and app connections are configured server-side.
-6. Require Sentinel to verify stored evidence before setting \`verified_complete\`.
+6. Authenticate Sentinel's actor identity and enforce its read-only evidence-review scope before allowing the `verified_complete` transition.
 7. Update Mission Control only after persistence and execution APIs are tested.
 
 No production data, settings, secrets, applied migrations, permissions, or deployments are changed by this feature-branch change. A new, unapplied migration file is included for review.
