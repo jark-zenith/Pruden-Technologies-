@@ -72,6 +72,14 @@ export function availableToolNamesForAgent(agentId, controls = registry.globalCo
   return new Set([...githubTools, ...renderTools, ...researchToolNames]);
 }
 
+export function buildProviderToolsForAllowedNames(allowedToolNames = new Set()) {
+  const allowed = allowedToolNames instanceof Set ? allowedToolNames : new Set();
+  return [
+    ...researchTools.filter(tool => allowed.has(tool.name)),
+    ...ivyGitHubTools.filter(tool => allowed.has(tool.name))
+  ];
+}
+
 function rateLimited(req) {
   const key = req.ip || req.socket?.remoteAddress || "unknown";
   const now = Date.now();
@@ -204,10 +212,7 @@ export function countToolCallsSkippedByDeadline(calls) {
 async function callClaude(system, task, maxTokens = registry.globalControls.maxOutputTokens || 1200, allowedToolNames = new Set(), agentId = "group", parentDeadlineAt = null) {
   const key = process.env.ANTHROPIC_API_KEY;
   const messages = [{ role: "user", content: task }];
-  const tools = [
-    ...researchTools.filter(tool => allowedToolNames.has(tool.name)),
-    ...(process.env.GITHUB_TOKEN ? ivyGitHubTools.filter(tool => allowedToolNames.has(tool.name) && availableGitHubToolNames(agentId).has(tool.name)) : [])
-  ];
+  const tools = buildProviderToolsForAllowedNames(allowedToolNames);
   const textProvider = (process.env.WORKFORCE_TEXT_PROVIDER || "anthropic").toLowerCase();
   const canUseGeminiText = Boolean(process.env.GEMINI_API_KEY) && tools.length === 0;
   if ((textProvider === "gemini" || textProvider === "auto") && canUseGeminiText) {
