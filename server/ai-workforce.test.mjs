@@ -1,11 +1,39 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { allowedGitHubToolNames, availableToolNamesForAgent, buildClaudeResponseResult, countToolCallsSkippedByDeadline, createUnverifiedWorkforceResponseState, createWorkforceExecutionResponseState } from "./ai-workforce.mjs";
+import { allowedGitHubToolNames, availableToolNamesForAgent, buildClaudeResponseResult, buildProviderToolsForAllowedNames, countToolCallsSkippedByDeadline, createUnverifiedWorkforceResponseState, createWorkforceExecutionResponseState, getAIWorkforceDirectory } from "./ai-workforce.mjs";
 
 const readOnlyControls = { toolsEnabled: true, externalActionsEnabled: false };
 const writeEnabledControls = { toolsEnabled: true, externalActionsEnabled: true };
 const allAgentIds = ["ivy", "atlas", "nova", "echo", "mira", "forge", "pixel", "stack", "vector", "sentinel", "lumi", "motion", "relay", "vault"];
+
+const TEST_GITHUB_ENV = {
+  GITHUB_TOKEN: "test-github-token",
+  PRUDEN_GITHUB_WRITE_REPOS: "jark-zenith/Pruden-Technologies-",
+  PRUDEN_GITHUB_CREATE_REPOSITORIES: "true",
+  RENDER_API_KEY: "test-render-key"
+};
+for (const [key, value] of Object.entries(TEST_GITHUB_ENV)) process.env[key] = value;
+
+function withTemporaryEnv(values, callback) {
+  const keys = new Set([...Object.keys(TEST_GITHUB_ENV), ...Object.keys(values)]);
+  const previous = new Map([...keys].map(key => [key, process.env[key]]));
+  for (const key of keys) {
+    if (Object.prototype.hasOwnProperty.call(values, key)) {
+      if (values[key] === null) delete process.env[key];
+      else process.env[key] = values[key];
+    } else {
+      delete process.env[key];
+    }
+  }
+  try { return callback(); }
+  finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
 
 test("Ivy's role policy includes read, controlled write, and repository creation tools", () => {
   const tools = allowedGitHubToolNames("ivy");
@@ -59,6 +87,64 @@ test("the registry-wide toolsEnabled switch disables all specialist and group to
   for (const agentId of [...allAgentIds, "group"]) {
     assert.equal(availableToolNamesForAgent(agentId, { toolsEnabled: false, externalActionsEnabled: true }).size, 0, agentId);
   }
+});
+
+test("GitHub and Render tool schemas are withheld when their server credentials are absent", () => {
+  withTemporaryEnv({ GITHUB_TOKEN: null, RENDER_API_KEY: null }, () => {
+    const ivy = availableToolNamesForAgent("ivy", writeEnabledControls, false);
+    assert.equal(ivy.size, 0);
+    assert.equal(ivy.has("github_list_repositories"), false);
+    assert.equal(ivy.has("render_list_services"), false);
+  });
+});
+
+test("Render inventory is gated by its own server credential and engineering read role", () => {
+  withTemporaryEnv({ GITHUB_TOKEN: null, RENDER_API_KEY: "test-render-key" }, () => {
+    const ivy = availableToolNamesForAgent("ivy", readOnlyControls, false);
+    assert.deepEqual([...ivy], ["render_list_services"]);
+    assert.ok(availableToolNamesForAgent("sentinel", readOnlyControls, false).has("render_list_services"));
+    assert.equal(availableToolNamesForAgent("echo", readOnlyControls, false).size, 0);
+  });
+});
+
+test("provider tool definitions use the same credential-gated allowlist", () => {
+  withTemporaryEnv({ GITHUB_TOKEN: null, RENDER_API_KEY: "test-render-key" }, () => {
+    const allowed = availableToolNamesForAgent("ivy", readOnlyControls, false);
+    assert.deepEqual(buildProviderToolsForAllowedNames(allowed).map(tool => tool.name), ["render_list_services"]);
+  });
+  withTemporaryEnv({ GITHUB_TOKEN: null, RENDER_API_KEY: null }, () => {
+    const allowed = availableToolNamesForAgent("ivy", readOnlyControls, false);
+    assert.deepEqual(buildProviderToolsForAllowedNames(allowed), []);
+  });
+});
+
+test("a GitHub credential does not unlock Render inventory without RENDER_API_KEY", () => {
+  withTemporaryEnv({ GITHUB_TOKEN: "test-github-token", PRUDEN_GITHUB_WRITE_REPOS: null, RENDER_API_KEY: null }, () => {
+    const ivy = availableToolNamesForAgent("ivy", readOnlyControls, false);
+    assert.ok(ivy.has("github_list_repositories"));
+    assert.equal(ivy.has("render_list_services"), false);
+  });
+});
+
+test("GitHub writes remain hidden without an exact write-repository allowlist", () => {
+  withTemporaryEnv({ GITHUB_TOKEN: "test-github-token", PRUDEN_GITHUB_WRITE_REPOS: null, RENDER_API_KEY: null }, () => {
+    const forge = availableToolNamesForAgent("forge", writeEnabledControls, false);
+    assert.ok(forge.has("github_list_repositories"));
+    assert.equal(forge.has("github_create_branch"), false);
+    assert.equal(forge.has("github_create_pull_request"), false);
+    assert.equal(forge.has("github_create_repository"), false);
+  });
+});
+
+test("directory readiness separates GitHub, GitHub writes, and Render configuration", () => {
+  withTemporaryEnv({ GITHUB_TOKEN: "test-github-token", PRUDEN_GITHUB_WRITE_REPOS: null, RENDER_API_KEY: "test-render-key" }, () => {
+    const ivy = getAIWorkforceDirectory().ivy;
+    assert.ok(ivy.toolAccess.includes("github_list_repositories"));
+    assert.ok(ivy.toolAccess.includes("render_list_services"));
+    assert.equal(ivy.toolReadiness.github, "configured_pending_live_test");
+    assert.equal(ivy.toolReadiness.githubWrites, "blocked_missing_write_allowlist");
+    assert.equal(ivy.toolReadiness.render, "configured_pending_live_test");
+  });
 });
 
 test("Atlas and Nova receive only their read-only research toolset when tools are enabled", () => {
