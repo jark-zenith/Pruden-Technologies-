@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { allowedGitHubToolNames, availableToolNamesForAgent, buildClaudeResponseResult, countToolCallsSkippedByDeadline, createUnverifiedWorkforceResponseState, createWorkforceExecutionResponseState, getAIWorkforceDirectory } from "./ai-workforce.mjs";
+import { allowedGitHubToolNames, availableToolNamesForAgent, buildClaudeResponseResult, buildProviderToolsForAllowedNames, countToolCallsSkippedByDeadline, createUnverifiedWorkforceResponseState, createWorkforceExecutionResponseState, getAIWorkforceDirectory } from "./ai-workforce.mjs";
 
 const readOnlyControls = { toolsEnabled: true, externalActionsEnabled: false };
 const writeEnabledControls = { toolsEnabled: true, externalActionsEnabled: true };
@@ -104,6 +104,17 @@ test("Render inventory is gated by its own server credential and engineering rea
     assert.deepEqual([...ivy], ["render_list_services"]);
     assert.ok(availableToolNamesForAgent("sentinel", readOnlyControls, false).has("render_list_services"));
     assert.equal(availableToolNamesForAgent("echo", readOnlyControls, false).size, 0);
+  });
+});
+
+test("provider tool definitions use the same credential-gated allowlist", () => {
+  withTemporaryEnv({ GITHUB_TOKEN: null, RENDER_API_KEY: "test-render-key" }, () => {
+    const allowed = availableToolNamesForAgent("ivy", readOnlyControls, false);
+    assert.deepEqual(buildProviderToolsForAllowedNames(allowed).map(tool => tool.name), ["render_list_services"]);
+  });
+  withTemporaryEnv({ GITHUB_TOKEN: null, RENDER_API_KEY: null }, () => {
+    const allowed = availableToolNamesForAgent("ivy", readOnlyControls, false);
+    assert.deepEqual(buildProviderToolsForAllowedNames(allowed), []);
   });
 });
 
