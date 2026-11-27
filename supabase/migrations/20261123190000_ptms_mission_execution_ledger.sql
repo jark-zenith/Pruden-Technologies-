@@ -114,6 +114,7 @@ as $$
 declare
   v_owner_id uuid := auth.uid();
   v_event jsonb;
+  v_requested_deadline timestamptz;
   v_mission public.pruden_missions%rowtype;
   v_run public.pruden_mission_runs%rowtype;
   v_event_row public.pruden_mission_events%rowtype;
@@ -159,20 +160,78 @@ begin
     raise exception 'Initial mission event is invalid or does not match the mission/run.';
   end if;
 
+  v_requested_deadline := nullif(p_record->>'deadlineAt', '')::timestamptz;
+
   insert into public.pruden_missions (
     mission_id, owner_id, requester_id, objective, deadline_at, status,
     assigned_agent_ids, acceptance_criteria, dependencies, subtasks,
     created_at, updated_at, started_at, finished_at
   ) values (
     p_record->>'missionId', v_owner_id, p_record->>'requesterId', p_record->>'objective',
-    nullif(p_record->>'deadlineAt', '')::timestamptz, 'queued',
+    v_requested_deadline, 'queued',
     p_record->'assignedAgentIds', p_record->'acceptanceCriteria',
     coalesce(p_record->'dependencies', '[]'::jsonb), coalesce(p_record->'subtasks', '[]'::jsonb),
     coalesce(nullif(p_record->>'createdAt', '')::timestamptz, now()),
     coalesce(nullif(p_record->>'updatedAt', '')::timestamptz, now()),
     nullif(p_record->>'startedAt', '')::timestamptz,
     nullif(p_record->>'finishedAt', '')::timestamptz
-  ) returning * into v_mission;
+  )
+  on conflict (mission_id) do nothing
+  returning * into v_mission;
+
+  if not found then
+    -- A network retry with the same mission/run identity must return the original
+    -- records, never create another run or overwrite a mission that has progressed.
+    select *
+      into v_mission
+      from public.pruden_missions
+     where mission_id = p_record->>'missionId'
+     for update;
+
+    if not found or v_mission.owner_id <> v_owner_id then
+      raise exception 'Mission ID is already in use.';
+    end if;
+
+    if v_mission.requester_id is distinct from p_record->>'requesterId'
+       or v_mission.objective is distinct from p_record->>'objective'
+       or v_mission.deadline_at is distinct from v_requested_deadline
+       or v_mission.assigned_agent_ids is distinct from p_record->'assignedAgentIds'
+       or v_mission.acceptance_criteria is distinct from p_record->'acceptanceCriteria'
+       or v_mission.dependencies is distinct from coalesce(p_record->'dependencies', '[]'::jsonb)
+       or v_mission.subtasks is distinct from coalesce(p_record->'subtasks', '[]'::jsonb) then
+      raise exception 'Mission ID already exists with different mission details.';
+    end if;
+
+    select *
+      into v_run
+      from public.pruden_mission_runs
+     where mission_id = v_mission.mission_id
+       and owner_id = v_owner_id
+       and run_id = p_record->>'runId'
+       and run_number = 1
+     for update;
+    if not found then
+      raise exception 'Mission already exists with a different initial run ID.';
+    end if;
+
+    select *
+      into v_event_row
+      from public.pruden_mission_events
+     where mission_id = v_mission.mission_id
+       and run_id = v_run.run_id
+       and owner_id = v_owner_id
+       and sequence = 1
+       and event_type = 'mission_queued';
+    if not found then
+      raise exception 'Existing mission is missing its initial queued event.';
+    end if;
+
+    return jsonb_build_object(
+      'mission', to_jsonb(v_mission),
+      'run', to_jsonb(v_run),
+      'event', to_jsonb(v_event_row)
+    );
+  end if;
 
   insert into public.pruden_mission_runs (
     run_id, mission_id, owner_id, run_number, status, executor_agent_ids,

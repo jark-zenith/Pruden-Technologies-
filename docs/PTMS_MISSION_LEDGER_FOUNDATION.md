@@ -8,7 +8,7 @@
 - `pruden_mission_runs` stores each execution attempt, its run identity, run number, executor identities, outputs, errors, evidence, approval reference, blocker, verification summary, and timestamps.
 - `pruden_mission_events` stores append-only, sequence-numbered mission/run events. This increment persists the initial queued event and owner-authored notes; the schema reserves event types for later handoffs and tool activity.
 
-Mission and run IDs are text keys (up to 160 characters) to preserve the existing pure mission contract's ID format. The first persisted run is numbered `1`; the schema supports later retry runs for the same mission, but retry creation is not wired yet.
+Mission and run IDs are text keys (up to 160 characters) to preserve the existing pure mission contract's ID format. The first persisted run is numbered `1`. Mission creation is idempotent for a retry with the same owner, mission ID, initial run ID, and matching mission details: it returns the original mission/run/queued event without overwriting later progress. Reusing an ID with different details or a different initial run ID is rejected. Creating later retry runs is not wired yet.
 
 ## Security boundary
 

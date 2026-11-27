@@ -89,6 +89,20 @@ test("createMission persists only a queued owner-matched mission with one initia
   assert.equal(client.rpcCalls[0].args.p_record.ownerId, OWNER_ID);
 });
 
+test("createMission retries keep the same stable IDs and return the repository's existing RPC result", async () => {
+  const client = makeQueryClient();
+  const repository = createMissionRepository({ client, ownerId: OWNER_ID });
+  const record = makeMission();
+  const first = await repository.createMission(record);
+  const retry = await repository.createMission(record);
+  assert.deepEqual(retry, first);
+  assert.equal(client.rpcCalls.length, 2);
+  assert.deepEqual(client.rpcCalls.map(call => [call.args.p_record.missionId, call.args.p_record.runId]), [
+    ["mission-0001", "run-0001"],
+    ["mission-0001", "run-0001"]
+  ]);
+});
+
 test("createMission rejects owner mismatches before reaching the database", async () => {
   const client = makeQueryClient();
   const repository = createMissionRepository({ client, ownerId: OWNER_ID });
@@ -168,4 +182,14 @@ test("migration creates owner-scoped mission/run tables and an append-only event
   assert.match(sql, /actor_id, summary, occurred_at/i);
   assert.doesNotMatch(sql, /function public\.pruden_append_mission_event/i);
   assert.match(sql, /revoke all on table public\.pruden_missions, public\.pruden_mission_runs, public\.pruden_mission_events/i);
+});
+
+test("mission creation is idempotent for the same owner, mission ID, and initial run without overwriting progressed records", async () => {
+  const sql = await readFile(new URL("../supabase/migrations/20261123190000_ptms_mission_execution_ledger.sql", import.meta.url), "utf8");
+  assert.match(sql, /on conflict \(mission_id\) do nothing/i);
+  assert.match(sql, /mission id is already in use/i);
+  assert.match(sql, /mission id already exists with different mission details/i);
+  assert.match(sql, /mission already exists with a different initial run id/i);
+  assert.match(sql, /sequence = 1\s+and event_type = 'mission_queued'/i);
+  assert.doesNotMatch(sql, /on conflict \(mission_id\) do update/i);
 });
