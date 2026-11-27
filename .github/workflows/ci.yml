@@ -31,3 +31,5 @@ jobs:
         run: node --test server/research-web.test.mjs
       - name: Backend infrastructure smoke test
         run: node scripts/smoke-test.mjs
+      - name: Mission ledger repository and migration contract tests
+        run: node --test server/mission-repository.test.mjs
